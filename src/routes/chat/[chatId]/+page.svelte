@@ -35,13 +35,10 @@
 	// Message polling state
 	let pollingInterval: NodeJS.Timeout | null = null;
 
-	// Use data from the page loader
 	const chatId = data.chatId;
 	const currentChat = data.chat;
 	const chatName = currentChat.name;
 	const isOwner = data.isOwner;
-
-	// Fetch messages when page loads and user is authenticated
 	$effect(() => {
 		if ($authStore.token && chatId) {
 			loadMessages();
