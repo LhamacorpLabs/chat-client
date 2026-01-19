@@ -12,6 +12,7 @@
 		shouldUseMemberColors,
 		loadMemberColors
 	} from '$lib/stores/memberColors';
+	import { linkify } from '$lib/utils/linkify';
 
 	interface PageData {
 		chatId: string;
@@ -43,6 +44,10 @@
 	// Delete state
 	let showDeleteModal = $state(false);
 	let showActionsMenu = $state(false);
+
+	// Link confirmation state
+	let showLinkConfirmation = $state(false);
+	let pendingUrl = $state<string | null>(null);
 
 	// Message polling state
 	let pollingInterval: NodeJS.Timeout | null = null;
@@ -487,6 +492,33 @@
 		const member = currentChat.members.find(member => member.id === userId);
 		return member ? member.name : `User ${userId}`;
 	}
+
+	// Link confirmation functions
+	function handleLinkConfirmation(url: string) {
+		pendingUrl = url;
+		showLinkConfirmation = true;
+	}
+
+	function confirmAndOpenLink() {
+		if (pendingUrl) {
+			window.open(pendingUrl, '_blank', 'noopener,noreferrer');
+		}
+		closeLinkConfirmation();
+	}
+
+	function closeLinkConfirmation() {
+		showLinkConfirmation = false;
+		pendingUrl = null;
+	}
+
+	// Set up global function for link clicks
+	$effect(() => {
+		(window as any).showLinkConfirmation = handleLinkConfirmation;
+
+		return () => {
+			delete (window as any).showLinkConfirmation;
+		};
+	});
 </script>
 
 {#if $authStore.user}
@@ -606,7 +638,7 @@
 								</span>
 							</div>
 							<div class="message-content">
-								{message.message}
+								{@html linkify(message.message)}
 							</div>
 						</div>
 					{/each}
@@ -701,6 +733,39 @@
 			<div class="error-toast alert alert-error">
 				{inviteError}
 				<button onclick={() => inviteError = null} class="close-btn">&times;</button>
+			</div>
+		{/if}
+
+		<!-- Link Confirmation Modal -->
+		{#if showLinkConfirmation && pendingUrl}
+			<div class="modal-overlay" onclick={closeLinkConfirmation}>
+				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+					<div class="modal-header">
+						<h3>Open Link</h3>
+						<button onclick={closeLinkConfirmation} class="close-btn">&times;</button>
+					</div>
+					<div class="modal-body">
+						<p>Do you want to open this link in a new tab?</p>
+						<div class="link-display">
+							<span class="link-url">{pendingUrl}</span>
+						</div>
+						<p class="link-warning">Only open links from trusted sources.</p>
+						<div class="modal-actions">
+							<button
+								onclick={closeLinkConfirmation}
+								class="btn btn-ghost"
+							>
+								Cancel
+							</button>
+							<button
+								onclick={confirmAndOpenLink}
+								class="btn btn-primary"
+							>
+								Open Link
+							</button>
+						</div>
+					</div>
+				</div>
 			</div>
 		{/if}
 
@@ -944,6 +1009,30 @@
 
 	.own-message .message-content {
 		color: white;
+	}
+
+	/* Link styling in messages */
+	.message-content :global(.message-link) {
+		color: var(--accent);
+		text-decoration: underline;
+		word-break: break-all;
+		transition: all 0.2s ease;
+	}
+
+	.message-content :global(.message-link):hover {
+		color: var(--accent-dark, var(--accent));
+		text-decoration: none;
+	}
+
+	/* Link styling in own messages (white background) */
+	.own-message .message-content :global(.message-link) {
+		color: rgba(255, 255, 255, 0.9);
+		text-decoration: underline;
+	}
+
+	.own-message .message-content :global(.message-link):hover {
+		color: white;
+		text-decoration: none;
 	}
 
 	/* Message Input */
@@ -1256,6 +1345,32 @@
 
 	.modal-actions button {
 		min-width: 100px;
+	}
+
+	/* Link confirmation modal styles */
+	.link-display {
+		margin: 1rem 0;
+		padding: 1rem;
+		background: var(--bg-secondary);
+		border-radius: 8px;
+		border: 1px solid var(--border-light);
+		word-break: break-all;
+	}
+
+	.link-url {
+		font-family: 'Monaco', 'Menlo', monospace;
+		font-size: 0.9rem;
+		color: var(--accent);
+		display: block;
+		text-align: center;
+	}
+
+	.link-warning {
+		font-size: 0.85rem;
+		color: var(--text-muted);
+		margin: 0;
+		text-align: center;
+		font-style: italic;
 	}
 
 	/* Error Toast */
