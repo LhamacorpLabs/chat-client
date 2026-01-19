@@ -596,7 +596,7 @@
 									{getUsernameFromId(message.userId)}
 								</span>
 								<span class="message-time">
-									{new Date(message.createdAt).toLocaleString()}
+									{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 								</span>
 							</div>
 							<div class="message-content">
@@ -841,7 +841,7 @@
 	.messages-container {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 0.5rem;
 		padding: 1rem 0;
 	}
 
@@ -868,9 +868,9 @@
 
 	.message-item {
 		border-radius: 12px;
-		padding: 1rem;
+		padding: 0.75rem;
 		max-width: 70%;
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.25rem;
 		transition: all 0.2s ease;
 		animation: fadeInMessage 0.3s ease-out;
 	}
@@ -906,19 +906,19 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 0.5rem;
-		gap: 1rem;
+		margin-bottom: 0.25rem;
+		gap: 0.5rem;
 	}
 
 	.message-user {
 		font-weight: 600;
 		color: var(--current-member-color, var(--accent));
-		font-size: 0.9rem;
+		font-size: 0.85rem;
 	}
 
 	.message-time {
 		color: var(--text-muted);
-		font-size: 0.8rem;
+		font-size: 0.75rem;
 	}
 
 	.message-content {
@@ -1025,9 +1025,9 @@
 		}
 
 		.message-header {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: 0.25rem;
+			justify-content: space-between;
+			align-items: center;
+			gap: 0.5rem;
 		}
 
 	}
@@ -1057,6 +1057,14 @@
 
 		.other-message {
 			margin-right: 5%;
+		}
+
+		.message-header {
+			gap: 0.25rem;
+		}
+
+		.message-time {
+			font-size: 0.7rem;
 		}
 	}
 
