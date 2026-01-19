@@ -4,6 +4,14 @@
 	import { chatStore, deleteChat } from '$lib/stores/chat';
 	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
+	import {
+		memberColorsStore,
+		assignColorsForChat,
+		addMemberColor,
+		getMemberColor,
+		shouldUseMemberColors,
+		loadMemberColors
+	} from '$lib/stores/memberColors';
 
 	interface PageData {
 		chatId: string;
@@ -54,12 +62,27 @@
 	let showJumpToNewest = $state(false);
 	let isUserScrolling = $state(false);
 
+	// Member colors state
+	let shouldUseColors = $state(false);
+
 	const chatId = data.chatId;
 	const currentChat = data.chat;
 	const chatName = currentChat.name;
 	const isOwner = data.isOwner;
 	$effect(() => {
 		if ($authStore.token && chatId) {
+			// Load member colors from localStorage on first load
+			loadMemberColors();
+
+			// Determine if we should use colors for this chat
+			shouldUseColors = shouldUseMemberColors(currentChat.members);
+
+			// Assign colors to members (if applicable)
+			if (shouldUseColors) {
+				assignColorsForChat(chatId, currentChat.members);
+			}
+
+			// Load messages
 			loadMessages();
 		}
 	});
@@ -294,6 +317,19 @@
 						hasUnreadMessages = true;
 						playNotificationSound();
 					}
+				}
+
+				// Check for new members and assign colors if using colors
+				if (shouldUseColors && response.messages.length > 0) {
+					// Get unique user IDs from new messages
+					const newUserIds = [...new Set(response.messages.map(msg => msg.userId))];
+
+					// Assign colors to any new members
+					newUserIds.forEach(userId => {
+						if (userId !== $authStore.user?.id) { // Skip own messages
+							addMemberColor(chatId, userId);
+						}
+					});
 				}
 
 				// Backend returns new messages in DESC order, reverse them for chronological order
@@ -551,9 +587,12 @@
 
 					{#each messages as message (message.id)}
 						{@const isOwnMessage = message.userId === $authStore.user?.id}
-						<div class="message-item {isOwnMessage ? 'own-message' : 'other-message'}">
+						{@const memberColor = shouldUseColors && !isOwnMessage ? getMemberColor(chatId, message.userId) : null}
+						<div class="message-item {isOwnMessage ? 'own-message' : 'other-message'}"
+						     style={memberColor ? `--current-member-color: ${memberColor}` : ''}>
 							<div class="message-header">
-								<span class="message-user">
+								<span class="message-user"
+								      style={memberColor ? `color: ${memberColor}` : ''}>
 									{getUsernameFromId(message.userId)}
 								</span>
 								<span class="message-time">
@@ -858,6 +897,7 @@
 	.other-message {
 		background: var(--bg-secondary);
 		border: 1px solid var(--border-light);
+		border-left: 3px solid var(--current-member-color, var(--border-color));
 		align-self: flex-start;
 		border-bottom-left-radius: 4px;
 	}
@@ -872,7 +912,7 @@
 
 	.message-user {
 		font-weight: 600;
-		color: var(--accent);
+		color: var(--current-member-color, var(--accent));
 		font-size: 0.9rem;
 	}
 
