@@ -30,6 +30,13 @@ export interface Message {
 
 export interface MessagesResponse extends Array<Message> {}
 
+export interface PagedMessageResponse {
+	messages: Message[];
+	nextCursor: string | null;      // Use this cursor to get older messages (before)
+	prevCursor: string | null;      // Use this cursor to get newer messages (after)
+	hasMore: boolean;               // True if there are more messages to load
+}
+
 export interface SendMessageRequest {
 	message: string;
 }

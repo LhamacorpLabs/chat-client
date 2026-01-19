@@ -1,4 +1,4 @@
-import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest } from '../types/chat';
+import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest } from '../types/chat';
 import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 
 const CHAT_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/chats`;
@@ -36,7 +36,7 @@ export async function createChat(token: string, chatData: CreateChatRequest): Pr
 }
 
 export async function fetchMessages(token: string, chatId: string): Promise<MessagesResponse> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages`, {
+	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/legacy`, {
 		method: 'GET',
 		headers: {
 			'Authorization': `Bearer ${token}`
@@ -45,6 +45,46 @@ export async function fetchMessages(token: string, chatId: string): Promise<Mess
 
 	if (!response.ok) {
 		throw new Error(`Failed to fetch messages: ${response.status}`);
+	}
+
+	return response.json();
+}
+
+/**
+ * Fetch paginated messages with cursor-based pagination
+ * @param token Bearer token for authentication
+ * @param chatId Chat ID to fetch messages for
+ * @param limit Number of messages to fetch (default: 50, max: 100)
+ * @param before Cursor to get messages before (older messages)
+ * @param after Cursor to get messages after (newer messages)
+ */
+export async function fetchMessagesPaginated(
+	token: string,
+	chatId: string,
+	limit: number = 50,
+	before?: string,
+	after?: string
+): Promise<PagedMessageResponse> {
+	const params = new URLSearchParams();
+	params.append('limit', limit.toString());
+
+	if (before) {
+		params.append('before', before);
+	}
+
+	if (after) {
+		params.append('after', after);
+	}
+
+	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages?${params.toString()}`, {
+		method: 'GET',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch paginated messages: ${response.status}`);
 	}
 
 	return response.json();

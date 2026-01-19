@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
-	import { fetchMessages, sendMessage, createInvitation } from '$lib/api/chat';
-	import type { Message, Chat } from '$lib/types/chat';
+	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation } from '$lib/api/chat';
+	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	interface PageData {
@@ -39,6 +39,17 @@
 	let isWindowFocused = $state(true);
 	let hasUnreadMessages = $state(false);
 
+	// Pagination state
+	let nextCursor = $state<string | null>(null);
+	let prevCursor = $state<string | null>(null);
+	let hasMoreMessages = $state(false);
+	let isLoadingMore = $state(false);
+
+	// Scroll behavior state
+	let shouldAutoScroll = $state(true);
+	let showJumpToNewest = $state(false);
+	let isUserScrolling = $state(false);
+
 	const chatId = data.chatId;
 	const currentChat = data.chat;
 	const chatName = currentChat.name;
@@ -63,10 +74,55 @@
 		}
 	}
 
+	// Smart auto-scroll: only scroll to bottom when appropriate
 	$effect(() => {
-		if (messages.length > 0) {
+		if (messages.length > 0 && shouldAutoScroll && !isUserScrolling) {
 			scrollToBottom();
 		}
+	});
+
+	// Infinite scroll detection and jump button visibility
+	$effect(() => {
+		if (!chatContent) return;
+
+		function handleScroll() {
+			if (!chatContent) return;
+
+			const scrollTop = chatContent.scrollTop;
+			const scrollHeight = chatContent.scrollHeight;
+			const clientHeight = chatContent.clientHeight;
+
+			// Check if user is near the bottom (within 200px)
+			const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200;
+
+			// Update states based on scroll position
+			showJumpToNewest = !isNearBottom;
+			isUserScrolling = true;
+			shouldAutoScroll = isNearBottom;
+
+			// Load more messages if scrolled near top and has more messages
+			const scrollThreshold = 100;
+			if (scrollTop <= scrollThreshold && !isLoadingMore && hasMoreMessages) {
+				loadMoreMessages();
+			}
+
+			// Clear user scrolling flag after a delay
+			clearTimeout(userScrollTimeout);
+			userScrollTimeout = setTimeout(() => {
+				isUserScrolling = false;
+			}, 150);
+		}
+
+		let userScrollTimeout: NodeJS.Timeout;
+
+		chatContent.addEventListener('scroll', handleScroll);
+
+		return () => {
+			if (chatContent) {
+				chatContent.removeEventListener('scroll', handleScroll);
+				clearTimeout(userScrollTimeout);
+			}
+		};
 	});
 
 	function playNotificationSound() {
@@ -153,8 +209,13 @@
 		error = null;
 
 		try {
-			const fetchedMessages = await fetchMessages($authStore.token, chatId);
-			messages = fetchedMessages;
+			const response: PagedMessageResponse = await fetchMessagesPaginated($authStore.token, chatId, 50);
+			// Backend returns messages in DESC order (newest first), but we need chronological order (oldest first)
+			messages = response.messages.reverse();
+			// Backend cursors are correctly positioned: nextCursor=oldest, prevCursor=newest
+			nextCursor = response.nextCursor; // Points to oldest message for loading older messages
+			prevCursor = response.prevCursor; // Points to newest message for polling newer messages
+			hasMoreMessages = response.hasMore;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load messages';
 		} finally {
@@ -162,24 +223,68 @@
 		}
 	}
 
+	async function loadMoreMessages() {
+		if (!$authStore.token || !nextCursor || isLoadingMore) return;
+
+		isLoadingMore = true;
+		shouldAutoScroll = false; // Prevent auto-scroll when loading older messages
+
+		try {
+			const response: PagedMessageResponse = await fetchMessagesPaginated(
+				$authStore.token,
+				chatId,
+				50,
+				nextCursor // Load older messages
+			);
+
+			// Backend returns older messages in DESC order, reverse them for chronological order
+			const olderMessages = response.messages.reverse();
+
+			// Keep scroll position before updating messages
+			const prevScrollHeight = chatContent.scrollHeight;
+			const prevScrollTop = chatContent.scrollTop;
+
+			// Prepend older messages to the beginning of the array
+			messages = [...olderMessages, ...messages];
+			nextCursor = response.nextCursor; // Update cursor for even older messages
+			hasMoreMessages = response.hasMore;
+
+			// After DOM update, maintain scroll position
+			setTimeout(() => {
+				const newScrollHeight = chatContent.scrollHeight;
+				const scrollDifference = newScrollHeight - prevScrollHeight;
+				chatContent.scrollTop = prevScrollTop + scrollDifference;
+			}, 0);
+
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load more messages';
+		} finally {
+			isLoadingMore = false;
+		}
+	}
+
 	async function pollForMessages() {
 		if (!$authStore.token || isLoading) return;
 
 		try {
-			const fetchedMessages = await fetchMessages($authStore.token, chatId);
+			// Check for new messages using the current prevCursor (newest message)
+			const response: PagedMessageResponse = await fetchMessagesPaginated(
+				$authStore.token,
+				chatId,
+				50, // Get up to 50 new messages
+				undefined, // no 'before' cursor
+				prevCursor // get messages after the current newest message
+			);
+
 			const currentMessageCount = messages.length;
 
-			// Only update if we have new messages (compare by length and last message id)
-			if (fetchedMessages.length > messages.length ||
-				(fetchedMessages.length > 0 && messages.length > 0 &&
-				 fetchedMessages[fetchedMessages.length - 1].id !== messages[messages.length - 1]?.id)) {
-
+			// Only update if we have new messages
+			if (response.messages.length > 0) {
 				// Check if this is a new message (not initial load) and window is not focused
-				const hasNewMessages = fetchedMessages.length > currentMessageCount && currentMessageCount > 0;
+				const hasNewMessages = currentMessageCount > 0;
 				if (hasNewMessages && !isWindowFocused) {
 					// Check if the new messages are from other users (not current user)
-					const newMessages = fetchedMessages.slice(currentMessageCount);
-					const hasOtherUserMessages = newMessages.some(msg => msg.userId !== $authStore.user?.id);
+					const hasOtherUserMessages = response.messages.some(msg => msg.userId !== $authStore.user?.id);
 
 					if (hasOtherUserMessages) {
 						hasUnreadMessages = true;
@@ -187,7 +292,11 @@
 					}
 				}
 
-				messages = fetchedMessages;
+				// Backend returns new messages in DESC order, reverse them for chronological order
+				const newMessages = response.messages.reverse();
+				// Append new messages to the end of the array
+				messages = [...messages, ...newMessages];
+				prevCursor = response.prevCursor; // Update cursor to newest message
 			}
 		} catch (err) {
 			// Silently handle polling errors to avoid UI disruption
@@ -228,6 +337,11 @@
 			const sentMessage = await sendMessage($authStore.token, chatId, { message: messageText });
 			// Add the new message to the messages array
 			messages = [...messages, sentMessage];
+			// Update the cursor so polling can detect newer messages
+			prevCursor = sentMessage.id;
+			// Ensure we scroll to bottom after sending
+			shouldAutoScroll = true;
+			setTimeout(scrollToBottom, 0);
 		} catch (err) {
 			sendError = err instanceof Error ? err.message : 'Failed to send message';
 			// Restore the message text if sending failed
@@ -287,6 +401,12 @@
 		}
 	}
 
+	function jumpToNewest() {
+		shouldAutoScroll = true;
+		showJumpToNewest = false;
+		scrollToBottom();
+	}
+
 	function getUsernameFromId(userId: string): string {
 		if (userId === $authStore.user?.id) {
 			return 'You';
@@ -330,6 +450,16 @@
 
 		<!-- Main Chat Area -->
 		<main class="chat-content" bind:this={chatContent}>
+			<!-- Jump to newest button -->
+			{#if showJumpToNewest}
+				<button
+					onclick={jumpToNewest}
+					class="jump-to-newest-btn"
+					title="Jump to newest messages"
+				>
+					↓ New messages
+				</button>
+			{/if}
 			{#if error}
 				<div class="error-container">
 					<div class="alert alert-error">
@@ -352,6 +482,14 @@
 				</div>
 			{:else}
 				<div class="messages-container">
+					<!-- Auto-loading indicator -->
+					{#if hasMoreMessages && isLoadingMore}
+						<div class="loading-more-container">
+							<div class="loading-spinner small"></div>
+							<p>Loading older messages...</p>
+						</div>
+					{/if}
+
 					{#each messages as message (message.id)}
 						{@const isOwnMessage = message.userId === $authStore.user?.id}
 						<div class="message-item {isOwnMessage ? 'own-message' : 'other-message'}">
@@ -572,6 +710,27 @@
 		flex-direction: column;
 		gap: 1rem;
 		padding: 1rem 0;
+	}
+
+	/* Auto-loading indicator */
+	.loading-more-container {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+		padding: 0.5rem;
+		color: var(--text-secondary);
+		font-size: 0.9rem;
+	}
+
+	.loading-spinner.small {
+		width: 16px;
+		height: 16px;
+		border: 2px solid var(--border-light);
+		border-top: 2px solid var(--accent);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
 	}
 
 	.message-item {
@@ -891,5 +1050,64 @@
 
 	.error-toast .close-btn {
 		margin-left: auto;
+	}
+
+	/* Jump to Newest Button */
+	.jump-to-newest-btn {
+		position: absolute;
+		bottom: 2rem;
+		right: 2rem;
+		background: var(--accent);
+		color: white;
+		border: none;
+		border-radius: 25px;
+		padding: 0.75rem 1.25rem;
+		font-size: 0.9rem;
+		font-weight: 600;
+		cursor: pointer;
+		z-index: 100;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+		transition: all 0.2s ease;
+		animation: slideInUp 0.3s ease-out;
+	}
+
+	.jump-to-newest-btn:hover {
+		background: var(--accent-dark, var(--accent));
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+	}
+
+	.jump-to-newest-btn:active {
+		transform: translateY(0);
+	}
+
+	@keyframes slideInUp {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	/* Mobile responsiveness for jump button */
+	@media (max-width: 768px) {
+		.jump-to-newest-btn {
+			bottom: 1.5rem;
+			right: 1.5rem;
+			padding: 0.6rem 1rem;
+			font-size: 0.8rem;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.jump-to-newest-btn {
+			bottom: 1rem;
+			right: 1rem;
+			padding: 0.5rem 0.9rem;
+			font-size: 0.75rem;
+		}
 	}
 </style>
