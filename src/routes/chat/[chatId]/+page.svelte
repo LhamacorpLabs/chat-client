@@ -1068,6 +1068,16 @@
 		}
 	}
 
+	/* Very small screens - truncate group name */
+	@media (max-width: 428px) {
+		.header-content h1 {
+			max-width: 6ch;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+	}
+
 	/* Invitation Button */
 	.invite-btn {
 		font-size: 0.9rem;
