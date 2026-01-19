@@ -37,6 +37,7 @@
 	let messageInputElement: HTMLInputElement;
 	let chatContent: HTMLElement;
 	let isWindowFocused = $state(true);
+	let hasUnreadMessages = $state(false);
 
 	const chatId = data.chatId;
 	const currentChat = data.chat;
@@ -89,9 +90,24 @@
 		}
 	}
 
+	function updateDocumentTitle() {
+		const baseTitle = `#${chatName} - Lhama Chat`;
+		document.title = hasUnreadMessages ? `(*) ${baseTitle}` : baseTitle;
+	}
+
+	$effect(() => {
+		updateDocumentTitle();
+
+		// Cleanup: restore original title when component unmounts
+		return () => {
+			document.title = 'Lhama Chat';
+		};
+	});
+
 	$effect(() => {
 		function handleFocus() {
 			isWindowFocused = true;
+			hasUnreadMessages = false;
 		}
 
 		function handleBlur() {
@@ -100,6 +116,9 @@
 
 		function handleVisibilityChange() {
 			isWindowFocused = !document.hidden;
+			if (!document.hidden) {
+				hasUnreadMessages = false;
+			}
 		}
 
 		window.addEventListener('focus', handleFocus);
@@ -163,6 +182,7 @@
 					const hasOtherUserMessages = newMessages.some(msg => msg.userId !== $authStore.user?.id);
 
 					if (hasOtherUserMessages) {
+						hasUnreadMessages = true;
 						playNotificationSound();
 					}
 				}
