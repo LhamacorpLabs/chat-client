@@ -36,6 +36,7 @@
 	let pollingInterval: NodeJS.Timeout | null = null;
 	let messageInputElement: HTMLInputElement;
 	let chatContent: HTMLElement;
+	let isWindowFocused = $state(true);
 
 	const chatId = data.chatId;
 	const currentChat = data.chat;
@@ -65,6 +66,51 @@
 		if (messages.length > 0) {
 			scrollToBottom();
 		}
+	});
+
+	function playNotificationSound() {
+		try {
+			// Create a simple notification beep using Web Audio API
+			const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+			const oscillator = audioContext.createOscillator();
+			const gainNode = audioContext.createGain();
+
+			oscillator.connect(gainNode);
+			gainNode.connect(audioContext.destination);
+
+			oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+			gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+			gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+
+			oscillator.start(audioContext.currentTime);
+			oscillator.stop(audioContext.currentTime + 0.1);
+		} catch (error) {
+			console.warn('Could not play notification sound:', error);
+		}
+	}
+
+	$effect(() => {
+		function handleFocus() {
+			isWindowFocused = true;
+		}
+
+		function handleBlur() {
+			isWindowFocused = false;
+		}
+
+		function handleVisibilityChange() {
+			isWindowFocused = !document.hidden;
+		}
+
+		window.addEventListener('focus', handleFocus);
+		window.addEventListener('blur', handleBlur);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			window.removeEventListener('focus', handleFocus);
+			window.removeEventListener('blur', handleBlur);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
 	});
 
 	// Start/stop message polling based on auth and loading state
@@ -102,11 +148,25 @@
 
 		try {
 			const fetchedMessages = await fetchMessages($authStore.token, chatId);
+			const currentMessageCount = messages.length;
 
 			// Only update if we have new messages (compare by length and last message id)
 			if (fetchedMessages.length > messages.length ||
 				(fetchedMessages.length > 0 && messages.length > 0 &&
 				 fetchedMessages[fetchedMessages.length - 1].id !== messages[messages.length - 1]?.id)) {
+
+				// Check if this is a new message (not initial load) and window is not focused
+				const hasNewMessages = fetchedMessages.length > currentMessageCount && currentMessageCount > 0;
+				if (hasNewMessages && !isWindowFocused) {
+					// Check if the new messages are from other users (not current user)
+					const newMessages = fetchedMessages.slice(currentMessageCount);
+					const hasOtherUserMessages = newMessages.some(msg => msg.userId !== $authStore.user?.id);
+
+					if (hasOtherUserMessages) {
+						playNotificationSound();
+					}
+				}
+
 				messages = fetchedMessages;
 			}
 		} catch (err) {
