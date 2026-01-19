@@ -1,11 +1,12 @@
 import { writable } from 'svelte/store';
 import type { Chat, CreateChatRequest } from '../types/chat';
-import { fetchChats as apiFetchChats, createChat as apiCreateChat } from '../api/chat';
+import { fetchChats as apiFetchChats, createChat as apiCreateChat, deleteChat as apiDeleteChat } from '../api/chat';
 
 interface ChatState {
 	chats: Chat[];
 	isLoading: boolean;
 	isCreating: boolean;
+	isDeleting: boolean;
 	error: string | null;
 }
 
@@ -13,6 +14,7 @@ const initialState: ChatState = {
 	chats: [],
 	isLoading: false,
 	isCreating: false,
+	isDeleting: false,
 	error: null
 };
 
@@ -64,6 +66,30 @@ export async function createChat(token: string, chatData: CreateChatRequest) {
 			error: errorMessage
 		}));
 		return null;
+	}
+}
+
+// Delete a chat
+export async function deleteChat(token: string, chatId: string) {
+	chatStore.update(state => ({ ...state, isDeleting: true, error: null }));
+
+	try {
+		await apiDeleteChat(token, chatId);
+		chatStore.update(state => ({
+			...state,
+			chats: state.chats.filter(chat => chat.id !== chatId),
+			isDeleting: false,
+			error: null
+		}));
+		return true;
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : 'Failed to delete chat';
+		chatStore.update(state => ({
+			...state,
+			isDeleting: false,
+			error: errorMessage
+		}));
+		return false;
 	}
 }
 

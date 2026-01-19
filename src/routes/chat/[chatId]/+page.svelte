@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
+	import { chatStore, deleteChat } from '$lib/stores/chat';
 	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
-	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	interface PageData {
 		chatId: string;
@@ -31,6 +31,10 @@
 	let inviteCode = $state<string | null>(null);
 	let isCreatingInvite = $state(false);
 	let inviteError = $state<string | null>(null);
+
+	// Delete state
+	let showDeleteModal = $state(false);
+	let showActionsMenu = $state(false);
 
 	// Message polling state
 	let pollingInterval: NodeJS.Timeout | null = null;
@@ -401,10 +405,42 @@
 		}
 	}
 
+	// Close actions menu when clicking outside
+	$effect(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (showActionsMenu) {
+				const target = event.target as Element;
+				if (!target.closest('.actions-menu')) {
+					showActionsMenu = false;
+				}
+			}
+		}
+
+		if (showActionsMenu) {
+			document.addEventListener('click', handleClickOutside);
+		}
+
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+		};
+	});
+
 	function jumpToNewest() {
 		shouldAutoScroll = true;
 		showJumpToNewest = false;
 		scrollToBottom();
+	}
+
+	async function handleDeleteChat() {
+		if (!$authStore.token) return;
+
+		const success = await deleteChat($authStore.token, chatId);
+
+		if (success) {
+			showDeleteModal = false;
+			goto('/');  // Navigate back to chat list
+		}
+		// Error handling is done in the store, error state will show via $chatStore.error
 	}
 
 	function getUsernameFromId(userId: string): string {
@@ -442,8 +478,31 @@
 							{isCreatingInvite ? 'Creating...' : '+ Invite'}
 						</button>
 					{/if}
-					<span class="username">@{$authStore.user.username}</span>
-					<ThemeToggle />
+					{#if isOwner}
+						<div class="actions-menu">
+							<button
+								onclick={() => showActionsMenu = !showActionsMenu}
+								class="btn btn-ghost actions-toggle"
+								disabled={$chatStore.isDeleting}
+							>
+								⋮
+							</button>
+							{#if showActionsMenu}
+								<div class="actions-dropdown">
+									<button
+										onclick={() => {
+											showDeleteModal = true;
+											showActionsMenu = false;
+										}}
+										class="dropdown-item danger"
+										disabled={$chatStore.isDeleting}
+									>
+										{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
+									</button>
+								</div>
+							{/if}
+						</div>
+					{/if}
 				</div>
 			</div>
 		</header>
@@ -560,11 +619,51 @@
 			</div>
 		{/if}
 
+		<!-- Delete Confirmation Modal -->
+		{#if showDeleteModal}
+			<div class="modal-overlay" onclick={() => showDeleteModal = false}>
+				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+					<div class="modal-header">
+						<h3>Delete Chat</h3>
+						<button onclick={() => showDeleteModal = false} class="close-btn">&times;</button>
+					</div>
+					<div class="modal-body">
+						<p><strong>Are you sure you want to delete this chat?</strong></p>
+						<p>This action cannot be undone. The chat "#{chatName}" and all its messages will be permanently deleted.</p>
+						<div class="modal-actions">
+							<button
+								onclick={() => showDeleteModal = false}
+								class="btn btn-ghost"
+								disabled={$chatStore.isDeleting}
+							>
+								Cancel
+							</button>
+							<button
+								onclick={handleDeleteChat}
+								class="btn btn-danger"
+								disabled={$chatStore.isDeleting}
+							>
+								{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Invitation Error -->
 		{#if inviteError}
 			<div class="error-toast alert alert-error">
 				{inviteError}
 				<button onclick={() => inviteError = null} class="close-btn">&times;</button>
+			</div>
+		{/if}
+
+		<!-- Chat Error (for delete operations) -->
+		{#if $chatStore.error}
+			<div class="error-toast alert alert-error">
+				{$chatStore.error}
+				<button onclick={() => chatStore.update(state => ({ ...state, error: null }))} class="close-btn">&times;</button>
 			</div>
 		{/if}
 	</div>
@@ -636,11 +735,6 @@
 		gap: 1rem;
 	}
 
-	.username {
-		font-weight: 600;
-		color: var(--text-secondary);
-		font-size: 0.9rem;
-	}
 
 	/* Chat Content */
 	.chat-content {
@@ -896,9 +990,6 @@
 			gap: 0.25rem;
 		}
 
-		.username {
-			display: none;
-		}
 	}
 
 	@media (max-width: 480px) {
@@ -934,6 +1025,63 @@
 		font-size: 0.9rem;
 		padding: 0.5rem 1rem;
 	}
+
+	/* Actions Menu */
+	.actions-menu {
+		position: relative;
+	}
+
+	.actions-toggle {
+		font-size: 1.2rem;
+		padding: 0.5rem 0.75rem;
+		font-weight: bold;
+		line-height: 1;
+	}
+
+	.actions-dropdown {
+		position: absolute;
+		top: 100%;
+		right: 0;
+		background: var(--bg-primary);
+		border: 1px solid var(--border-light);
+		border-radius: 8px;
+		box-shadow: 0 4px 12px var(--shadow);
+		z-index: 1000;
+		min-width: 120px;
+		margin-top: 0.5rem;
+	}
+
+	.dropdown-item {
+		display: block;
+		width: 100%;
+		padding: 0.75rem 1rem;
+		background: none;
+		border: none;
+		text-align: left;
+		color: var(--text-primary);
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+		font-size: 0.9rem;
+	}
+
+	.dropdown-item:hover {
+		background: var(--bg-secondary);
+	}
+
+	.dropdown-item.danger {
+		color: var(--danger);
+	}
+
+	.dropdown-item.danger:hover {
+		background: var(--danger);
+		color: white;
+	}
+
+	.dropdown-item:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
 
 	/* Modal Styles */
 	.modal-overlay {
@@ -1033,6 +1181,17 @@
 		font-size: 0.85rem;
 		color: var(--text-muted);
 		margin: 0;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 1rem;
+		justify-content: flex-end;
+		margin-top: 1.5rem;
+	}
+
+	.modal-actions button {
+		min-width: 100px;
 	}
 
 	/* Error Toast */

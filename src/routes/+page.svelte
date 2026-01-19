@@ -6,10 +6,12 @@
 	import { goto } from '$app/navigation';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
-	let showCreateForm = $state(false);
-	let showJoinForm = $state(false);
+	let showCreateModal = $state(false);
+	let showJoinModal = $state(false);
+	let showActionsMenu = $state(false);
 	let newChatName = $state('');
 	let invitationCode = $state('');
+	let showUserMenu = $state(false);
 	let isJoining = $state(false);
 	let joinError = $state<string | null>(null);
 
@@ -34,18 +36,47 @@
 		const success = await createChat($authStore.token, { name: newChatName.trim() });
 		if (success) {
 			newChatName = '';
-			showCreateForm = false;
+			showCreateModal = false;
 		}
 	}
 
-	function handleCancelCreate() {
+	function openCreateModal() {
+		showCreateModal = true;
+		showActionsMenu = false;
 		newChatName = '';
-		showCreateForm = false;
+	}
+
+	function closeCreateModal() {
+		showCreateModal = false;
+		newChatName = '';
 	}
 
 	function openChat(chatId: string) {
 		goto(`/chat/${chatId}`);
 	}
+
+	// Close menus when clicking outside
+	$effect(() => {
+		function handleClickOutside(event: MouseEvent) {
+			const target = event.target as Element;
+
+			if (showUserMenu && !target.closest('.user-menu')) {
+				showUserMenu = false;
+			}
+
+			if (showActionsMenu && !target.closest('.actions-menu')) {
+				showActionsMenu = false;
+			}
+		}
+
+		if (showUserMenu || showActionsMenu) {
+			document.addEventListener('click', handleClickOutside);
+		}
+
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+		};
+	});
 
 	async function handleJoinChat() {
 		if (!$authStore.token || !invitationCode.trim()) return;
@@ -55,10 +86,9 @@
 
 		try {
 			await redeemInvitation($authStore.token, { code: invitationCode.trim() });
-			// Success - refresh chats to include the new joined chat
 			await fetchChats($authStore.token);
 			invitationCode = '';
-			showJoinForm = false;
+			showJoinModal = false;
 		} catch (err) {
 			joinError = err instanceof Error ? err.message : 'Failed to join chat';
 		} finally {
@@ -66,9 +96,16 @@
 		}
 	}
 
-	function handleCancelJoin() {
+	function openJoinModal() {
+		showJoinModal = true;
+		showActionsMenu = false;
 		invitationCode = '';
-		showJoinForm = false;
+		joinError = null;
+	}
+
+	function closeJoinModal() {
+		showJoinModal = false;
+		invitationCode = '';
 		joinError = null;
 	}
 </script>
@@ -84,9 +121,57 @@
 				</div>
 
 				<div class="header-actions">
-					<span class="username">@{$authStore.user.username}</span>
-					<ThemeToggle />
-					<button onclick={logout} class="btn btn-danger">Logout</button>
+					<div class="actions-menu">
+						<button
+							onclick={() => showActionsMenu = !showActionsMenu}
+							class="btn btn-ghost add-btn"
+							title="Create or join a chat"
+						>+</button>
+						{#if showActionsMenu}
+							<div class="actions-dropdown">
+								<button
+									onclick={openCreateModal}
+									class="dropdown-item"
+								>
+									<span>Create</span>
+								</button>
+								<button
+									onclick={openJoinModal}
+									class="dropdown-item"
+								>
+									<span>Join</span>
+								</button>
+							</div>
+						{/if}
+					</div>
+					<div class="user-menu">
+						<button
+							onclick={() => showUserMenu = !showUserMenu}
+							class="btn btn-ghost user-toggle"
+						>
+							⋮
+						</button>
+						{#if showUserMenu}
+							<div class="user-dropdown">
+								<div class="dropdown-item user-info">
+									<span>Logged as @{$authStore.user.username}</span>
+								</div>
+								<div class="dropdown-item theme-item" onclick={() => showUserMenu = false}>
+									<span>Theme</span>
+									<ThemeToggle />
+								</div>
+								<button
+									onclick={() => {
+										logout();
+										showUserMenu = false;
+									}}
+									class="dropdown-item logout-item"
+								>
+									<span>Logout</span>
+								</button>
+							</div>
+						{/if}
+					</div>
 				</div>
 			</div>
 		</header>
@@ -96,90 +181,9 @@
 			<div class="chats-container">
 				<div class="chats-header">
 					<h2>Your Chats</h2>
-					{#if !showCreateForm && !showJoinForm}
-						<div class="header-buttons">
-							<button onclick={() => showCreateForm = true} class="btn btn-primary">
-								+ New Chat
-							</button>
-							<button onclick={() => showJoinForm = true} class="btn btn-ghost">
-								Join Chat
-							</button>
-						</div>
-					{/if}
 				</div>
 
-				<!-- Create Chat Form -->
-				{#if showCreateForm}
-					<div class="create-chat-form card">
-						<h3>Create New Chat</h3>
-						<form onsubmit={(e) => { e.preventDefault(); handleCreateChat(); }}>
-							<input
-								type="text"
-								bind:value={newChatName}
-								placeholder="Enter chat name..."
-								required
-								disabled={$chatStore.isCreating}
-							/>
-							<div class="form-actions">
-								<button
-									type="submit"
-									class="btn btn-primary"
-									disabled={$chatStore.isCreating || !newChatName.trim()}
-								>
-									{$chatStore.isCreating ? 'Creating...' : 'Create Chat'}
-								</button>
-								<button
-									type="button"
-									onclick={handleCancelCreate}
-									class="btn btn-ghost"
-									disabled={$chatStore.isCreating}
-								>
-									Cancel
-								</button>
-							</div>
-						</form>
-					</div>
-				{/if}
 
-				<!-- Join Chat Form -->
-				{#if showJoinForm}
-					<div class="join-chat-form card">
-						<h3>Join Chat with Invitation</h3>
-						<form onsubmit={(e) => { e.preventDefault(); handleJoinChat(); }}>
-							<input
-								type="text"
-								bind:value={invitationCode}
-								placeholder="Enter invitation code..."
-								required
-								disabled={isJoining}
-							/>
-							<div class="form-actions">
-								<button
-									type="submit"
-									class="btn btn-primary"
-									disabled={isJoining || !invitationCode.trim()}
-								>
-									{isJoining ? 'Joining...' : 'Join Chat'}
-								</button>
-								<button
-									type="button"
-									onclick={handleCancelJoin}
-									class="btn btn-ghost"
-									disabled={isJoining}
-								>
-									Cancel
-								</button>
-							</div>
-						</form>
-					</div>
-				{/if}
-
-				<!-- Join Error Message -->
-				{#if joinError}
-					<div class="alert alert-error">
-						{joinError}
-					</div>
-				{/if}
 
 				<!-- Error Message -->
 				{#if $chatStore.error}
@@ -200,7 +204,7 @@
 				{#if !$chatStore.isLoading && $chatStore.chats.length > 0}
 					<div class="chats-list">
 						{#each $chatStore.chats as chat (chat.id)}
-							<div class="chat-item card">
+							<div class="chat-item card clickable" onclick={() => openChat(chat.id)}>
 								<div class="chat-info">
 									<h3 class="chat-name">#{chat.name}</h3>
 									<p class="chat-meta">
@@ -210,10 +214,8 @@
 										{/if}
 									</p>
 								</div>
-								<div class="chat-actions">
-									<button onclick={() => openChat(chat.id)} class="btn btn-primary">
-										Open Chat
-									</button>
+								<div class="chat-chevron">
+									→
 								</div>
 							</div>
 						{/each}
@@ -225,21 +227,100 @@
 					<div class="empty-state">
 						<div class="empty-icon">💬</div>
 						<h3>No chats yet</h3>
-						<p>Create your first chat or join one with an invitation code!</p>
-						{#if !showCreateForm && !showJoinForm}
-							<div class="empty-actions">
-								<button onclick={() => showCreateForm = true} class="btn btn-primary">
-									Create Your First Chat
-								</button>
-								<button onclick={() => showJoinForm = true} class="btn btn-ghost">
-									Join with Code
-								</button>
-							</div>
-						{/if}
+						<p>Create your first chat or join one with an invitation code using the "+" button above!</p>
 					</div>
 				{/if}
 			</div>
 		</main>
+
+		<!-- Create Chat Modal -->
+		{#if showCreateModal}
+			<div class="modal-overlay" onclick={closeCreateModal}>
+				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+					<div class="modal-header">
+						<h3>Create New Chat</h3>
+						<button onclick={closeCreateModal} class="close-btn">&times;</button>
+					</div>
+					<div class="modal-body">
+						<p>Enter a name for your new chat:</p>
+						<form onsubmit={(e) => { e.preventDefault(); handleCreateChat(); }}>
+							<input
+								type="text"
+								bind:value={newChatName}
+								placeholder="Enter chat name..."
+								required
+								disabled={$chatStore.isCreating}
+								class="modal-input"
+							/>
+							<div class="modal-actions">
+								<button
+									type="button"
+									onclick={closeCreateModal}
+									class="btn btn-ghost"
+									disabled={$chatStore.isCreating}
+								>
+									Cancel
+								</button>
+								<button
+									type="submit"
+									class="btn btn-primary"
+									disabled={$chatStore.isCreating || !newChatName.trim()}
+								>
+									{$chatStore.isCreating ? 'Creating...' : 'Create Chat'}
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Join Chat Modal -->
+		{#if showJoinModal}
+			<div class="modal-overlay" onclick={closeJoinModal}>
+				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+					<div class="modal-header">
+						<h3>Join Chat</h3>
+						<button onclick={closeJoinModal} class="close-btn">&times;</button>
+					</div>
+					<div class="modal-body">
+						<p>Enter the invitation code to join a chat:</p>
+						<form onsubmit={(e) => { e.preventDefault(); handleJoinChat(); }}>
+							<input
+								type="text"
+								bind:value={invitationCode}
+								placeholder="Enter invitation code..."
+								required
+								disabled={isJoining}
+								class="modal-input"
+							/>
+							{#if joinError}
+								<div class="alert alert-error modal-error">
+									{joinError}
+								</div>
+							{/if}
+							<div class="modal-actions">
+								<button
+									type="button"
+									onclick={closeJoinModal}
+									class="btn btn-ghost"
+									disabled={isJoining}
+								>
+									Cancel
+								</button>
+								<button
+									type="submit"
+									class="btn btn-primary"
+									disabled={isJoining || !invitationCode.trim()}
+								>
+									{isJoining ? 'Joining...' : 'Join Chat'}
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 {:else}
 	<div class="loading-screen">
@@ -301,10 +382,149 @@
 		gap: 1rem;
 	}
 
-	.username {
-		font-weight: 600;
-		color: var(--text-secondary);
+	/* Actions Menu (+ Button) */
+	.actions-menu {
+		position: relative;
+	}
+
+	.add-btn {
 		font-size: 0.9rem;
+		padding: 0.5rem 1rem;
+	}
+
+	.actions-dropdown {
+		position: absolute;
+		top: 100%;
+		right: 0;
+		background: var(--bg-primary);
+		border: 1px solid var(--border-light);
+		border-radius: 8px;
+		box-shadow: 0 4px 12px var(--shadow);
+		z-index: 1000;
+		min-width: 100px;
+		margin-top: 0.5rem;
+	}
+
+	.actions-dropdown .dropdown-item {
+		display: block;
+		width: 100%;
+		padding: 0.75rem 1rem;
+		background: none;
+		border: none;
+		text-align: left;
+		color: var(--text-primary);
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+		font-size: 0.9rem;
+	}
+
+	.actions-dropdown .dropdown-item:hover {
+		background: var(--bg-secondary);
+	}
+
+	.actions-dropdown .dropdown-item:first-child {
+		border-top-left-radius: 8px;
+		border-top-right-radius: 8px;
+	}
+
+	.actions-dropdown .dropdown-item:last-child {
+		border-bottom-left-radius: 8px;
+		border-bottom-right-radius: 8px;
+	}
+
+	.actions-dropdown .dropdown-item span {
+		display: block;
+	}
+
+
+	/* User Menu */
+	.user-menu {
+		position: relative;
+	}
+
+	.user-toggle {
+		font-size: 1.2rem;
+		padding: 0.5rem 0.75rem;
+		font-weight: bold;
+		line-height: 1;
+	}
+
+	.user-dropdown {
+		position: absolute;
+		top: 100%;
+		right: 0;
+		background: var(--bg-primary);
+		border: 1px solid var(--border-light);
+		border-radius: 8px;
+		box-shadow: 0 4px 12px var(--shadow);
+		z-index: 1000;
+		min-width: 180px;
+		margin-top: 0.5rem;
+	}
+
+	.user-dropdown .dropdown-item {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+		padding: 0.75rem 1rem;
+		background: none;
+		border: none;
+		text-align: left;
+		color: var(--text-primary);
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+		font-size: 0.9rem;
+	}
+
+	.user-dropdown .dropdown-item:hover {
+		background: var(--bg-secondary);
+	}
+
+	.user-info {
+		cursor: default !important;
+		color: var(--text-secondary) !important;
+		font-size: 0.85rem !important;
+		border-bottom: 1px solid var(--border-light);
+		margin-bottom: 0;
+	}
+
+	.user-info:hover {
+		background: none !important;
+	}
+
+	.user-dropdown .dropdown-item:first-child {
+		border-top-left-radius: 8px;
+		border-top-right-radius: 8px;
+	}
+
+	.user-dropdown .dropdown-item:last-child {
+		border-bottom-left-radius: 8px;
+		border-bottom-right-radius: 8px;
+	}
+
+	.logout-item {
+		color: var(--danger);
+		border-top: 1px solid var(--border-light);
+	}
+
+	.logout-item:hover {
+		background: var(--danger);
+		color: white;
+	}
+
+	.theme-item {
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	/* Ensure theme toggle doesn't inherit hover styles from dropdown item */
+	.theme-item:hover :global(.theme-toggle) {
+		transform: none;
+	}
+
+	.theme-item :global(.theme-toggle) {
+		flex-shrink: 0;
 	}
 
 	/* Main Content */
@@ -335,53 +555,8 @@
 		font-weight: 700;
 	}
 
-	.header-buttons {
-		display: flex;
-		gap: 1rem;
-	}
 
-	/* Create Chat Form */
-	.create-chat-form {
-		margin-bottom: 2rem;
-		padding: 1.5rem;
-	}
 
-	.create-chat-form h3 {
-		margin: 0 0 1rem 0;
-		color: var(--text-primary);
-		font-size: 1.2rem;
-		font-weight: 600;
-	}
-
-	.create-chat-form input {
-		margin-bottom: 1rem;
-	}
-
-	.form-actions {
-		display: flex;
-		gap: 1rem;
-	}
-
-	.form-actions button {
-		flex: none;
-	}
-
-	/* Join Chat Form */
-	.join-chat-form {
-		margin-bottom: 2rem;
-		padding: 1.5rem;
-	}
-
-	.join-chat-form h3 {
-		margin: 0 0 1rem 0;
-		color: var(--text-primary);
-		font-size: 1.2rem;
-		font-weight: 600;
-	}
-
-	.join-chat-form input {
-		margin-bottom: 1rem;
-	}
 
 	/* Loading Container */
 	.loading-container {
@@ -423,9 +598,18 @@
 		transition: all 0.2s ease;
 	}
 
+	.chat-item.clickable {
+		cursor: pointer;
+		user-select: none;
+	}
+
 	.chat-item:hover {
 		border-color: var(--accent);
 		transform: translateY(-1px);
+	}
+
+	.chat-item.clickable:hover {
+		box-shadow: 0 4px 12px var(--shadow);
 	}
 
 	.chat-info {
@@ -445,10 +629,20 @@
 		font-size: 0.85rem;
 	}
 
-	.chat-actions {
-		flex-shrink: 0;
-		margin-left: 1rem;
+	.chat-chevron {
+		color: var(--text-muted);
+		font-size: 1.5rem;
+		font-weight: bold;
+		opacity: 0.6;
+		transition: all 0.2s ease;
 	}
+
+	.chat-item.clickable:hover .chat-chevron {
+		color: var(--accent);
+		opacity: 1;
+		transform: translateX(3px);
+	}
+
 
 	/* Empty State */
 	.empty-state {
@@ -474,11 +668,6 @@
 		font-size: 1rem;
 	}
 
-	.empty-actions {
-		display: flex;
-		gap: 1rem;
-		justify-content: center;
-	}
 
 	/* Loading Screen */
 	.loading-screen {
@@ -496,6 +685,93 @@
 		height: 40px;
 		border: 4px solid var(--border-color);
 		margin-bottom: 1rem;
+	}
+
+	/* Modal Styles */
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.modal-content {
+		background: var(--bg-primary);
+		border-radius: 12px;
+		box-shadow: 0 8px 32px var(--shadow);
+		max-width: 400px;
+		width: 90%;
+		border: 1px solid var(--border-light);
+	}
+
+	.modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1.5rem;
+		border-bottom: 1px solid var(--border-light);
+	}
+
+	.modal-header h3 {
+		margin: 0;
+		color: var(--text-primary);
+		font-size: 1.2rem;
+		font-weight: 700;
+	}
+
+	.close-btn {
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		color: var(--text-muted);
+		cursor: pointer;
+		padding: 0;
+		width: 24px;
+		height: 24px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 4px;
+	}
+
+	.close-btn:hover {
+		background: var(--bg-secondary);
+		color: var(--text-primary);
+	}
+
+	.modal-body {
+		padding: 1.5rem;
+	}
+
+	.modal-body p {
+		margin: 0 0 1rem 0;
+		color: var(--text-secondary);
+	}
+
+	.modal-input {
+		width: 100%;
+		margin-bottom: 1rem;
+	}
+
+	.modal-error {
+		margin-bottom: 1rem;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 1rem;
+		justify-content: flex-end;
+		margin-top: 1.5rem;
+	}
+
+	.modal-actions button {
+		min-width: 100px;
 	}
 
 	/* Responsive Design */
@@ -524,34 +800,14 @@
 			gap: 1rem;
 		}
 
-		.chat-actions {
-			margin-left: 0;
-			width: 100%;
-		}
 
-		.chat-actions button {
-			width: 100%;
-		}
-
-		.form-actions {
-			flex-direction: column;
-		}
-
-		.header-buttons {
-			flex-direction: column;
-			gap: 0.5rem;
-		}
-
-		.empty-actions {
-			flex-direction: column;
-		}
 
 		.header-actions {
 			gap: 0.75rem;
 		}
 
-		.username {
-			display: none;
+		.user-dropdown {
+			min-width: 160px;
 		}
 	}
 
