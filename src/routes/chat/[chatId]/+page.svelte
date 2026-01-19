@@ -34,6 +34,8 @@
 
 	// Message polling state
 	let pollingInterval: NodeJS.Timeout | null = null;
+	let messageInputElement: HTMLInputElement;
+	let chatContent: HTMLElement;
 
 	const chatId = data.chatId;
 	const currentChat = data.chat;
@@ -42,6 +44,26 @@
 	$effect(() => {
 		if ($authStore.token && chatId) {
 			loadMessages();
+		}
+	});
+
+	$effect(() => {
+		if (messageInputElement && !isSending) {
+			messageInputElement.focus();
+		}
+	});
+
+	function scrollToBottom() {
+		if (chatContent) {
+			setTimeout(() => {
+				chatContent.scrollTop = chatContent.scrollHeight;
+			}, 0);
+		}
+	}
+
+	$effect(() => {
+		if (messages.length > 0) {
+			scrollToBottom();
 		}
 	});
 
@@ -136,6 +158,10 @@
 			if ($authStore.token && chatId) {
 				startMessagePolling();
 			}
+			// Keep input focused for continuous typing
+			if (messageInputElement) {
+				messageInputElement.focus();
+			}
 		}
 	}
 
@@ -223,7 +249,7 @@
 		</header>
 
 		<!-- Main Chat Area -->
-		<main class="chat-content">
+		<main class="chat-content" bind:this={chatContent}>
 			{#if error}
 				<div class="error-container">
 					<div class="alert alert-error">
@@ -278,6 +304,7 @@
 				<input
 					type="text"
 					bind:value={newMessage}
+					bind:this={messageInputElement}
 					onkeydown={handleKeyPress}
 					placeholder="Type a message..."
 					disabled={isSending}
