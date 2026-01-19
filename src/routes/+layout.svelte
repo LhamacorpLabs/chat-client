@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { loadAuth } from '$lib/stores/auth';
 	import { loadTheme } from '$lib/stores/theme';
-	import favicon from '$lib/assets/favicon.svg';
 
 	let { children } = $props();
 
@@ -15,7 +14,8 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<title>Lhama Chat</title>
+	<link rel="icon" href="/logo.png" />
 </svelte:head>
 
 {@render children()}
