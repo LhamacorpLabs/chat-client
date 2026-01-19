@@ -1,6 +1,7 @@
 import type { AuthRequest, AuthResponse } from '../types/auth';
+import { PUBLIC_AUTH_API_URL } from '$env/static/public';
 
-const API_URL = 'https://auth.lhamacorp.com/api';
+const API_URL = `${PUBLIC_AUTH_API_URL || 'https://auth.lhamacorp.com'}/api`;
 
 export async function login(credentials: AuthRequest): Promise<AuthResponse> {
 	const response = await fetch(`${API_URL}/authenticate`, {

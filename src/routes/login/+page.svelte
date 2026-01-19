@@ -32,7 +32,10 @@
 	<div class="login-container">
 		<div class="login-card card fade-in">
 			<div class="login-header">
-				<h1>Welcome to Lhama Chat</h1>
+				<div class="login-title">
+					<img src="/logo.png" alt="Lhama Chat Logo" class="login-logo" />
+					<h1>Welcome to Lhama Chat</h1>
+				</div>
 				<p>Sign in to continue</p>
 			</div>
 
@@ -120,9 +123,23 @@
 		text-align: center;
 	}
 
+	.login-title {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.login-logo {
+		width: 40px;
+		height: 40px;
+		object-fit: contain;
+	}
+
 	.login-header h1 {
 		color: white;
-		margin-bottom: 0.5rem;
+		margin: 0;
 		font-size: 2rem;
 		font-weight: 700;
 	}
@@ -240,6 +257,15 @@
 
 		.login-header {
 			padding: 2rem 1.5rem;
+		}
+
+		.login-title {
+			gap: 0.75rem;
+		}
+
+		.login-logo {
+			width: 36px;
+			height: 36px;
 		}
 
 		.login-form {

@@ -78,7 +78,10 @@
 		<!-- Header -->
 		<header class="app-header">
 			<div class="header-content">
-				<h1>🦙 Lhama Chat</h1>
+				<div class="app-title">
+					<img src="/logo.png" alt="Lhama Chat Logo" class="app-logo" />
+					<h1>Lhama Chat</h1>
+				</div>
 
 				<div class="header-actions">
 					<span class="username">@{$authStore.user.username}</span>
@@ -268,6 +271,18 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+	}
+
+	.app-title {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.app-logo {
+		width: 32px;
+		height: 32px;
+		object-fit: contain;
 	}
 
 	.header-content h1 {
@@ -541,6 +556,15 @@
 	}
 
 	@media (max-width: 480px) {
+		.app-title {
+			gap: 0.5rem;
+		}
+
+		.app-logo {
+			width: 28px;
+			height: 28px;
+		}
+
 		.header-content h1 {
 			font-size: 1.3rem;
 		}

@@ -1,6 +1,15 @@
-# sv
+# 🦙 Lhama Chat Client
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A modern real-time chat application built with SvelteKit, TypeScript, and a beautiful light/dark theme system.
+
+## Features
+
+- 🔐 **Authentication** - Secure login with JWT tokens
+- 💬 **Real-time Messaging** - Automatic message polling every second
+- 🎨 **Theme Support** - Beautiful light/dark mode with localStorage persistence
+- 👥 **Chat Management** - Create chats and invite others with invitation codes
+- 📱 **Responsive Design** - Works perfectly on desktop and mobile
+- ⚡ **Modern Stack** - SvelteKit, TypeScript, and Vite
 
 ## Creating a project
 
@@ -13,6 +22,28 @@ npx sv create
 # create a new project in my-app
 npx sv create my-app
 ```
+
+## Configuration
+
+Create a `.env` file in the root directory to configure the chat API endpoint:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` to set your API server URLs:
+
+```bash
+# Chat API Configuration (server URL only)
+PUBLIC_CHAT_API_URL=http://localhost:8080
+
+# Authentication API Configuration (server URL only)
+PUBLIC_AUTH_API_URL=https://auth.lhamacorp.com
+```
+
+**Default Server URLs:**
+- Chat API Server: `http://localhost:8080` (endpoints: `/api/chats/*`)
+- Auth API Server: `https://auth.lhamacorp.com` (endpoints: `/api/*`)
 
 ## Developing
 

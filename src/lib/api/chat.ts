@@ -1,6 +1,7 @@
 import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest } from '../types/chat';
+import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 
-const CHAT_API_URL = 'http://localhost:8080/api/chats';
+const CHAT_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/chats`;
 
 export async function fetchChats(token: string): Promise<ChatsResponse> {
 	const response = await fetch(CHAT_API_URL, {

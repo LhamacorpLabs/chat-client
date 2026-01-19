@@ -209,7 +209,10 @@
 					<button onclick={goBack} class="btn btn-ghost back-btn">
 						← Back to Chats
 					</button>
-					<h1>#{chatName}</h1>
+					<div class="chat-title">
+						<img src="/logo.png" alt="Lhama Chat Logo" class="chat-logo" />
+						<h1>#{chatName}</h1>
+					</div>
 				</div>
 
 				<div class="header-actions">
@@ -365,6 +368,18 @@
 		display: flex;
 		align-items: center;
 		gap: 1rem;
+	}
+
+	.chat-title {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.chat-logo {
+		width: 24px;
+		height: 24px;
+		object-fit: contain;
 	}
 
 	.back-btn {
@@ -599,6 +614,15 @@
 		.back-btn {
 			padding: 0.5rem;
 			font-size: 0.8rem;
+		}
+
+		.chat-title {
+			gap: 0.25rem;
+		}
+
+		.chat-logo {
+			width: 20px;
+			height: 20px;
 		}
 
 		.header-content h1 {
