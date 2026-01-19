@@ -183,8 +183,6 @@
 					<h2>Your Chats</h2>
 				</div>
 
-
-
 				<!-- Error Message -->
 				{#if $chatStore.error}
 					<div class="alert alert-error">
@@ -795,9 +793,15 @@
 		}
 
 		.chat-item {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: 1rem;
+			padding: 1rem;
+		}
+
+		.chat-name {
+			font-size: 1.1rem;
+		}
+
+		.chat-meta {
+			font-size: 0.8rem;
 		}
 
 
