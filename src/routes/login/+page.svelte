@@ -34,9 +34,8 @@
 			<div class="login-header">
 				<div class="login-title">
 					<img src="/logo.png" alt="Lhama Chat Logo" class="login-logo" />
-					<h1>Welcome to Lhama Chat</h1>
+					<h1>Lhama Chat</h1>
 				</div>
-				<p>Sign in to continue</p>
 			</div>
 
 			<form onsubmit={handleSubmit} class="login-form">
@@ -74,11 +73,6 @@
 						Sign In
 					{/if}
 				</button>
-
-				<div class="demo-info">
-					<p>🚀 <strong>Demo Account:</strong></p>
-					<p>Username: <code>demo</code> • Password: <code>demo</code></p>
-				</div>
 			</form>
 		</div>
 	</div>

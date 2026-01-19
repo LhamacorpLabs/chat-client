@@ -1,16 +1,25 @@
 <script lang="ts">
-	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
-	import { chatStore } from '$lib/stores/chat';
 	import { fetchMessages, sendMessage, createInvitation } from '$lib/api/chat';
 	import type { Message, Chat } from '$lib/types/chat';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
+	interface PageData {
+		chatId: string;
+		chat: Chat;
+		isOwner: boolean;
+	}
+
+	interface Props {
+		data: PageData;
+	}
+
+	let { data }: Props = $props();
+
 	let messages: Message[] = $state([]);
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
-	let chatName = $state('Chat');
 
 	// Message sending state
 	let newMessage = $state('');
@@ -26,26 +35,11 @@
 	// Message polling state
 	let pollingInterval: NodeJS.Timeout | null = null;
 
-	const chatId = $page.params.chatId;
-	let currentChat = $state<Chat | null>(null);
-	let isOwner = $state(false);
-
-	// Get chat info from store
-	$effect(() => {
-		const chat = $chatStore.chats.find(chat => chat.id === chatId);
-		if (chat) {
-			currentChat = chat;
-			chatName = chat.name;
-			isOwner = chat.createdBy === $authStore.user?.id;
-		}
-	});
-
-	// Reactive statement: redirect to login when not authenticated
-	$effect(() => {
-		if (!$authStore.token) {
-			goto('/login');
-		}
-	});
+	// Use data from the page loader
+	const chatId = data.chatId;
+	const currentChat = data.chat;
+	const chatName = currentChat.name;
+	const isOwner = data.isOwner;
 
 	// Fetch messages when page loads and user is authenticated
 	$effect(() => {
@@ -195,7 +189,7 @@
 			return 'You';
 		}
 
-		const member = currentChat?.members.find(member => member.id === userId);
+		const member = currentChat.members.find(member => member.id === userId);
 		return member ? member.name : `User ${userId}`;
 	}
 </script>
