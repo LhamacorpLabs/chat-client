@@ -1,6 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import type { AuthResponse, User, AuthRequest } from '../types/auth';
-import { login as apiLogin } from '../api/auth';
+import { login as apiLogin, register as apiRegister } from '../api/auth';
 
 interface AuthState {
 	user: User | null;
@@ -81,6 +81,44 @@ export async function login(credentials: AuthRequest) {
 			...state,
 			isLoading: false,
 			error: 'Login failed'
+		}));
+		return false;
+	}
+}
+
+// Register function
+export async function register(credentials: AuthRequest) {
+	authStore.update(state => ({ ...state, isLoading: true, error: null }));
+
+	try {
+		const authData = await apiRegister(credentials);
+
+		// Save to localStorage
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('auth_data', JSON.stringify(authData));
+		}
+
+		// Update store
+		const user: User = {
+			id: authData.id,
+			username: authData.username,
+			email: authData.email,
+			roles: authData.roles
+		};
+
+		authStore.set({
+			user,
+			token: authData.token,
+			isLoading: false,
+			error: null
+		});
+
+		return true;
+	} catch (error) {
+		authStore.update(state => ({
+			...state,
+			isLoading: false,
+			error: 'Registration failed'
 		}));
 		return false;
 	}

@@ -2,6 +2,7 @@
 export interface AuthRequest {
 	username: string;
 	password: string;
+	email?: string; // Optional for registration
 }
 
 export interface AuthResponse {

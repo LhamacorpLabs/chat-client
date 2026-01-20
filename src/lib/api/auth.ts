@@ -18,3 +18,29 @@ export async function login(credentials: AuthRequest): Promise<AuthResponse> {
 
 	return response.json();
 }
+
+export async function register(credentials: AuthRequest): Promise<AuthResponse> {
+	// Only include email if it's provided and not empty
+	const requestBody: any = {
+		username: credentials.username,
+		password: credentials.password
+	};
+
+	if (credentials.email && credentials.email.trim()) {
+		requestBody.email = credentials.email.trim();
+	}
+
+	const response = await fetch(`${API_URL}/register`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify(requestBody)
+	});
+
+	if (!response.ok) {
+		throw new Error('Registration failed');
+	}
+
+	return response.json();
+}

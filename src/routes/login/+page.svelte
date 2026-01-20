@@ -1,10 +1,12 @@
 <script lang="ts">
-	import { login, authStore } from '$lib/stores/auth';
+	import { login, register, authStore } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	let username = $state('');
 	let password = $state('');
+	let email = $state('');
+	let isRegisterMode = $state(false);
 
 	// Reactive statement: redirect to main page when authenticated
 	$effect(() => {
@@ -18,9 +20,28 @@
 		// No need for manual redirect here since $effect will handle it
 	}
 
+	async function handleRegister() {
+		const success = await register({ username, password, email });
+		// No need for manual redirect here since $effect will handle it
+	}
+
 	function handleSubmit(e: Event) {
 		e.preventDefault();
-		handleLogin();
+		if (isRegisterMode) {
+			handleRegister();
+		} else {
+			handleLogin();
+		}
+	}
+
+	function toggleMode() {
+		isRegisterMode = !isRegisterMode;
+		// Clear form fields when switching modes
+		username = '';
+		password = '';
+		email = '';
+		// Clear any existing errors when switching modes
+		// Note: We can't directly update the store here, but the error will clear on next form submission
 	}
 </script>
 
@@ -36,6 +57,7 @@
 					<img src="/logo.png" alt="Lhama Chat Logo" class="login-logo" />
 					<h1>Lhama Chat</h1>
 				</div>
+				<p>{isRegisterMode ? 'Create your account' : 'Welcome back'}</p>
 			</div>
 
 			<form onsubmit={handleSubmit} class="login-form">
@@ -49,6 +71,18 @@
 						required
 					/>
 				</div>
+
+				{#if isRegisterMode}
+					<div class="form-group">
+						<label for="email">Email (Optional)</label>
+						<input
+							id="email"
+							type="email"
+							bind:value={email}
+							placeholder="Enter your email"
+						/>
+					</div>
+				{/if}
 
 				<div class="form-group">
 					<label for="password">Password</label>
@@ -68,11 +102,19 @@
 				<button type="submit" class="btn btn-primary" disabled={$authStore.isLoading}>
 					{#if $authStore.isLoading}
 						<span class="loading-spinner"></span>
-						Signing in...
+						{isRegisterMode ? 'Creating account...' : 'Signing in...'}
 					{:else}
-						Sign In
+						{isRegisterMode ? 'Create Account' : 'Sign In'}
 					{/if}
 				</button>
+
+				<div class="mode-toggle">
+					{#if isRegisterMode}
+						<p>Already have an account? <button type="button" class="link-button" onclick={toggleMode}>Sign in</button></p>
+					{:else}
+						<p>Don't have an account? <button type="button" class="link-button" onclick={toggleMode}>Create account</button></p>
+					{/if}
+				</div>
 			</form>
 		</div>
 	</div>
@@ -203,6 +245,43 @@
 
 	@keyframes spin {
 		to { transform: rotate(360deg); }
+	}
+
+	.mode-toggle {
+		text-align: center;
+		margin-top: 2rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--border-light);
+	}
+
+	.mode-toggle p {
+		color: var(--text-secondary);
+		font-size: 0.95rem;
+		margin: 0;
+	}
+
+	.link-button {
+		background: none;
+		border: none;
+		color: var(--accent);
+		font-size: 0.95rem;
+		font-weight: 600;
+		cursor: pointer;
+		padding: 0;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		transition: color 0.2s ease;
+	}
+
+	.link-button:hover {
+		color: var(--accent-hover, var(--accent));
+		text-decoration: none;
+	}
+
+	.link-button:focus {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+		border-radius: 3px;
 	}
 
 	.demo-info {
