@@ -30,6 +30,11 @@ export function linkify(text: string, includePreviews = false): string | Linkify
         .replace(/(?<!\S):devil:(?!\S)/g, '👿')
         .replace(/(?<!\S):sic:(?!\S)/g, '🤢')
         .replace(/(?<!\S):puto:(?!\S)/g, '🤬')
+        .replace(/(?<!\S):okay:(?!\S)/g, '👍')
+        .replace(/(?<!\S):rock:(?!\S)/g, '🤘')
+        .replace(/(?<!\S):gay:(?!\S)/g, '💅')
+        .replace(/(?<!\S):darkmoon:(?!\S)/g, '🌚')
+        .replace(/(?<!\S):lightmoon:(?!\S)/g, '🌝')
     ;
 
     const previews: LinkPreview[] = [];
