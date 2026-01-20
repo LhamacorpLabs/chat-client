@@ -1,6 +1,15 @@
+import { detectLinkPreview, type LinkPreview } from './linkPreview';
+
 const HTTPS_URL_REGEX = /https:\/\/[^\s<>"'`]+[^\s<>"'`.,;!?]/gi;
 
-export function linkify(text: string): string {
+export interface LinkifyResult {
+	html: string;
+	previews: LinkPreview[];
+}
+
+export function linkify(text: string): string;
+export function linkify(text: string, includePreviews: true): LinkifyResult;
+export function linkify(text: string, includePreviews = false): string | LinkifyResult {
     const escapedText = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -19,12 +28,32 @@ export function linkify(text: string): string {
         .replace(/(?<!\S):thinking:(?!\S)/g, '🤔')
         .replace(/(?<!\S):evil:(?!\S)/g, '😈');
 
-    return withEmojis.replace(HTTPS_URL_REGEX, (url) => {
+    const previews: LinkPreview[] = [];
+
+    const linkedText = withEmojis.replace(HTTPS_URL_REGEX, (url) => {
         try {
             new URL(url);
+
+            // Detect link preview if requested
+            if (includePreviews) {
+                const preview = detectLinkPreview(url);
+                if (preview) {
+                    previews.push(preview);
+                }
+            }
+
             return `<a href="#" onclick="window.showLinkConfirmation && window.showLinkConfirmation('${url.replace(/'/g, '\\\'')}')" class="message-link">${url}</a>`;
         } catch {
             return url;
         }
     });
+
+    if (includePreviews) {
+        return {
+            html: linkedText,
+            previews
+        };
+    }
+
+    return linkedText;
 }

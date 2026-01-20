@@ -12,7 +12,8 @@
 		shouldUseMemberColors,
 		loadMemberColors
 	} from '$lib/stores/memberColors';
-	import { linkify } from '$lib/utils/linkify';
+	import { linkify, type LinkifyResult } from '$lib/utils/linkify';
+	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import { chatNotifications } from '$lib/stores/chatNotifications';
 	import { playNotificationSound, isWindowFocused } from '$lib/utils/notificationSound';
 
@@ -749,6 +750,7 @@
 					{#each messages as message (message.id)}
 						{@const isOwnMessage = message.userId === $authStore.user?.id}
 						{@const memberColor = shouldUseColors && !isOwnMessage ? getMemberColor(chatId, message.userId) : null}
+						{@const linkifyResult = linkify(message.message, true)}
 						<div class="message-item {isOwnMessage ? 'own-message' : 'other-message'}"
 						     style={memberColor ? `--current-member-color: ${memberColor}` : ''}>
 							<div class="message-header">
@@ -786,7 +788,18 @@
 								</div>
 							</div>
 							<div class="message-content">
-								{@html linkify(message.message)}
+								{@html linkifyResult.html}
+
+								{#if linkifyResult.previews.length > 0}
+									<div class="message-previews">
+										{#each linkifyResult.previews as preview (preview.url)}
+											<LinkPreview
+												{preview}
+												onLinkClick={handleLinkConfirmation}
+											/>
+										{/each}
+									</div>
+								{/if}
 							</div>
 						</div>
 					{/each}
@@ -1150,6 +1163,13 @@
 		color: var(--text-primary);
 		line-height: 1.5;
 		word-wrap: break-word;
+	}
+
+	.message-previews {
+		margin-top: 0.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
 	/* Message actions menu */
