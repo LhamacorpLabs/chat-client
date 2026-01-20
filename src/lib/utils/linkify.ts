@@ -25,6 +25,8 @@ export function linkify(text: string): string {
 	const withEmojis = escapedText
 		.replace(/:\)/g, '🙂')
 		.replace(/:P/g, '😛')
+		.replace(/:\//g, '😕')
+		.replace(/:\(/g, '😟')
 		.replace(/:O/g, '😲')
 		.replace(/:kiss:/g, '😘')
 		.replace(/:D/g, '😃')
