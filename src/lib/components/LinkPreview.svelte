@@ -9,7 +9,7 @@
 	let { preview, onLinkClick }: Props = $props();
 
 	// List of trusted platforms that don't need confirmation
-	const trustedPlatforms = ['youtube', 'instagram', 'spotify', 'twitter', 'github', 'amazon'];
+	const trustedPlatforms = ['youtube', 'instagram', 'spotify', 'twitter', 'github', 'amazon', 'lhamacorp'];
 
 	function handleClick() {
 		// Skip confirmation for trusted platforms and open directly
@@ -49,6 +49,8 @@
 					<path d="M.045 15.514c2.55 1.94 6.242 2.97 9.422 2.97 4.462 0 8.482-1.653 11.524-4.397.342-.308.037-.728-.374-.49-4.695 2.734-10.506 4.38-16.51 4.38-4.063 0-8.524-1.09-11.824-2.844-.55-.293-1.01.362-.238.381zm1.264-1.44c-.326-.417-2.157-.197-2.98-.099-.251.03-.29-.188-.063-.346 1.457-1.026 3.848-.73 4.125-.387.278.345-.074 2.735-1.438 3.874-.209.174-.408.081-.315-.149.304-.757.985-2.454.67-2.893zm20.825-8.18v-.69c0-.103-.08-.173-.173-.173h-3.098c-.098 0-.178.075-.178.173v.59c0 .098.085.228.178.318l1.603 1.454c1.017.918 1.362 1.56 1.362 2.49v2.473c0 1.362-.347 2.09-.347 2.09.013.08.045.122.138.122h1.785c.093 0 .17-.041.18-.122 0 0-.36-.728-.36-2.09v-2.473c0-.93.345-1.572 1.362-2.49l1.603-1.454c.093-.09.178-.22.178-.318zm-9.32-4.353c-2.473 0-3.662 1.89-3.662 4.353 0 2.346 1.07 4.225 3.662 4.225s3.662-1.879 3.662-4.225c0-2.462-1.189-4.353-3.662-4.353zm0 6.89c-1.07 0-1.189-1.454-1.189-2.537 0-1.083.119-2.654 1.189-2.654s1.189 1.571 1.189 2.654c0 1.083-.119 2.537-1.189 2.537z"/>
 					<path d="M8.85 14.92c-3.54 2.61-8.68 4-13.07 4-.95 0-1.72-.51-1.72-1.14 0-.68.46-1.03.88-1.33.89-.71 2.35-.96 3.54-.96 1.78 0 3.31.36 4.76 1.07l-.15-2.77c0-1.18-.89-2.14-2.07-2.14-.95 0-1.78.36-2.37.95-.1.1-.2.15-.35.15-.2 0-.35-.15-.35-.35v-.2c0-.15.1-.3.25-.4.79-.79 2.07-1.33 3.42-1.33 1.93 0 3.46 1.33 3.46 3.26v5.66c0 .2-.15.35-.35.35-.15 0-.3-.1-.35-.25l-.35-1.47z"/>
 				</svg>`;
+			case 'lhamacorp':
+				return `<img src="/logo.png" width="20" height="20" alt="LhamaCorp" style="object-fit: contain;">`;
 			default:
 				return '';
 		}
@@ -222,6 +224,10 @@
 		background: rgba(255, 153, 0, 0.1);
 	}
 
+	.link-preview-card.lhamacorp .platform-logo {
+		background: rgba(0, 102, 204, 0.1);
+	}
+
 	@keyframes instagram-gradient {
 		0% { background-position: 0% 50%; }
 		50% { background-position: 100% 50%; }
@@ -262,5 +268,9 @@
 
 	[data-theme='dark'] .link-preview-card.amazon .platform-logo {
 		background: rgba(255, 153, 0, 0.15);
+	}
+
+	[data-theme='dark'] .link-preview-card.lhamacorp .platform-logo {
+		background: rgba(0, 102, 204, 0.15);
 	}
 </style>

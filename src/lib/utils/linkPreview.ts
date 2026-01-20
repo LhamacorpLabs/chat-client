@@ -1,5 +1,5 @@
 export interface LinkPreview {
-	platform: 'youtube' | 'instagram' | 'spotify' | 'twitter' | 'github' | 'amazon' | 'unknown';
+	platform: 'youtube' | 'instagram' | 'spotify' | 'twitter' | 'github' | 'amazon' | 'lhamacorp' | 'unknown';
 	url: string;
 	id?: string;
 	title: string;
@@ -45,6 +45,11 @@ export function detectLinkPreview(url: string): LinkPreview | null {
 		// Amazon detection
 		if (hostname.includes('amazon.') || hostname.includes('amzn.')) {
 			return detectAmazon(url, urlObj);
+		}
+
+		// LhamaCorp detection
+		if (hostname.includes('lhamacorp.com')) {
+			return detectLhamacorp(url, urlObj);
 		}
 
 		return null;
@@ -540,5 +545,37 @@ function detectAmazon(url: string, urlObj: URL): LinkPreview {
 		contentType,
 		icon: '📦',
 		color: '#FF9900'
+	};
+}
+
+function detectLhamacorp(url: string, urlObj: URL): LinkPreview {
+	let contentType = 'Link';
+	let title = 'LhamaCorp';
+	let description;
+
+	// Extract information from LhamaCorp URLs
+	const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
+
+	if (pathParts.length === 0) {
+		// https://lhamacorp.com
+		contentType = 'Homepage';
+		title = 'LhamaCorp';
+		description = 'LhamaCorp Homepage';
+	} else {
+		// https://lhamacorp.com/some/path
+		const path = pathParts.join('/');
+		contentType = 'Page';
+		title = 'LhamaCorp';
+		description = `/${path}`;
+	}
+
+	return {
+		platform: 'lhamacorp',
+		url,
+		title,
+		description,
+		contentType,
+		icon: '🦙',
+		color: '#0066CC'
 	};
 }
