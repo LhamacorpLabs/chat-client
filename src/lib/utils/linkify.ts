@@ -27,7 +27,9 @@ export function linkify(text: string): string {
 		.replace(/:P/g, '😛')
 		.replace(/:O/g, '😲')
 		.replace(/:kiss:/g, '😘')
-		.replace(/:D/g, '😃');
+		.replace(/:D/g, '😃')
+		.replace(/:thinking:/g, '🤔')
+		.replace(/:evil:/g, '😈');
 
 	// Replace HTTPS URLs with clickable links that show confirmation
 	return withEmojis.replace(HTTPS_URL_REGEX, (url) => {
