@@ -22,16 +22,17 @@ export function linkify(text: string): string {
 		.replace(/'/g, '&#x27;');
 
 	// Replace simple emoji shortcuts with Unicode emojis
+	// Use negative lookahead/lookbehind to ensure emojis only replace standalone patterns (not within URLs)
 	const withEmojis = escapedText
-		.replace(/:\)/g, '🙂')
-		.replace(/:P/g, '😛')
-		.replace(/:\//g, '😕')
-		.replace(/:\(/g, '😟')
-		.replace(/:O/g, '😲')
-		.replace(/:kiss:/g, '😘')
-		.replace(/:D/g, '😃')
-		.replace(/:thinking:/g, '🤔')
-		.replace(/:evil:/g, '😈');
+		.replace(/(?<!\S):\)(?!\S)/g, '🙂')
+		.replace(/(?<!\S):P(?!\S)/g, '😛')
+		.replace(/(?<!\S):\/(?!\S)/g, '😕')
+		.replace(/(?<!\S):\((?!\S)/g, '😟')
+		.replace(/(?<!\S):O(?!\S)/g, '😲')
+		.replace(/(?<!\S):kiss:(?!\S)/g, '😘')
+		.replace(/(?<!\S):D(?!\S)/g, '😃')
+		.replace(/(?<!\S):thinking:(?!\S)/g, '🤔')
+		.replace(/(?<!\S):evil:(?!\S)/g, '😈');
 
 	// Replace HTTPS URLs with clickable links that show confirmation
 	return withEmojis.replace(HTTPS_URL_REGEX, (url) => {
