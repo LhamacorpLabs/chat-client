@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
-	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats } from '$lib/api/chat';
+	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import {
 		memberColorsStore,
@@ -46,6 +46,7 @@
 	// Delete state
 	let showDeleteModal = $state(false);
 	let showActionsMenu = $state(false);
+	let openActionMenuId = $state<string | null>(null);
 
 	// Link confirmation state
 	let showLinkConfirmation = $state(false);
@@ -250,6 +251,21 @@
 		return () => {
 			stopMessagePolling();
 		};
+	});
+
+	// Close action menu when clicking outside
+	$effect(() => {
+		function handleClickOutside(event: Event) {
+			const target = event.target as HTMLElement;
+			if (openActionMenuId && !target.closest('.message-actions')) {
+				closeActionMenu();
+			}
+		}
+
+		if (openActionMenuId) {
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
 	});
 
 	async function loadMessages() {
@@ -499,6 +515,35 @@
 		}
 	}
 
+	async function handleDeleteMessage(messageId: string) {
+		if (!$authStore.token) return;
+
+		try {
+			await deleteMessage($authStore.token, chatId, messageId);
+
+			// Update the message in local state to show "[deleted message]"
+			messages = messages.map(msg =>
+				msg.id === messageId
+					? { ...msg, message: '[deleted message]' }
+					: msg
+			);
+
+			// Close the action menu
+			openActionMenuId = null;
+		} catch (err) {
+			console.error('Failed to delete message:', err);
+		}
+	}
+
+	function toggleActionMenu(messageId: string, event?: Event) {
+		event?.stopPropagation();
+		openActionMenuId = openActionMenuId === messageId ? null : messageId;
+	}
+
+	function closeActionMenu() {
+		openActionMenuId = null;
+	}
+
 	async function handleCreateInvite() {
 		if (!$authStore.token) return;
 
@@ -711,15 +756,34 @@
 								      style={memberColor ? `color: ${memberColor}` : ''}>
 									{getUsernameFromId(message.userId)}
 								</span>
-								<span class="message-time">
-									{new Date(message.createdAt).toLocaleString([], {
-										year: 'numeric',
-										month: '2-digit',
-										day: '2-digit',
-										hour: '2-digit',
-										minute: '2-digit'
-									})}
-								</span>
+								<div class="message-header-right">
+									<span class="message-time">
+										{new Date(message.createdAt).toLocaleString([], {
+											year: 'numeric',
+											month: '2-digit',
+											day: '2-digit',
+											hour: '2-digit',
+											minute: '2-digit'
+										})}
+									</span>
+									{#if isOwnMessage && message.message !== '[deleted message]'}
+										<div class="message-actions">
+											<button class="action-btn menu-btn"
+											        onclick={(e) => toggleActionMenu(message.id, e)}
+											        title="Message actions">
+												⋮
+											</button>
+											{#if openActionMenuId === message.id}
+												<div class="action-dropdown">
+													<button class="dropdown-item delete-item"
+													        onclick={() => handleDeleteMessage(message.id)}>
+														Delete
+													</button>
+												</div>
+											{/if}
+										</div>
+									{/if}
+								</div>
 							</div>
 							<div class="message-content">
 								{@html linkify(message.message)}
@@ -1071,6 +1135,12 @@
 		font-size: 0.85rem;
 	}
 
+	.message-header-right {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
 	.message-time {
 		color: var(--text-muted);
 		font-size: 0.75rem;
@@ -1080,6 +1150,109 @@
 		color: var(--text-primary);
 		line-height: 1.5;
 		word-wrap: break-word;
+	}
+
+	/* Message actions menu */
+	.message-actions {
+		opacity: 0;
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		transition: opacity 0.2s ease;
+	}
+
+	.message-item:hover .message-actions {
+		opacity: 1;
+	}
+
+	.action-btn {
+		background: var(--accent);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 4px;
+		padding: 0.25rem;
+		cursor: pointer;
+		font-size: 0.75rem;
+		line-height: 1;
+		width: 20px;
+		height: 20px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s ease;
+	}
+
+	.action-btn:hover {
+		background: var(--accent-hover);
+		transform: scale(1.05);
+	}
+
+	.menu-btn {
+		font-weight: bold;
+		font-size: 0.9rem;
+		color: rgba(255, 255, 255, 0.8);
+	}
+
+	.menu-btn:hover {
+		color: white;
+	}
+
+	/* Action dropdown menu */
+	.action-dropdown {
+		position: absolute;
+		top: 100%;
+		right: 0;
+		background: var(--bg-primary);
+		border: 1px solid var(--border-light);
+		border-radius: 6px;
+		box-shadow: 0 4px 12px var(--shadow);
+		z-index: 1000;
+		min-width: 120px;
+		margin-top: 4px;
+		animation: fadeInDropdown 0.1s ease-out;
+	}
+
+	@keyframes fadeInDropdown {
+		from {
+			opacity: 0;
+			transform: translateY(-4px) scale(0.95);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+	}
+
+	.dropdown-item {
+		display: block;
+		width: 100%;
+		padding: 0.5rem 0.75rem;
+		border: none;
+		background: none;
+		text-align: left;
+		cursor: pointer;
+		font-size: 0.85rem;
+		color: var(--text-primary);
+		transition: background-color 0.2s ease;
+		border-radius: 6px;
+	}
+
+	.dropdown-item:hover {
+		background: var(--bg-secondary);
+	}
+
+	.delete-item {
+		color: var(--danger);
+	}
+
+	.delete-item:hover {
+		background: rgba(220, 53, 69, 0.1);
+		color: var(--danger-hover);
+	}
+
+	/* Dark theme specific override for delete item hover */
+	[data-theme='dark'] .delete-item:hover {
+		background: rgba(229, 62, 62, 0.15);
 	}
 
 	/* Own message styling overrides */

@@ -169,6 +169,19 @@ export async function redeemInvitation(token: string, invitationData: RedeemInvi
 	return response.json();
 }
 
+export async function deleteMessage(token: string, chatId: string, messageId: string): Promise<void> {
+	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/${messageId}`, {
+		method: 'DELETE',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to delete message: ${response.status}`);
+	}
+}
+
 export async function deleteChat(token: string, chatId: string): Promise<void> {
 	const response = await fetch(`${CHAT_API_URL}/${chatId}`, {
 		method: 'DELETE',
