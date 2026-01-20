@@ -11,6 +11,7 @@ export interface Chat {
 	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
+	lastMessageAt: string | null; // Timestamp of the last message, null if no messages
 }
 
 export interface CreateChatRequest {

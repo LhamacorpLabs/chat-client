@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import type { Chat, CreateChatRequest } from '../types/chat';
 import { fetchChats as apiFetchChats, createChat as apiCreateChat, deleteChat as apiDeleteChat } from '../api/chat';
+import { chatNotifications } from './chatNotifications';
 
 interface ChatState {
 	chats: Chat[];
@@ -22,8 +23,11 @@ const initialState: ChatState = {
 export const chatStore = writable<ChatState>(initialState);
 
 // Fetch chats from API
-export async function fetchChats(token: string) {
-	chatStore.update(state => ({ ...state, isLoading: true, error: null }));
+export async function fetchChats(token: string, silent: boolean = false) {
+	// Only show loading state if not silent
+	if (!silent) {
+		chatStore.update(state => ({ ...state, isLoading: true, error: null }));
+	}
 
 	try {
 		const chats = await apiFetchChats(token);
@@ -31,16 +35,23 @@ export async function fetchChats(token: string) {
 			...state,
 			chats,
 			isLoading: false,
-			error: null
+			error: silent ? state.error : null // Don't clear errors in silent mode
 		}));
+
+		// Check for new messages and update notification status
+		chatNotifications.checkForUpdates(chats);
+
 		return true;
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : 'Failed to fetch chats';
-		chatStore.update(state => ({
-			...state,
-			isLoading: false,
-			error: errorMessage
-		}));
+		// In silent mode, don't update error state to avoid showing error messages
+		if (!silent) {
+			const errorMessage = error instanceof Error ? error.message : 'Failed to fetch chats';
+			chatStore.update(state => ({
+				...state,
+				isLoading: false,
+				error: errorMessage
+			}));
+		}
 		return false;
 	}
 }

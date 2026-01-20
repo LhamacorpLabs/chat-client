@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
-	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation } from '$lib/api/chat';
+	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import {
 		memberColorsStore,
@@ -13,6 +13,8 @@
 		loadMemberColors
 	} from '$lib/stores/memberColors';
 	import { linkify } from '$lib/utils/linkify';
+	import { chatNotifications } from '$lib/stores/chatNotifications';
+	import { playNotificationSound, isWindowFocused } from '$lib/utils/notificationSound';
 
 	interface PageData {
 		chatId: string;
@@ -53,7 +55,7 @@
 	let pollingInterval: NodeJS.Timeout | null = null;
 	let messageInputElement: HTMLInputElement;
 	let chatContent: HTMLElement;
-	let isWindowFocused = $state(true);
+	let windowFocused = $state(true);
 	let hasUnreadMessages = $state(false);
 
 	// Pagination state
@@ -66,6 +68,7 @@
 	let shouldAutoScroll = $state(true);
 	let showJumpToNewest = $state(false);
 	let isUserScrolling = $state(false);
+	let isInitialScroll = $state(true); // Flag to prevent auto-scroll during initial intelligent scrolling
 
 	// Member colors state
 	let shouldUseColors = $state(false);
@@ -106,9 +109,24 @@
 		}
 	}
 
+	function scrollToMessage(messageIndex: number) {
+		if (chatContent && messageIndex >= 0 && messageIndex < messages.length) {
+			setTimeout(() => {
+				// Find the message element by index
+				const messageElements = chatContent.querySelectorAll('.message-item');
+				if (messageElements[messageIndex]) {
+					messageElements[messageIndex].scrollIntoView({
+						behavior: 'smooth',
+						block: 'start'
+					});
+				}
+			}, 100); // Give DOM time to update
+		}
+	}
+
 	// Smart auto-scroll: only scroll to bottom when appropriate
 	$effect(() => {
-		if (messages.length > 0 && shouldAutoScroll && !isUserScrolling) {
+		if (messages.length > 0 && shouldAutoScroll && !isUserScrolling && !isInitialScroll) {
 			scrollToBottom();
 		}
 	});
@@ -157,26 +175,6 @@
 		};
 	});
 
-	function playNotificationSound() {
-		try {
-			// Create a simple notification beep using Web Audio API
-			const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-			const oscillator = audioContext.createOscillator();
-			const gainNode = audioContext.createGain();
-
-			oscillator.connect(gainNode);
-			gainNode.connect(audioContext.destination);
-
-			oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-			gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-			gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-
-			oscillator.start(audioContext.currentTime);
-			oscillator.stop(audioContext.currentTime + 0.1);
-		} catch (error) {
-			console.warn('Could not play notification sound:', error);
-		}
-	}
 
 	function updateDocumentTitle() {
 		const baseTitle = `#${chatName} - Lhama Chat`;
@@ -193,19 +191,39 @@
 	});
 
 	$effect(() => {
-		function handleFocus() {
-			isWindowFocused = true;
+		async function handleFocus() {
+			windowFocused = true;
 			hasUnreadMessages = false;
+			// Mark chat as read when user focuses the window using fresh chat data
+			try {
+				const chats = await apiFetchChats($authStore.token);
+				const updatedChat = chats.find(c => c.id === chatId);
+				if (updatedChat && updatedChat.lastMessageAt) {
+					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
+				}
+			} catch (error) {
+				console.warn('Failed to fetch updated chat info for notifications on focus:', error);
+			}
 		}
 
 		function handleBlur() {
-			isWindowFocused = false;
+			windowFocused = false;
 		}
 
-		function handleVisibilityChange() {
-			isWindowFocused = !document.hidden;
+		async function handleVisibilityChange() {
+			windowFocused = !document.hidden;
 			if (!document.hidden) {
 				hasUnreadMessages = false;
+				// Mark chat as read when page becomes visible using fresh chat data
+				try {
+					const chats = await apiFetchChats($authStore.token);
+					const updatedChat = chats.find(c => c.id === chatId);
+					if (updatedChat && updatedChat.lastMessageAt) {
+						chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
+					}
+				} catch (error) {
+					console.warn('Failed to fetch updated chat info for notifications on visibility change:', error);
+				}
 			}
 		}
 
@@ -248,6 +266,46 @@
 			nextCursor = response.nextCursor; // Points to oldest message for loading older messages
 			prevCursor = response.prevCursor; // Points to newest message for polling newer messages
 			hasMoreMessages = response.hasMore;
+
+			// Intelligent scrolling based on read status
+			const lastKnownTimestamp = chatNotifications.getLastKnownTimestamp(chatId);
+			if (lastKnownTimestamp && messages.length > 0) {
+				// Find first unread message (first message after last known timestamp)
+				const firstUnreadIndex = messages.findIndex(msg =>
+					new Date(msg.createdAt) > new Date(lastKnownTimestamp)
+				);
+
+				if (firstUnreadIndex >= 0) {
+					// Found unread messages, scroll to first unread message
+					setTimeout(() => {
+						scrollToMessage(firstUnreadIndex);
+						isInitialScroll = false; // Allow future auto-scroll
+					}, 100);
+				} else {
+					// All messages are read, scroll to bottom
+					setTimeout(() => {
+						scrollToBottom();
+						isInitialScroll = false; // Allow future auto-scroll
+					}, 100);
+				}
+			} else {
+				// No previous read status or no messages, scroll to bottom
+				setTimeout(() => {
+					scrollToBottom();
+					isInitialScroll = false; // Allow future auto-scroll
+				}, 100);
+			}
+
+			// Mark this chat as read by fetching fresh chat info and using backend's lastMessageAt
+			try {
+				const chats = await apiFetchChats($authStore.token);
+				const updatedChat = chats.find(c => c.id === chatId);
+				if (updatedChat && updatedChat.lastMessageAt) {
+					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
+				}
+			} catch (error) {
+				console.warn('Failed to fetch updated chat info for notifications on load:', error);
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load messages';
 		} finally {
@@ -314,7 +372,7 @@
 			if (response.messages.length > 0) {
 				// Check if this is a new message (not initial load) and window is not focused
 				const hasNewMessages = currentMessageCount > 0;
-				if (hasNewMessages && !isWindowFocused) {
+				if (hasNewMessages && !isWindowFocused()) {
 					// Check if the new messages are from other users (not current user)
 					const hasOtherUserMessages = response.messages.some(msg => msg.userId !== $authStore.user?.id);
 
@@ -342,6 +400,19 @@
 				// Append new messages to the end of the array
 				messages = [...messages, ...newMessages];
 				prevCursor = response.prevCursor; // Update cursor to newest message
+
+				// Mark these messages as read by fetching updated chat info and using backend's lastMessageAt
+				if (newMessages.length > 0) {
+					try {
+						const chats = await apiFetchChats($authStore.token);
+						const updatedChat = chats.find(c => c.id === chatId);
+						if (updatedChat && updatedChat.lastMessageAt) {
+							chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
+						}
+					} catch (error) {
+						console.warn('Failed to fetch updated chat info for notifications:', error);
+					}
+				}
 			}
 		} catch (err) {
 			// Silently handle polling errors to avoid UI disruption
@@ -384,6 +455,18 @@
 			messages = [...messages, sentMessage];
 			// Update the cursor so polling can detect newer messages
 			prevCursor = sentMessage.id;
+
+			// Mark this message as read by fetching updated chat info and using backend's lastMessageAt
+			try {
+				const chats = await apiFetchChats($authStore.token);
+				const updatedChat = chats.find(c => c.id === chatId);
+				if (updatedChat && updatedChat.lastMessageAt) {
+					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
+				}
+			} catch (error) {
+				console.warn('Failed to fetch updated chat info for notifications after sending:', error);
+			}
+
 			// Ensure we scroll to bottom after sending
 			shouldAutoScroll = true;
 			setTimeout(scrollToBottom, 0);
@@ -469,6 +552,7 @@
 	function jumpToNewest() {
 		shouldAutoScroll = true;
 		showJumpToNewest = false;
+		isInitialScroll = false; // Reset initial scroll flag
 		scrollToBottom();
 	}
 

@@ -5,6 +5,7 @@
 	import type { Chat } from '$lib/types/chat';
 	import { goto } from '$app/navigation';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import { chatNotifications } from '$lib/stores/chatNotifications';
 
 	let showCreateModal = $state(false);
 	let showJoinModal = $state(false);
@@ -23,11 +24,36 @@
 		}
 	});
 
-	// Fetch chats when user is authenticated
+	// Initialize notification store on app start
 	$effect(() => {
+		chatNotifications.initialize();
+	});
+
+	// Start/stop periodic chat polling based on authentication
+	$effect(() => {
+		let intervalId: number | null = null;
+
 		if ($authStore.token && $authStore.user) {
-			fetchChats($authStore.token);
+			// Fetch chats immediately (show loading for initial load)
+			fetchChats($authStore.token, false);
+
+			// Set up silent periodic polling every 10 seconds
+			intervalId = window.setInterval(() => {
+				if ($authStore.token) {
+					fetchChats($authStore.token, true); // Silent mode - no loading indicators
+				}
+			}, 10000);
+		} else {
+			// User is not authenticated - clear notifications
+			chatNotifications.clear();
 		}
+
+		// Cleanup: stop polling when component is destroyed or auth changes
+		return () => {
+			if (intervalId !== null) {
+				clearInterval(intervalId);
+			}
+		};
 	});
 
 	async function handleCreateChat() {
@@ -204,7 +230,12 @@
 						{#each $chatStore.chats as chat (chat.id)}
 							<div class="chat-item card clickable" onclick={() => openChat(chat.id)}>
 								<div class="chat-info">
-									<h3 class="chat-name">#{chat.name}</h3>
+									<div class="chat-name-container">
+										<h3 class="chat-name">#{chat.name}</h3>
+										{#if $chatNotifications.hasUnreadMessages[chat.id]}
+											<div class="unread-indicator" title="New messages"></div>
+										{/if}
+									</div>
 									<p class="chat-meta">
 										Created {new Date(chat.createdAt).toLocaleDateString()}
 										{#if chat.members.length > 0}
@@ -614,11 +645,38 @@
 		flex: 1;
 	}
 
+	.chat-name-container {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 0.5rem;
+	}
+
 	.chat-name {
-		margin: 0 0 0.5rem 0;
+		margin: 0;
 		color: var(--text-primary);
 		font-size: 1.2rem;
 		font-weight: 600;
+	}
+
+	.unread-indicator {
+		width: 8px;
+		height: 8px;
+		background: var(--accent);
+		border-radius: 50%;
+		flex-shrink: 0;
+		animation: pulse 2s infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+		50% {
+			opacity: 0.7;
+			transform: scale(1.1);
+		}
 	}
 
 	.chat-meta {
