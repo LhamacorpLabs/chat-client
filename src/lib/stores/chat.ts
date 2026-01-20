@@ -1,7 +1,6 @@
 import { writable } from 'svelte/store';
 import type { Chat, CreateChatRequest } from '../types/chat';
 import { fetchChats as apiFetchChats, createChat as apiCreateChat, deleteChat as apiDeleteChat } from '../api/chat';
-import { chatNotifications } from './chatNotifications';
 
 interface ChatState {
 	chats: Chat[];
@@ -37,9 +36,6 @@ export async function fetchChats(token: string, silent: boolean = false) {
 			isLoading: false,
 			error: silent ? state.error : null // Don't clear errors in silent mode
 		}));
-
-		// Check for new messages and update notification status
-		chatNotifications.checkForUpdates(chats);
 
 		return true;
 	} catch (error) {

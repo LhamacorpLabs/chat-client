@@ -20,6 +20,12 @@ export interface CreateChatRequest {
 
 export interface ChatsResponse extends Array<Chat> {}
 
+// Chat metadata response for efficient polling
+export interface ChatMetadata {
+	id: string;
+	lastMessageAt: string | null;
+}
+
 // Message related types
 export interface Message {
 	id: string;

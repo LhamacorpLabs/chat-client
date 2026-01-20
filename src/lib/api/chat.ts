@@ -1,4 +1,4 @@
-import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest } from '../types/chat';
+import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata } from '../types/chat';
 import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 
 const CHAT_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/chats`;
@@ -13,6 +13,21 @@ export async function fetchChats(token: string): Promise<ChatsResponse> {
 
 	if (!response.ok) {
 		throw new Error(`Failed to fetch chats: ${response.status}`);
+	}
+
+	return response.json();
+}
+
+export async function fetchChatMetadata(token: string, chatId: string): Promise<ChatMetadata> {
+	const response = await fetch(`${CHAT_API_URL}/${chatId}/metadata`, {
+		method: 'GET',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch chat metadata: ${response.status}`);
 	}
 
 	return response.json();

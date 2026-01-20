@@ -6,6 +6,7 @@
 	import { goto } from '$app/navigation';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { chatNotifications } from '$lib/stores/chatNotifications';
+	import { metadataPollingService } from '$lib/services/metadataPolling';
 
 	let showCreateModal = $state(false);
 	let showJoinModal = $state(false);
@@ -29,31 +30,32 @@
 		chatNotifications.initialize();
 	});
 
-	// Start/stop periodic chat polling based on authentication
+	// Start/stop metadata polling based on authentication and chat list
 	$effect(() => {
-		let intervalId: number | null = null;
-
 		if ($authStore.token && $authStore.user) {
 			// Fetch chats immediately (show loading for initial load)
 			fetchChats($authStore.token, false);
-
-			// Set up silent periodic polling every 10 seconds
-			intervalId = window.setInterval(() => {
-				if ($authStore.token) {
-					fetchChats($authStore.token, true); // Silent mode - no loading indicators
-				}
-			}, 10000);
 		} else {
-			// User is not authenticated - clear notifications
+			// User is not authenticated - stop polling and clear notifications
+			metadataPollingService.stop();
 			chatNotifications.clear();
 		}
 
 		// Cleanup: stop polling when component is destroyed or auth changes
 		return () => {
-			if (intervalId !== null) {
-				clearInterval(intervalId);
-			}
+			metadataPollingService.stop();
 		};
+	});
+
+	// Start/update metadata polling when chat list changes
+	$effect(() => {
+		if ($authStore.token && $authStore.user && $chatStore.chats.length > 0) {
+			const chatIds = $chatStore.chats.map(chat => chat.id);
+			metadataPollingService.start(chatIds);
+		} else if ($chatStore.chats.length === 0) {
+			// No chats to poll
+			metadataPollingService.stop();
+		}
 	});
 
 	async function handleCreateChat() {
