@@ -1,5 +1,6 @@
 /**
- * Utility function to detect HTTPS links in text and convert them to clickable HTML links
+ * Utility function to detect HTTPS links in text and convert them to clickable HTML links,
+ * and replace emoji shortcuts with Unicode emojis
  */
 
 // Regex pattern to detect HTTPS URLs
@@ -7,8 +8,9 @@ const HTTPS_URL_REGEX = /https:\/\/[^\s<>"'`]+[^\s<>"'`.,;!?]/gi;
 
 /**
  * Converts HTTPS URLs in text to clickable HTML links with confirmation
- * @param text - The input text that may contain HTTPS URLs
- * @returns HTML string with clickable links
+ * and replaces emoji shortcuts with Unicode emojis
+ * @param text - The input text that may contain HTTPS URLs and emoji shortcuts
+ * @returns HTML string with clickable links and emojis
  */
 export function linkify(text: string): string {
 	// Escape HTML special characters to prevent XSS
@@ -19,8 +21,16 @@ export function linkify(text: string): string {
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#x27;');
 
+	// Replace simple emoji shortcuts with Unicode emojis
+	const withEmojis = escapedText
+		.replace(/:\)/g, '🙂')
+		.replace(/:P/g, '😛')
+		.replace(/:O/g, '😲')
+		.replace(/:kiss:/g, '😘')
+		.replace(/:D/g, '😃');
+
 	// Replace HTTPS URLs with clickable links that show confirmation
-	return escapedText.replace(HTTPS_URL_REGEX, (url) => {
+	return withEmojis.replace(HTTPS_URL_REGEX, (url) => {
 		// Additional validation to ensure the URL is well-formed
 		try {
 			new URL(url);
