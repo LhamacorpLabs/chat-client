@@ -16,6 +16,7 @@
 	let showUserMenu = $state(false);
 	let isJoining = $state(false);
 	let joinError = $state<string | null>(null);
+	let selectedChatIndex = $state(-1);
 
 	// Reactive statement: redirect to login when not authenticated
 	$effect(() => {
@@ -136,6 +137,61 @@
 		invitationCode = '';
 		joinError = null;
 	}
+
+	// Keyboard navigation
+	$effect(() => {
+		function handleKeyDown(event: KeyboardEvent) {
+			// Don't handle shortcuts if a modal is open or user is typing in an input
+			const isModalOpen = showCreateModal || showJoinModal;
+			const isTyping = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+
+			if (isModalOpen || isTyping) {
+				// Allow ESC to close modals
+				if (event.key === 'Escape') {
+					if (showCreateModal) closeCreateModal();
+					if (showJoinModal) closeJoinModal();
+				}
+				return;
+			}
+
+			const chats = $chatStore.chats;
+
+			switch (event.key) {
+				case 'ArrowDown':
+					event.preventDefault();
+					if (chats.length > 0) {
+						selectedChatIndex = Math.min(selectedChatIndex + 1, chats.length - 1);
+					}
+					break;
+				case 'ArrowUp':
+					event.preventDefault();
+					if (chats.length > 0) {
+						selectedChatIndex = Math.max(selectedChatIndex - 1, 0);
+					}
+					break;
+				case 'Enter':
+					event.preventDefault();
+					if (selectedChatIndex >= 0 && selectedChatIndex < chats.length) {
+						openChat(chats[selectedChatIndex].id);
+					}
+					break;
+				case 'c':
+					event.preventDefault();
+					openCreateModal();
+					break;
+				case 'j':
+					event.preventDefault();
+					openJoinModal();
+					break;
+			}
+		}
+
+		document.addEventListener('keydown', handleKeyDown);
+
+		return () => {
+			document.removeEventListener('keydown', handleKeyDown);
+		};
+	});
 </script>
 
 {#if $authStore.user}
@@ -229,8 +285,8 @@
 				<!-- Chats List -->
 				{#if !$chatStore.isLoading && $chatStore.chats.length > 0}
 					<div class="chats-list">
-						{#each $chatStore.chats as chat (chat.id)}
-							<div class="chat-item card clickable" onclick={() => openChat(chat.id)}>
+						{#each $chatStore.chats as chat, index (chat.id)}
+							<div class="chat-item card clickable" class:selected={index === selectedChatIndex} onclick={() => openChat(chat.id)}>
 								<div class="chat-info">
 									<div class="chat-name-container">
 										<h3 class="chat-name">#{chat.name}</h3>
@@ -275,6 +331,7 @@
 					<div class="modal-body">
 						<p>Enter a name for your new chat:</p>
 						<form onsubmit={(e) => { e.preventDefault(); handleCreateChat(); }}>
+							{#key showCreateModal}
 							<input
 								type="text"
 								bind:value={newChatName}
@@ -282,7 +339,9 @@
 								required
 								disabled={$chatStore.isCreating}
 								class="modal-input"
+								autofocus
 							/>
+							{/key}
 							<div class="modal-actions">
 								<button
 									type="button"
@@ -317,6 +376,7 @@
 					<div class="modal-body">
 						<p>Enter the invitation code to join a chat:</p>
 						<form onsubmit={(e) => { e.preventDefault(); handleJoinChat(); }}>
+							{#key showJoinModal}
 							<input
 								type="text"
 								bind:value={invitationCode}
@@ -324,7 +384,9 @@
 								required
 								disabled={isJoining}
 								class="modal-input"
+								autofocus
 							/>
+							{/key}
 							{#if joinError}
 								<div class="alert alert-error modal-error">
 									{joinError}
@@ -701,6 +763,17 @@
 		transform: translateX(3px);
 	}
 
+	/* Selected state for keyboard navigation */
+	.chat-item.selected {
+		border-color: var(--accent);
+		background: var(--bg-secondary);
+		box-shadow: 0 4px 12px var(--shadow);
+	}
+
+	.chat-item.selected .chat-chevron {
+		color: var(--accent);
+		opacity: 1;
+	}
 
 	/* Empty State */
 	.empty-state {

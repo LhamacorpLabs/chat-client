@@ -794,6 +794,31 @@
 			delete (window as any).showLinkConfirmation;
 		};
 	});
+
+	$effect(() => {
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key === 'Escape') {
+				const imageModal = document.querySelector('.image-modal-overlay');
+				if (imageModal) {
+					return;
+				}
+
+				event.preventDefault();
+				goBack();
+			}
+
+			if (event.key === 'i' && document.activeElement !== messageInputElement) {
+				event.preventDefault();
+				messageInputElement?.focus();
+			}
+		}
+
+		document.addEventListener('keydown', handleKeyDown);
+
+		return () => {
+			document.removeEventListener('keydown', handleKeyDown);
+		};
+	});
 </script>
 
 {#if $authStore.user}
@@ -803,7 +828,7 @@
 			<div class="header-content">
 				<div class="header-left">
 					<button onclick={goBack} class="btn btn-ghost back-btn">
-						← Back to Chats
+						←
 					</button>
 					<div class="chat-title">
 						<img src="/logo.png" alt="Lhama Chat Logo" class="chat-logo" />
