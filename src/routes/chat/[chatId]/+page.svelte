@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
-	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage } from '$lib/api/chat';
+	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import {
 		memberColorsStore,
@@ -48,6 +48,8 @@
 
 	// Delete state
 	let showDeleteModal = $state(false);
+	let showLeaveModal = $state(false);
+	let isLeaving = $state(false);
 	let showActionsMenu = $state(false);
 	let openActionMenuId = $state<string | null>(null);
 
@@ -636,6 +638,21 @@
 		// Error handling is done in the store, error state will show via $chatStore.error
 	}
 
+	async function handleLeaveChat() {
+		if (!$authStore.token || !$authStore.user?.id) return;
+
+		isLeaving = true;
+		try {
+			await leaveChat($authStore.token, chatId, $authStore.user.id);
+			showLeaveModal = false;
+			goto('/');
+		} catch (error) {
+			console.error('Failed to leave chat:', error);
+		} finally {
+			isLeaving = false;
+		}
+	}
+
 	function getUsernameFromId(userId: string): string {
 		if (userId === $authStore.user?.id) {
 			return 'You';
@@ -723,6 +740,18 @@
 										Mute
 									{/if}
 								</button>
+								{#if !isOwner}
+									<button
+										onclick={() => {
+											showLeaveModal = true;
+											showActionsMenu = false;
+										}}
+										class="dropdown-item danger"
+										disabled={isLeaving}
+									>
+										{isLeaving ? 'Leaving...' : 'Leave Chat'}
+									</button>
+								{/if}
 								{#if isOwner}
 									<button
 										onclick={() => {
@@ -919,6 +948,38 @@
 								disabled={$chatStore.isDeleting}
 							>
 								{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Leave Confirmation Modal -->
+		{#if showLeaveModal}
+			<div class="modal-overlay" onclick={() => showLeaveModal = false}>
+				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+					<div class="modal-header">
+						<h3>Leave Chat</h3>
+						<button onclick={() => showLeaveModal = false} class="close-btn">&times;</button>
+					</div>
+					<div class="modal-body">
+						<p><strong>Are you sure you want to leave this chat?</strong></p>
+						<p>You will no longer receive messages from "#{chatName}" and will need to be re-invited to join again.</p>
+						<div class="modal-actions">
+							<button
+								onclick={() => showLeaveModal = false}
+								class="btn btn-ghost"
+								disabled={isLeaving}
+							>
+								Cancel
+							</button>
+							<button
+								onclick={handleLeaveChat}
+								class="btn btn-danger"
+								disabled={isLeaving}
+							>
+								{isLeaving ? 'Leaving...' : 'Leave Chat'}
 							</button>
 						</div>
 					</div>

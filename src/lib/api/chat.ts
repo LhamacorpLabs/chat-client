@@ -194,3 +194,16 @@ export async function deleteChat(token: string, chatId: string): Promise<void> {
 		throw new Error(`Failed to delete chat: ${response.status}`);
 	}
 }
+
+export async function leaveChat(token: string, chatId: string, userId: string): Promise<void> {
+	const response = await fetch(`${CHAT_API_URL}/${chatId}/members/${userId}/remove`, {
+		method: 'PUT',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to leave chat: ${response.status}`);
+	}
+}
