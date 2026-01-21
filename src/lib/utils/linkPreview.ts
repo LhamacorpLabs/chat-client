@@ -10,6 +10,25 @@ export interface LinkPreview {
 }
 
 /**
+ * Checks if hostname matches a legitimate domain or its subdomains
+ */
+function isLegitimateHostname(hostname: string, legitimateDomains: string[]): boolean {
+	const lowerHostname = hostname.toLowerCase();
+
+	return legitimateDomains.some(domain => {
+		const lowerDomain = domain.toLowerCase();
+
+		// Exact match
+		if (lowerHostname === lowerDomain) {
+			return true;
+		}
+
+		// Subdomain match (must end with .domain)
+		return lowerHostname.endsWith('.' + lowerDomain);
+	});
+}
+
+/**
  * Detects platform type from URL and extracts basic information
  */
 export function detectLinkPreview(url: string): LinkPreview | null {
@@ -18,37 +37,42 @@ export function detectLinkPreview(url: string): LinkPreview | null {
 		const hostname = urlObj.hostname.toLowerCase();
 
 		// YouTube detection
-		if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+		if (isLegitimateHostname(hostname, ['youtube.com', 'youtu.be', 'youtube-nocookie.com', 'm.youtube.com', 'www.youtube.com'])) {
 			return detectYoutube(url, urlObj);
 		}
 
 		// Instagram detection
-		if (hostname.includes('instagram.com') || hostname.includes('instagr.am')) {
+		if (isLegitimateHostname(hostname, ['instagram.com', 'instagr.am', 'www.instagram.com'])) {
 			return detectInstagram(url, urlObj);
 		}
 
 		// Spotify detection
-		if (hostname.includes('spotify.com') || hostname.includes('open.spotify.com')) {
+		if (isLegitimateHostname(hostname, ['spotify.com', 'open.spotify.com', 'play.spotify.com'])) {
 			return detectSpotify(url, urlObj);
 		}
 
 		// Twitter/X detection
-		if (hostname.includes('twitter.com') || hostname.includes('x.com') || hostname.includes('t.co')) {
+		if (isLegitimateHostname(hostname, ['twitter.com', 'x.com', 't.co', 'www.twitter.com', 'mobile.twitter.com'])) {
 			return detectTwitter(url, urlObj);
 		}
 
 		// GitHub detection
-		if (hostname.includes('github.com') || hostname.includes('gist.github.com')) {
+		if (isLegitimateHostname(hostname, ['github.com', 'gist.github.com', 'www.github.com'])) {
 			return detectGitHub(url, urlObj);
 		}
 
-		// Amazon detection
-		if (hostname.includes('amazon.') || hostname.includes('amzn.')) {
+		// Amazon detection - more comprehensive list of legitimate Amazon domains
+		if (isLegitimateHostname(hostname, [
+			'amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es',
+			'amazon.ca', 'amazon.com.au', 'amazon.co.jp', 'amazon.in', 'amazon.com.br',
+			'amazon.com.mx', 'amazon.nl', 'amazon.se', 'amazon.com.tr', 'amazon.ae',
+			'amzn.to', 'amzn.com', 'www.amazon.com', 'smile.amazon.com'
+		])) {
 			return detectAmazon(url, urlObj);
 		}
 
 		// LhamaCorp detection
-		if (hostname.includes('lhamacorp.com')) {
+		if (isLegitimateHostname(hostname, ['lhamacorp.com', 'www.lhamacorp.com'])) {
 			return detectLhamacorp(url, urlObj);
 		}
 
@@ -336,7 +360,7 @@ function detectGitHub(url: string, urlObj: URL): LinkPreview {
 	// Extract information from GitHub URLs
 	const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
 
-	if (urlObj.hostname.includes('gist.github.com')) {
+	if (isLegitimateHostname(urlObj.hostname, ['gist.github.com'])) {
 		// https://gist.github.com/username/gist-id
 		const username = pathParts[0];
 		const gistId = pathParts[1] || '';
@@ -447,8 +471,8 @@ function detectGitHub(url: string, urlObj: URL): LinkPreview {
 
 function detectAmazon(url: string, urlObj: URL): LinkPreview {
 	let productId = '';
-	let contentType = 'Product';
-	let title = 'Amazon Product';
+	let contentType;
+	let title;
 	let description;
 
 	// Extract country code from hostname for context
@@ -549,8 +573,8 @@ function detectAmazon(url: string, urlObj: URL): LinkPreview {
 }
 
 function detectLhamacorp(url: string, urlObj: URL): LinkPreview {
-	let contentType = 'Link';
-	let title = 'LhamaCorp';
+	let contentType;
+	let title;
 	let description;
 
 	// Extract information from LhamaCorp URLs
