@@ -36,32 +36,26 @@ export function detectLinkPreview(url: string): LinkPreview | null {
 		const urlObj = new URL(url);
 		const hostname = urlObj.hostname.toLowerCase();
 
-		// YouTube detection
 		if (isLegitimateHostname(hostname, ['youtube.com', 'youtu.be', 'youtube-nocookie.com', 'm.youtube.com', 'www.youtube.com'])) {
 			return detectYoutube(url, urlObj);
 		}
 
-		// Instagram detection
 		if (isLegitimateHostname(hostname, ['instagram.com', 'instagr.am', 'www.instagram.com'])) {
 			return detectInstagram(url, urlObj);
 		}
 
-		// Spotify detection
 		if (isLegitimateHostname(hostname, ['spotify.com', 'open.spotify.com', 'play.spotify.com'])) {
 			return detectSpotify(url, urlObj);
 		}
 
-		// Twitter/X detection
 		if (isLegitimateHostname(hostname, ['twitter.com', 'x.com', 't.co', 'www.twitter.com', 'mobile.twitter.com'])) {
 			return detectTwitter(url, urlObj);
 		}
 
-		// GitHub detection
 		if (isLegitimateHostname(hostname, ['github.com', 'gist.github.com', 'www.github.com'])) {
 			return detectGitHub(url, urlObj);
 		}
 
-		// Amazon detection - more comprehensive list of legitimate Amazon domains
 		if (isLegitimateHostname(hostname, [
 			'amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es',
 			'amazon.ca', 'amazon.com.au', 'amazon.co.jp', 'amazon.in', 'amazon.com.br',
@@ -71,7 +65,6 @@ export function detectLinkPreview(url: string): LinkPreview | null {
 			return detectAmazon(url, urlObj);
 		}
 
-		// LhamaCorp detection
 		if (isLegitimateHostname(hostname, ['lhamacorp.com', 'www.lhamacorp.com'])) {
 			return detectLhamacorp(url, urlObj);
 		}
