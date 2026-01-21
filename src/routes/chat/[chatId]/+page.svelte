@@ -22,6 +22,8 @@
 	import { playNotificationSound, isWindowFocused } from '$lib/utils/notificationSound';
 	import { showMessageNotification } from '$lib/utils/osNotification';
 	import { chatMuteStore } from '$lib/stores/chatMute';
+	import { hasReply, formatReplyMessage } from '$lib/utils/replyMessages';
+	import ReplyPreview from '$lib/components/ReplyPreview.svelte';
 
 	interface PageData {
 		chatId: string;
@@ -78,6 +80,9 @@
 	let isInitialScroll = $state(true);
 
 	let shouldUseColors = $state(false);
+
+	let replyingTo = $state<Message | null>(null);
+	let highlightedMessageId = $state<string | null>(null);
 
 	const chatId = data.chatId;
 	const currentChat = data.chat;
@@ -440,10 +445,12 @@
 
 		const messageText = newMessage.trim();
 		const imagesToUpload = [...selectedImages];
+		const replyToMessage = replyingTo;
 
 		// Clear input immediately
 		newMessage = '';
 		selectedImages = [];
+		replyingTo = null;
 		showImageUpload = false;
 		sendError = null;
 		isSending = true;
@@ -481,9 +488,11 @@
 				}
 			}
 
-			// Create message content with image references
+			// Create message content with reply and/or image references
 			let finalMessageContent = messageText;
-			if (imageIds.length > 0) {
+			if (replyToMessage) {
+				finalMessageContent = formatReplyMessage(replyToMessage.id, messageText, imageIds);
+			} else if (imageIds.length > 0) {
 				const imageReferences = imageIds.map(id => `image:${id}`).join('\n');
 				finalMessageContent = messageText ? `${messageText}\n${imageReferences}` : imageReferences;
 			}
@@ -516,6 +525,7 @@
 			// Restore message and images on error
 			newMessage = messageText;
 			selectedImages = imagesToUpload;
+			replyingTo = replyToMessage;
 			if (imagesToUpload.length > 0) {
 				showImageUpload = true;
 			}
@@ -594,6 +604,10 @@
 			e.preventDefault();
 			handleSendMessage();
 		}
+		if (e.key === 'Escape' && replyingTo) {
+			e.preventDefault();
+			cancelReply();
+		}
 	}
 
 	async function handleDeleteMessage(messageId: string) {
@@ -623,6 +637,29 @@
 
 	function closeActionMenu() {
 		openActionMenuId = null;
+	}
+
+	function handleReplyToMessage(message: Message) {
+		replyingTo = message;
+		closeActionMenu();
+		setTimeout(() => messageInputElement?.focus(), 100);
+	}
+
+	function cancelReply() {
+		replyingTo = null;
+	}
+
+	function handleReplyClick(messageId: string) {
+		const index = messages.findIndex(m => m.id === messageId);
+		if (index >= 0) {
+			scrollToMessage(index);
+			highlightMessage(messageId);
+		}
+	}
+
+	function highlightMessage(messageId: string) {
+		highlightedMessageId = messageId;
+		setTimeout(() => (highlightedMessageId = null), 2000);
 	}
 
 	async function handleCreateInvite() {
@@ -889,6 +926,7 @@
 						{@const memberColor = shouldUseColors && !isOwnMessage ? getMemberColor(chatId, message.userId) : null}
 						{@const linkifyResult = linkify(message.message, true)}
 						<div class="message-item {isOwnMessage ? 'own-message' : 'other-message'}"
+						     class:highlighted={highlightedMessageId === message.id}
 						     style={memberColor ? `--current-member-color: ${memberColor}` : ''}>
 							<div class="message-header">
 								<span class="message-user"
@@ -905,7 +943,7 @@
 											minute: '2-digit'
 										})}
 									</span>
-									{#if isOwnMessage && message.message !== '[deleted message]'}
+									{#if message.message !== '[deleted message]'}
 										<div class="message-actions">
 											<button class="action-btn menu-btn"
 											        onclick={(e) => toggleActionMenu(message.id, e)}
@@ -914,10 +952,16 @@
 											</button>
 											{#if openActionMenuId === message.id}
 												<div class="action-dropdown">
-													<button class="dropdown-item delete-item"
-													        onclick={() => handleDeleteMessage(message.id)}>
-														Delete
+													<button class="dropdown-item reply-item"
+													        onclick={() => handleReplyToMessage(message)}>
+														Reply
 													</button>
+													{#if isOwnMessage}
+														<button class="dropdown-item delete-item"
+														        onclick={() => handleDeleteMessage(message.id)}>
+															Delete
+														</button>
+													{/if}
 												</div>
 											{/if}
 										</div>
@@ -925,9 +969,13 @@
 								</div>
 							</div>
 							<div class="message-content">
-								{#if hasImages(message.message)}
-									<!-- Message with images - use ParsedMessage component -->
-									<ParsedMessage content={message.message} />
+								{#if hasImages(message.message) || hasReply(message.message)}
+									<!-- Message with images or replies - use ParsedMessage component -->
+									<ParsedMessage
+										content={message.message}
+										messages={messages}
+										onReplyClick={handleReplyClick}
+									/>
 								{:else}
 									<!-- Regular text message - use existing linkify logic -->
 									{@html linkifyResult.html}
@@ -963,6 +1011,16 @@
 			{#if sendError}
 				<div class="send-error alert alert-error">
 					{sendError}
+				</div>
+			{/if}
+
+			{#if replyingTo}
+				<div class="reply-composition-container">
+					<ReplyPreview
+						message={replyingTo}
+						mode="composition"
+						onCancel={cancelReply}
+					/>
 				</div>
 			{/if}
 
@@ -1322,6 +1380,24 @@
 		}
 	}
 
+	@keyframes highlightPulse {
+		0% {
+			background: rgba(255, 235, 59, 0.4);
+			transform: scale(1.02);
+		}
+		50% {
+			background: rgba(255, 235, 59, 0.2);
+		}
+		100% {
+			background: transparent;
+			transform: scale(1);
+		}
+	}
+
+	.message-item.highlighted {
+		animation: highlightPulse 2s ease-out;
+	}
+
 	.own-message {
 		background: var(--accent);
 		color: white;
@@ -1391,8 +1467,8 @@
 	}
 
 	.action-btn {
-		background: var(--accent);
-		border: 1px solid rgba(255, 255, 255, 0.2);
+		background: transparent;
+		border: none;
 		border-radius: 4px;
 		padding: 0.25rem;
 		cursor: pointer;
@@ -1407,7 +1483,7 @@
 	}
 
 	.action-btn:hover {
-		background: var(--accent-hover);
+		background: transparent;
 		transform: scale(1.05);
 	}
 
@@ -1479,6 +1555,20 @@
 		background: rgba(229, 62, 62, 0.15);
 	}
 
+	.reply-item {
+		color: var(--accent);
+	}
+
+	.reply-item:hover {
+		background: rgba(var(--accent-rgb, 0, 123, 255), 0.1);
+	}
+
+	/* Position menu on left for other messages */
+	.other-message .action-dropdown {
+		right: auto;
+		left: 0;
+	}
+
 	/* Own message styling overrides */
 	.own-message .message-user {
 		color: rgba(255, 255, 255, 0.9);
@@ -1527,6 +1617,11 @@
 	.send-error {
 		max-width: 1200px;
 		margin: 0 auto 1rem auto;
+	}
+
+	.reply-composition-container {
+		max-width: 1200px;
+		margin: 0 auto 0.5rem auto;
 	}
 
 	.input-container {

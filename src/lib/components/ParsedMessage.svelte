@@ -1,18 +1,26 @@
 <script lang="ts">
 	import { parseImageMessage, type ParsedMessage } from '../utils/imageMessages';
+	import { parseReplyMessage } from '../utils/replyMessages';
 	import MessageImage from './MessageImage.svelte';
+	import ReplyPreview from './ReplyPreview.svelte';
 	import { getImage } from '../api/chat';
 	import { authStore } from '../stores/auth';
-	import type { ImageAttachment } from '../types/chat';
+	import type { ImageAttachment, Message } from '../types/chat';
 
 	interface Props {
 		content: string;
+		messages?: Message[];
+		onReplyClick?: (messageId: string) => void;
 	}
 
-	let { content }: Props = $props();
+	let { content, messages = [], onReplyClick }: Props = $props();
 
 	// Parse message content (derived, no side effects)
 	let parsedMessage = $derived(parseImageMessage(content));
+	let parsedReply = $derived(parseReplyMessage(content));
+	let repliedMessage = $derived(
+		parsedReply.replyToId ? messages.find((m) => m.id === parsedReply.replyToId) : null
+	);
 
 	// State for image loading - keyed by content to avoid loops
 	let loadState = $state<{
@@ -42,21 +50,21 @@
 			};
 
 			// Load images if we have any
-			if (parsedMessage.imageIds.length > 0) {
+			if (parsedReply.imageIds.length > 0) {
 				loadImages();
 			}
 		}
 	});
 
 	async function loadImages() {
-		if (!$authStore.token || parsedMessage.imageIds.length === 0 || loadState.hasLoadedOnce) return;
+		if (!$authStore.token || parsedReply.imageIds.length === 0 || loadState.hasLoadedOnce) return;
 
 		loadState.hasLoadedOnce = true;
 		loadState.loadingImages = true;
 		loadState.loadingFailed = false;
 
 		try {
-			const imagePromises = parsedMessage.imageIds.map(async (imageId) => {
+			const imagePromises = parsedReply.imageIds.map(async (imageId) => {
 				try {
 					return await getImage($authStore.token!, imageId);
 				} catch (error) {
@@ -76,7 +84,7 @@
 
 		} catch (error) {
 			console.error('Failed to load images:', error);
-			loadState.loadedImages = parsedMessage.imageIds.map(() => null);
+			loadState.loadedImages = parsedReply.imageIds.map(() => null);
 			loadState.loadingFailed = true;
 		} finally {
 			loadState.loadingImages = false;
@@ -92,18 +100,27 @@
 {:else}
 	<!-- Normal parsed message display -->
 
+	<!-- Render reply preview if this is a reply -->
+	{#if parsedReply.replyToId}
+		<ReplyPreview
+			message={repliedMessage ?? null}
+			mode="display"
+			onClick={() => onReplyClick?.(parsedReply.replyToId!)}
+		/>
+	{/if}
+
 	<!-- Render text content if any -->
-	{#if parsedMessage.text}
+	{#if parsedReply.text}
 		<div class="message-text">
-			{parsedMessage.text}
+			{parsedReply.text}
 		</div>
 	{/if}
 
 	<!-- Render images -->
-	{#if parsedMessage.imageIds.length > 0}
+	{#if parsedReply.imageIds.length > 0}
 		<div class="message-images">
 			{#if loadState.loadingImages}
-				{#each parsedMessage.imageIds as imageId}
+				{#each parsedReply.imageIds as imageId}
 					<div class="image-loading">
 						<div class="loading-spinner"></div>
 						<span class="loading-text">Loading image...</span>
