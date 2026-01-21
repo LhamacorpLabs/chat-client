@@ -934,15 +934,6 @@
 									{message.userId === $authStore.user?.id ? 'You' : message.username}
 								</span>
 								<div class="message-header-right">
-									<span class="message-time">
-										{new Date(message.createdAt).toLocaleString([], {
-											year: 'numeric',
-											month: '2-digit',
-											day: '2-digit',
-											hour: '2-digit',
-											minute: '2-digit'
-										})}
-									</span>
 									{#if message.message !== '[deleted message]'}
 										<div class="message-actions">
 											<button class="action-btn menu-btn"
@@ -966,6 +957,15 @@
 											{/if}
 										</div>
 									{/if}
+									<span class="message-time">
+										{new Date(message.createdAt).toLocaleString([], {
+											year: 'numeric',
+											month: '2-digit',
+											day: '2-digit',
+											hour: '2-digit',
+											minute: '2-digit'
+										})}
+									</span>
 								</div>
 							</div>
 							<div class="message-content">
@@ -1367,6 +1367,7 @@
 		margin-bottom: 0.25rem;
 		transition: all 0.2s ease;
 		animation: fadeInMessage 0.3s ease-out;
+		position: relative;
 	}
 
 	@keyframes fadeInMessage {
@@ -1430,13 +1431,14 @@
 
 	.message-header-right {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		gap: 0.5rem;
 	}
 
 	.message-time {
 		color: var(--text-muted);
 		font-size: 0.75rem;
+		white-space: nowrap;
 	}
 
 	.message-content {
@@ -1455,11 +1457,20 @@
 	/* Message actions menu */
 	.message-actions {
 		opacity: 0;
-		position: relative;
+		position: absolute;
+		top: -2px;
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;
 		transition: opacity 0.2s ease;
+	}
+
+	.own-message .message-actions {
+		left: -28px;
+	}
+
+	.other-message .message-actions {
+		right: -28px;
 	}
 
 	.message-item:hover .message-actions {
