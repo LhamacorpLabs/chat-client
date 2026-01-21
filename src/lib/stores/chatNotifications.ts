@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import type { Chat } from '../types/chat.js';
 import { playNotificationSound, isWindowFocused } from '../utils/notificationSound.js';
 import { showMessageNotification } from '../utils/osNotification.js';
+import { chatMuteStore } from './chatMute.js';
 
 interface ChatNotificationState {
 	// Map of chatId -> last known lastMessageAt timestamp
@@ -10,13 +11,16 @@ interface ChatNotificationState {
 	hasUnreadMessages: Record<string, boolean>;
 }
 
-interface ChatNotificationStore extends ChatNotificationState {
+interface ChatNotificationStore {
+	subscribe: typeof subscribe;
 	// Update the last known timestamp for a chat (call this when user views chat)
 	markChatAsRead: (chatId: string, timestamp: string | null) => void;
 	// Check for new messages across all chats and update unread status
 	checkForUpdates: (chats: Chat[]) => void;
 	// Get unread status for a specific chat
 	isUnread: (chatId: string) => boolean;
+	// Get the last known timestamp for a chat
+	getLastKnownTimestamp: (chatId: string) => string | null;
 	// Clear all notifications (e.g., on logout)
 	clear: () => void;
 	// Initialize from localStorage
@@ -104,16 +108,21 @@ function createChatNotificationStore(): ChatNotificationStore {
 
 				// Play notification sound only if status changed from read to unread and window is not focused
 				if (shouldPlaySound && !isWindowFocused()) {
-					playNotificationSound();
+					// Check if the chat is muted before playing notifications
+					const isChatMuted = notificationChat ? chatMuteStore.isMuted(notificationChat.id) : false;
 
-					// Show OS notification for the chat with new messages
-					if (notificationChat) {
-						showMessageNotification({
-							title: `New message in ${notificationChat.name}`,
-							body: `You have a new message`,
-							chatId: notificationChat.id,
-							tag: `chat-${notificationChat.id}`
-						});
+					if (!isChatMuted) {
+						playNotificationSound();
+
+						// Show OS notification for the chat with new messages
+						if (notificationChat) {
+							showMessageNotification({
+								title: `New message in ${notificationChat.name}`,
+								body: `You have a new message`,
+								chatId: notificationChat.id,
+								tag: `chat-${notificationChat.id}`
+							});
+						}
 					}
 				}
 

@@ -17,6 +17,7 @@
 	import { chatNotifications } from '$lib/stores/chatNotifications';
 	import { playNotificationSound, isWindowFocused } from '$lib/utils/notificationSound';
 	import { showMessageNotification } from '$lib/utils/osNotification';
+	import { chatMuteStore } from '$lib/stores/chatMute';
 
 	interface PageData {
 		chatId: string;
@@ -396,21 +397,26 @@
 
 					if (hasOtherUserMessages) {
 						hasUnreadMessages = true;
-						playNotificationSound();
 
-						// Show OS notification for new messages
-						const latestMessage = response.messages[response.messages.length - 1];
-						if (latestMessage) {
-							// Get sender name from chat members
-							const sender = data.chat.members.find(member => member.id === latestMessage.userId);
-							const senderName = sender ? sender.name : 'Someone';
+						// Only play notifications if chat is not muted
+						const isChatMuted = chatMuteStore.isMuted(data.chatId);
+						if (!isChatMuted) {
+							playNotificationSound();
 
-							showMessageNotification({
-								title: `New message in ${data.chat.name}`,
-								body: `${senderName}: ${latestMessage.message.length > 50 ? latestMessage.message.substring(0, 50) + '...' : latestMessage.message}`,
-								chatId: data.chatId,
-								tag: `chat-${data.chatId}`
-							});
+							// Show OS notification for new messages
+							const latestMessage = response.messages[response.messages.length - 1];
+							if (latestMessage) {
+								// Get sender name from chat members
+								const sender = data.chat.members.find(member => member.id === latestMessage.userId);
+								const senderName = sender ? sender.name : 'Someone';
+
+								showMessageNotification({
+									title: `New message in ${data.chat.name}`,
+									body: `${senderName}: ${latestMessage.message.length > 50 ? latestMessage.message.substring(0, 50) + '...' : latestMessage.message}`,
+									chatId: data.chatId,
+									tag: `chat-${data.chatId}`
+								});
+							}
 						}
 					}
 				}
@@ -683,6 +689,19 @@
 				</div>
 
 				<div class="header-actions">
+					<!-- Mute button - available to all users -->
+					<button
+						onclick={() => chatMuteStore.toggleMute(data.chatId)}
+						class="btn btn-ghost mute-btn"
+						title={$chatMuteStore.mutedChats[data.chatId] ? 'Enable sound and desktop notifications' : 'Disable sound and desktop notifications'}
+					>
+						{#if $chatMuteStore.mutedChats[data.chatId]}
+							Unmute
+						{:else}
+							Mute
+						{/if}
+					</button>
+
 					{#if isOwner}
 						<button
 							onclick={handleCreateInvite}
@@ -1464,6 +1483,12 @@
 			text-overflow: ellipsis;
 			white-space: nowrap;
 		}
+	}
+
+	/* Mute Button - matches invite button styling */
+	.mute-btn {
+		font-size: 0.9rem;
+		padding: 0.5rem 1rem;
 	}
 
 	/* Invitation Button */
