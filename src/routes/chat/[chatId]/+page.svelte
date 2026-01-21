@@ -16,6 +16,7 @@
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import { chatNotifications } from '$lib/stores/chatNotifications';
 	import { playNotificationSound, isWindowFocused } from '$lib/utils/notificationSound';
+	import { showMessageNotification } from '$lib/utils/osNotification';
 
 	interface PageData {
 		chatId: string;
@@ -396,6 +397,21 @@
 					if (hasOtherUserMessages) {
 						hasUnreadMessages = true;
 						playNotificationSound();
+
+						// Show OS notification for new messages
+						const latestMessage = response.messages[response.messages.length - 1];
+						if (latestMessage) {
+							// Get sender name from chat members
+							const sender = data.chat.members.find(member => member.id === latestMessage.userId);
+							const senderName = sender ? sender.name : 'Someone';
+
+							showMessageNotification({
+								title: `New message in ${data.chat.name}`,
+								body: `${senderName}: ${latestMessage.message.length > 50 ? latestMessage.message.substring(0, 50) + '...' : latestMessage.message}`,
+								chatId: data.chatId,
+								tag: `chat-${data.chatId}`
+							});
+						}
 					}
 				}
 

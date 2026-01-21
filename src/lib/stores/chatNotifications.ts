@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import type { Chat } from '../types/chat.js';
 import { playNotificationSound, isWindowFocused } from '../utils/notificationSound.js';
+import { showMessageNotification } from '../utils/osNotification.js';
 
 interface ChatNotificationState {
 	// Map of chatId -> last known lastMessageAt timestamp
@@ -77,6 +78,7 @@ function createChatNotificationStore(): ChatNotificationStore {
 			update(state => {
 				let hasChanges = false;
 				let shouldPlaySound = false;
+				let notificationChat: Chat | null = null;
 				const newUnreadMessages = { ...state.hasUnreadMessages };
 
 				for (const chat of chats) {
@@ -94,6 +96,7 @@ function createChatNotificationStore(): ChatNotificationStore {
 							// Only play sound if this chat was NOT already unread (status changed from read to unread)
 							if (!wasUnread) {
 								shouldPlaySound = true;
+								notificationChat = chat;
 							}
 						}
 					}
@@ -102,6 +105,16 @@ function createChatNotificationStore(): ChatNotificationStore {
 				// Play notification sound only if status changed from read to unread and window is not focused
 				if (shouldPlaySound && !isWindowFocused()) {
 					playNotificationSound();
+
+					// Show OS notification for the chat with new messages
+					if (notificationChat) {
+						showMessageNotification({
+							title: `New message in ${notificationChat.name}`,
+							body: `You have a new message`,
+							chatId: notificationChat.id,
+							tag: `chat-${notificationChat.id}`
+						});
+					}
 				}
 
 				if (hasChanges) {
