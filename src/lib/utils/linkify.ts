@@ -33,7 +33,8 @@ export function linkify(text: string, includePreviews = false): string | Linkify
         .replace(/(?<!\S):D(?!\S)/g, '😃')
         .replace(/(?<!\S):thinking:(?!\S)/g, '🤔')
         .replace(/(?<!\S):evil:(?!\S)/g, '😈')
-        .replace(/(?<!\S):devil:(?!\S)/g, '👿')
+        .replace(/(?<!\S):devil:(?!\S)/g, '👹')
+        .replace(/(?<!\S):clown:(?!\S)/g, '🤡')
         .replace(/(?<!\S):sic:(?!\S)/g, '🤢')
         .replace(/(?<!\S):puto:(?!\S)/g, '🤬')
         .replace(/(?<!\S):okay:(?!\S)/g, '👍')
@@ -41,6 +42,7 @@ export function linkify(text: string, includePreviews = false): string | Linkify
         .replace(/(?<!\S):gay:(?!\S)/g, '💅')
         .replace(/(?<!\S):darkmoon:(?!\S)/g, '🌚')
         .replace(/(?<!\S):lightmoon:(?!\S)/g, '🌝')
+        .replace(/(?<!\S):love:(?!\S)/g, '🧡')
     ;
 
     const previews: LinkPreview[] = [];

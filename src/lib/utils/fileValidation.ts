@@ -1,5 +1,3 @@
-// File validation utilities for image uploads
-
 export const ALLOWED_IMAGE_TYPES = [
 	'image/jpeg',
 	'image/jpg',
@@ -60,30 +58,6 @@ export function validateImageFile(file: File): FileValidationResult {
 	return { isValid: true };
 }
 
-/**
- * Validates multiple image files
- */
-export function validateImageFiles(files: File[]): {
-	validFiles: File[];
-	errors: { file: string; error: FileValidationError }[];
-} {
-	const validFiles: File[] = [];
-	const errors: { file: string; error: FileValidationError }[] = [];
-
-	files.forEach((file) => {
-		const validation = validateImageFile(file);
-		if (validation.isValid) {
-			validFiles.push(file);
-		} else if (validation.error) {
-			errors.push({
-				file: file.name,
-				error: validation.error
-			});
-		}
-	});
-
-	return { validFiles, errors };
-}
 
 /**
  * Formats file size in human readable format

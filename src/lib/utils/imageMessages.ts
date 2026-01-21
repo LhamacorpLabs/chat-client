@@ -1,5 +1,3 @@
-// Utility functions for parsing and handling image messages
-
 export interface ParsedMessage {
 	text: string;
 	imageIds: string[];
@@ -21,13 +19,11 @@ export function parseImageMessage(content: string): ParsedMessage {
 	for (const line of lines) {
 		const trimmedLine = line.trim();
 		if (trimmedLine.startsWith('image:')) {
-			// Extract image ID
-			const imageId = trimmedLine.substring(6); // Remove 'image:' prefix
+			const imageId = trimmedLine.substring(6);
 			if (imageId) {
 				imageIds.push(imageId);
 			}
 		} else if (trimmedLine) {
-			// Regular text content
 			textLines.push(trimmedLine);
 		}
 	}
@@ -45,10 +41,3 @@ export function hasImages(content: string): boolean {
 	return content.includes('image:');
 }
 
-/**
- * Gets all image IDs from a message content
- */
-export function extractImageIds(content: string): string[] {
-	const { imageIds } = parseImageMessage(content);
-	return imageIds;
-}
