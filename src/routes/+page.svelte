@@ -18,7 +18,6 @@
 	let joinError = $state<string | null>(null);
 	let selectedChatIndex = $state(-1);
 
-	// Reactive statement: redirect to login when not authenticated
 	$effect(() => {
 		if (!$authStore.token) {
 			clearChats();
@@ -26,29 +25,23 @@
 		}
 	});
 
-	// Initialize notification store on app start
 	$effect(() => {
 		chatNotifications.initialize();
 	});
 
-	// Start/stop metadata polling based on authentication and chat list
 	$effect(() => {
 		if ($authStore.token && $authStore.user) {
-			// Fetch chats immediately (show loading for initial load)
 			fetchChats($authStore.token, false);
 		} else {
-			// User is not authenticated - stop polling and clear notifications
 			metadataPollingService.stop();
 			chatNotifications.clear();
 		}
 
-		// Cleanup: stop polling when component is destroyed or auth changes
 		return () => {
 			metadataPollingService.stop();
 		};
 	});
 
-	// Start/update metadata polling when chat list changes
 	$effect(() => {
 		if ($authStore.token && $authStore.user && $chatStore.chats.length > 0) {
 			const chatIds = $chatStore.chats.map(chat => chat.id);
@@ -84,7 +77,6 @@
 		goto(`/chat/${chatId}`);
 	}
 
-	// Close menus when clicking outside
 	$effect(() => {
 		function handleClickOutside(event: MouseEvent) {
 			const target = event.target as Element;
@@ -138,15 +130,12 @@
 		joinError = null;
 	}
 
-	// Keyboard navigation
 	$effect(() => {
 		function handleKeyDown(event: KeyboardEvent) {
-			// Don't handle shortcuts if a modal is open or user is typing in an input
 			const isModalOpen = showCreateModal || showJoinModal;
 			const isTyping = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
 
 			if (isModalOpen || isTyping) {
-				// Allow ESC to close modals
 				if (event.key === 'Escape') {
 					if (showCreateModal) closeCreateModal();
 					if (showJoinModal) closeJoinModal();

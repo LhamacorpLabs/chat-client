@@ -39,53 +39,44 @@
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 
-	// Message sending state
 	let newMessage = $state('');
 	let isSending = $state(false);
 	let sendError = $state<string | null>(null);
 
-	// Image upload state
 	let selectedImages = $state<File[]>([]);
 	let isUploadingImages = $state(false);
 	let showImageUpload = $state(false);
 
-	// Invitation state
 	let showInviteModal = $state(false);
 	let inviteCode = $state<string | null>(null);
 	let isCreatingInvite = $state(false);
 	let inviteError = $state<string | null>(null);
 
-	// Delete state
 	let showDeleteModal = $state(false);
 	let showLeaveModal = $state(false);
 	let isLeaving = $state(false);
 	let showActionsMenu = $state(false);
 	let openActionMenuId = $state<string | null>(null);
 
-	// Link confirmation state
 	let showLinkConfirmation = $state(false);
 	let pendingUrl = $state<string | null>(null);
 
-	// Message polling state
 	let pollingInterval: NodeJS.Timeout | null = null;
 	let messageInputElement: HTMLInputElement;
 	let chatContent: HTMLElement;
 	let windowFocused = $state(true);
 	let hasUnreadMessages = $state(false);
 
-	// Pagination state
 	let nextCursor = $state<string | null>(null);
 	let prevCursor = $state<string | null>(null);
 	let hasMoreMessages = $state(false);
 	let isLoadingMore = $state(false);
 
-	// Scroll behavior state
 	let shouldAutoScroll = $state(true);
 	let showJumpToNewest = $state(false);
 	let isUserScrolling = $state(false);
-	let isInitialScroll = $state(true); // Flag to prevent auto-scroll during initial intelligent scrolling
+	let isInitialScroll = $state(true);
 
-	// Member colors state
 	let shouldUseColors = $state(false);
 
 	const chatId = data.chatId;
@@ -94,18 +85,11 @@
 	const isOwner = data.isOwner;
 	$effect(() => {
 		if ($authStore.token && chatId) {
-			// Load member colors from localStorage on first load
 			loadMemberColors();
-
-			// Determine if we should use colors for this chat
 			shouldUseColors = shouldUseMemberColors(currentChat.members);
-
-			// Assign colors to members (if applicable)
 			if (shouldUseColors) {
 				assignColorsForChat(chatId, currentChat.members);
 			}
-
-			// Load messages
 			loadMessages();
 		}
 	});
@@ -127,7 +111,6 @@
 	function scrollToMessage(messageIndex: number) {
 		if (chatContent && messageIndex >= 0 && messageIndex < messages.length) {
 			setTimeout(() => {
-				// Find the message element by index
 				const messageElements = chatContent.querySelectorAll('.message-item');
 				if (messageElements[messageIndex]) {
 					messageElements[messageIndex].scrollIntoView({
@@ -135,18 +118,16 @@
 						block: 'start'
 					});
 				}
-			}, 100); // Give DOM time to update
+			}, 100);
 		}
 	}
 
-	// Smart auto-scroll: only scroll to bottom when appropriate
 	$effect(() => {
 		if (messages.length > 0 && shouldAutoScroll && !isUserScrolling && !isInitialScroll) {
 			scrollToBottom();
 		}
 	});
 
-	// Infinite scroll detection and jump button visibility
 	$effect(() => {
 		if (!chatContent) return;
 
@@ -157,21 +138,17 @@
 			const scrollHeight = chatContent.scrollHeight;
 			const clientHeight = chatContent.clientHeight;
 
-			// Check if user is near the bottom (within 200px)
 			const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200;
 
-			// Update states based on scroll position
 			showJumpToNewest = !isNearBottom;
 			isUserScrolling = true;
 			shouldAutoScroll = isNearBottom;
 
-			// Load more messages if scrolled near top and has more messages
 			const scrollThreshold = 100;
 			if (scrollTop <= scrollThreshold && !isLoadingMore && hasMoreMessages) {
 				loadMoreMessages();
 			}
 
-			// Clear user scrolling flag after a delay
 			clearTimeout(userScrollTimeout);
 			userScrollTimeout = setTimeout(() => {
 				isUserScrolling = false;
@@ -198,8 +175,6 @@
 
 	$effect(() => {
 		updateDocumentTitle();
-
-		// Cleanup: restore original title when component unmounts
 		return () => {
 			document.title = 'Lhama Chat';
 		};
@@ -209,7 +184,6 @@
 		async function handleFocus() {
 			windowFocused = true;
 			hasUnreadMessages = false;
-			// Mark chat as read when user focuses the window using fresh chat data
 			try {
 				const chats = await apiFetchChats($authStore.token);
 				const updatedChat = chats.find(c => c.id === chatId);
@@ -229,7 +203,6 @@
 			windowFocused = !document.hidden;
 			if (!document.hidden) {
 				hasUnreadMessages = false;
-				// Mark chat as read when page becomes visible using fresh chat data
 				try {
 					const chats = await apiFetchChats($authStore.token);
 					const updatedChat = chats.find(c => c.id === chatId);
@@ -253,7 +226,6 @@
 		};
 	});
 
-	// Start/stop message polling based on auth and loading state
 	$effect(() => {
 		if ($authStore.token && chatId && !isLoading && messages.length >= 0) {
 			startMessagePolling();
@@ -261,23 +233,19 @@
 			stopMessagePolling();
 		}
 
-		// Cleanup on component destroy
 		return () => {
 			stopMessagePolling();
 		};
 	});
 
-	// Add paste event listener for images
 	$effect(() => {
 		document.addEventListener('paste', handlePaste);
 
-		// Cleanup on component destroy
 		return () => {
 			document.removeEventListener('paste', handlePaste);
 		};
 	});
 
-	// Close action menu when clicking outside
 	$effect(() => {
 		function handleClickOutside(event: Event) {
 			const target = event.target as HTMLElement;
@@ -300,43 +268,35 @@
 
 		try {
 			const response: PagedMessageResponse = await fetchMessagesPaginated($authStore.token, chatId, 50);
-			// Backend returns messages in DESC order (newest first), but we need chronological order (oldest first)
 			messages = response.messages.reverse();
-			// Backend cursors are correctly positioned: nextCursor=oldest, prevCursor=newest
-			nextCursor = response.nextCursor; // Points to oldest message for loading older messages
-			prevCursor = response.prevCursor; // Points to newest message for polling newer messages
+			nextCursor = response.nextCursor;
+			prevCursor = response.prevCursor;
 			hasMoreMessages = response.hasMore;
 
-			// Intelligent scrolling based on read status
 			const lastKnownTimestamp = chatNotifications.getLastKnownTimestamp(chatId);
 			if (lastKnownTimestamp && messages.length > 0) {
-				// Find first unread message (first message after last known timestamp)
 				const firstUnreadIndex = messages.findIndex(msg =>
 					new Date(msg.createdAt) > new Date(lastKnownTimestamp)
 				);
 
 				if (firstUnreadIndex >= 0) {
-					// Found unread messages, scroll to first unread message
 					setTimeout(() => {
 						scrollToMessage(firstUnreadIndex);
-						isInitialScroll = false; // Allow future auto-scroll
+						isInitialScroll = false;
 					}, 100);
 				} else {
-					// All messages are read, scroll to bottom
 					setTimeout(() => {
 						scrollToBottom();
-						isInitialScroll = false; // Allow future auto-scroll
+						isInitialScroll = false;
 					}, 100);
 				}
 			} else {
-				// No previous read status or no messages, scroll to bottom
 				setTimeout(() => {
 					scrollToBottom();
-					isInitialScroll = false; // Allow future auto-scroll
+					isInitialScroll = false;
 				}, 100);
 			}
 
-			// Mark this chat as read by fetching fresh chat info and using backend's lastMessageAt
 			try {
 				const chats = await apiFetchChats($authStore.token);
 				const updatedChat = chats.find(c => c.id === chatId);
@@ -357,29 +317,24 @@
 		if (!$authStore.token || !nextCursor || isLoadingMore) return;
 
 		isLoadingMore = true;
-		shouldAutoScroll = false; // Prevent auto-scroll when loading older messages
+		shouldAutoScroll = false;
 
 		try {
 			const response: PagedMessageResponse = await fetchMessagesPaginated(
 				$authStore.token,
 				chatId,
 				50,
-				nextCursor // Load older messages
+				nextCursor
 			);
 
-			// Backend returns older messages in DESC order, reverse them for chronological order
 			const olderMessages = response.messages.reverse();
-
-			// Keep scroll position before updating messages
 			const prevScrollHeight = chatContent.scrollHeight;
 			const prevScrollTop = chatContent.scrollTop;
 
-			// Prepend older messages to the beginning of the array
 			messages = [...olderMessages, ...messages];
-			nextCursor = response.nextCursor; // Update cursor for even older messages
+			nextCursor = response.nextCursor;
 			hasMoreMessages = response.hasMore;
 
-			// After DOM update, maintain scroll position
 			setTimeout(() => {
 				const newScrollHeight = chatContent.scrollHeight;
 				const scrollDifference = newScrollHeight - prevScrollHeight;
@@ -397,34 +352,28 @@
 		if (!$authStore.token || isLoading) return;
 
 		try {
-			// Check for new messages using the current prevCursor (newest message)
 			const response: PagedMessageResponse = await fetchMessagesPaginated(
 				$authStore.token,
 				chatId,
-				50, // Get up to 50 new messages
-				undefined, // no 'before' cursor
-				prevCursor // get messages after the current newest message
+				50,
+				undefined,
+				prevCursor
 			);
 
 			const currentMessageCount = messages.length;
 
-			// Only update if we have new messages
 			if (response.messages.length > 0) {
-				// Check if this is a new message (not initial load) and window is not focused
 				const hasNewMessages = currentMessageCount > 0;
 				if (hasNewMessages && !isWindowFocused()) {
-					// Check if the new messages are from other users (not current user)
 					const hasOtherUserMessages = response.messages.some(msg => msg.userId !== $authStore.user?.id);
 
 					if (hasOtherUserMessages) {
 						hasUnreadMessages = true;
 
-						// Only play notifications if chat is not muted
 						const isChatMuted = chatMuteStore.isMuted(data.chatId);
 						if (!isChatMuted) {
 							playNotificationSound();
 
-							// Show OS notification for new messages
 							const latestMessage = response.messages[response.messages.length - 1];
 							if (latestMessage) {
 								showMessageNotification({
@@ -438,26 +387,20 @@
 					}
 				}
 
-				// Check for new members and assign colors if using colors
 				if (shouldUseColors && response.messages.length > 0) {
-					// Get unique user IDs from new messages
 					const newUserIds = [...new Set(response.messages.map(msg => msg.userId))];
 
-					// Assign colors to any new members
 					newUserIds.forEach(userId => {
-						if (userId !== $authStore.user?.id) { // Skip own messages
+						if (userId !== $authStore.user?.id) {
 							addMemberColor(chatId, userId);
 						}
 					});
 				}
 
-				// Backend returns new messages in DESC order, reverse them for chronological order
 				const newMessages = response.messages.reverse();
-				// Append new messages to the end of the array
 				messages = [...messages, ...newMessages];
-				prevCursor = response.prevCursor; // Update cursor to newest message
+				prevCursor = response.prevCursor;
 
-				// Mark these messages as read by fetching updated chat info and using backend's lastMessageAt
 				if (newMessages.length > 0) {
 					try {
 						const chats = await apiFetchChats($authStore.token);
@@ -471,15 +414,13 @@
 				}
 			}
 		} catch (err) {
-			// Silently handle polling errors to avoid UI disruption
 			console.error('Message polling error:', err);
 		}
 	}
 
 	function startMessagePolling() {
-		if (pollingInterval) return; // Already polling
-
-		pollingInterval = setInterval(pollForMessages, 1000); // Poll every second
+		if (pollingInterval) return;
+		pollingInterval = setInterval(pollForMessages, 1000);
 	}
 
 	function stopMessagePolling() {
@@ -714,7 +655,6 @@
 		}
 	}
 
-	// Close actions menu when clicking outside
 	$effect(() => {
 		function handleClickOutside(event: MouseEvent) {
 			if (showActionsMenu) {
