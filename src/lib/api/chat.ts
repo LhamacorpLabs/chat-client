@@ -230,6 +230,9 @@ export async function uploadImage(token: string, file: File): Promise<ImageAttac
 	});
 
 	if (!response.ok) {
+		if (response.status === 413) {
+			throw new Error(`Failed to upload image: 413`);
+		}
 		throw new Error(`Failed to upload image: ${response.status}`);
 	}
 

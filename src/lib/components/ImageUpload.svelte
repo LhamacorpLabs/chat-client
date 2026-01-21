@@ -172,7 +172,7 @@
 				{/if}
 			</div>
 			<div class="upload-subtext">
-				JPEG, PNG, GIF • Max 1MB each
+				JPEG, PNG, GIF • Max 1MB each • Server limits may apply
 			</div>
 		</div>
 	</div>

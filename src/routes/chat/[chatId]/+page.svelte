@@ -266,6 +266,16 @@
 		};
 	});
 
+	// Add paste event listener for images
+	$effect(() => {
+		document.addEventListener('paste', handlePaste);
+
+		// Cleanup on component destroy
+		return () => {
+			document.removeEventListener('paste', handlePaste);
+		};
+	});
+
 	// Close action menu when clicking outside
 	$effect(() => {
 		function handleClickOutside(event: Event) {
@@ -514,7 +524,18 @@
 					imageIds = uploadedImages.map(img => img.id);
 				} catch (uploadErr: any) {
 					console.error('Failed to upload images:', uploadErr);
-					throw new Error('Failed to upload images: ' + (uploadErr.message || 'Unknown error'));
+
+					// Check for specific error types
+					const errorMessage = uploadErr.message || '';
+
+					if (errorMessage.includes('413') ||
+						errorMessage.includes('Failed to upload image: 413') ||
+						errorMessage.includes('NetworkError when attempting to fetch resource')) {
+						// 413 errors or network errors during upload are likely size-related
+						throw new Error('Image too large for server. Please use a smaller image (server has lower size limits than 1MB).');
+					} else {
+						throw new Error('Failed to upload images: ' + (errorMessage || 'Unknown error'));
+					}
 				}
 			}
 
@@ -594,6 +615,35 @@
 		showImageUpload = !showImageUpload;
 		if (!showImageUpload) {
 			selectedImages = [];
+		}
+	}
+
+	// Handle clipboard paste for images
+	function handlePaste(event: ClipboardEvent) {
+		// Only handle paste if we're in the chat area (not in other inputs outside chat)
+		const target = event.target as HTMLElement;
+		const isInChat = target.closest('.chat-page') !== null;
+		if (!isInChat) return;
+
+		const items = event.clipboardData?.items;
+		if (!items) return;
+
+		// Look for image items in the clipboard
+		const imageFiles: File[] = [];
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			if (item.type.startsWith('image/')) {
+				const file = item.getAsFile();
+				if (file) {
+					imageFiles.push(file);
+				}
+			}
+		}
+
+		// If we found images, add them to the selected images
+		if (imageFiles.length > 0) {
+			event.preventDefault(); // Prevent default paste behavior
+			handleImageFilesSelected(imageFiles);
 		}
 	}
 

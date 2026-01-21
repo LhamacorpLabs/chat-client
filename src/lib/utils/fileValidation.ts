@@ -52,7 +52,7 @@ export function validateImageFile(file: File): FileValidationResult {
 			isValid: false,
 			error: {
 				type: 'too_large',
-				message: `File too large (${sizeInMB}MB). Maximum size is ${maxSizeInMB}MB.`
+				message: `File too large (${sizeInMB}MB). Maximum size is ${maxSizeInMB}MB. Note: Server may have lower limits.`
 			}
 		};
 	}
