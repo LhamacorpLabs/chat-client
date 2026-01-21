@@ -689,19 +689,6 @@
 				</div>
 
 				<div class="header-actions">
-					<!-- Mute button - available to all users -->
-					<button
-						onclick={() => chatMuteStore.toggleMute(data.chatId)}
-						class="btn btn-ghost mute-btn"
-						title={$chatMuteStore.mutedChats[data.chatId] ? 'Enable sound and desktop notifications' : 'Disable sound and desktop notifications'}
-					>
-						{#if $chatMuteStore.mutedChats[data.chatId]}
-							Unmute
-						{:else}
-							Mute
-						{/if}
-					</button>
-
 					{#if isOwner}
 						<button
 							onclick={handleCreateInvite}
@@ -711,17 +698,32 @@
 							{isCreatingInvite ? 'Creating...' : '+ Invite'}
 						</button>
 					{/if}
-					{#if isOwner}
-						<div class="actions-menu">
-							<button
-								onclick={() => showActionsMenu = !showActionsMenu}
-								class="btn btn-ghost actions-toggle"
-								disabled={$chatStore.isDeleting}
-							>
-								⋮
-							</button>
-							{#if showActionsMenu}
-								<div class="actions-dropdown">
+
+					<!-- Actions menu - available to all users -->
+					<div class="actions-menu">
+						<button
+							onclick={() => showActionsMenu = !showActionsMenu}
+							class="btn btn-ghost actions-toggle"
+							disabled={$chatStore.isDeleting}
+						>
+							⋮
+						</button>
+						{#if showActionsMenu}
+							<div class="actions-dropdown">
+								<button
+									onclick={() => {
+										chatMuteStore.toggleMute(data.chatId);
+										showActionsMenu = false;
+									}}
+									class="dropdown-item"
+								>
+									{#if $chatMuteStore.mutedChats[data.chatId]}
+										Unmute
+									{:else}
+										Mute
+									{/if}
+								</button>
+								{#if isOwner}
 									<button
 										onclick={() => {
 											showDeleteModal = true;
@@ -732,10 +734,10 @@
 									>
 										{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
 									</button>
-								</div>
-							{/if}
-						</div>
-					{/if}
+								{/if}
+							</div>
+						{/if}
+					</div>
 				</div>
 			</div>
 		</header>
@@ -1483,12 +1485,6 @@
 			text-overflow: ellipsis;
 			white-space: nowrap;
 		}
-	}
-
-	/* Mute Button - matches invite button styling */
-	.mute-btn {
-		font-size: 0.9rem;
-		padding: 0.5rem 1rem;
 	}
 
 	/* Invitation Button */
