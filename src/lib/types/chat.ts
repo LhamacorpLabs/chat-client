@@ -31,6 +31,7 @@ export interface Message {
 	id: string;
 	chatId: string;
 	userId: string;
+	username: string;
 	message: string;
 	createdAt: string;
 }

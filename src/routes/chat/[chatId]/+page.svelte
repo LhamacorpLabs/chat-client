@@ -408,13 +408,9 @@
 							// Show OS notification for new messages
 							const latestMessage = response.messages[response.messages.length - 1];
 							if (latestMessage) {
-								// Get sender name from chat members
-								const sender = data.chat.members.find(member => member.id === latestMessage.userId);
-								const senderName = sender ? sender.name : 'Someone';
-
 								showMessageNotification({
 									title: `New message in ${data.chat.name}`,
-									body: `${senderName}: ${latestMessage.message.length > 50 ? latestMessage.message.substring(0, 50) + '...' : latestMessage.message}`,
+									body: `${latestMessage.username}: ${latestMessage.message.length > 50 ? latestMessage.message.substring(0, 50) + '...' : latestMessage.message}`,
 									chatId: data.chatId,
 									tag: `chat-${data.chatId}`
 								});
@@ -653,15 +649,6 @@
 		}
 	}
 
-	function getUsernameFromId(userId: string): string {
-		if (userId === $authStore.user?.id) {
-			return 'You';
-		}
-
-		const member = currentChat.members.find(member => member.id === userId);
-		return member ? member.name : `User ${userId}`;
-	}
-
 	// Link confirmation functions
 	function handleLinkConfirmation(url: string) {
 		pendingUrl = url;
@@ -822,7 +809,7 @@
 							<div class="message-header">
 								<span class="message-user"
 								      style={memberColor ? `color: ${memberColor}` : ''}>
-									{getUsernameFromId(message.userId)}
+									{message.userId === $authStore.user?.id ? 'You' : message.username}
 								</span>
 								<div class="message-header-right">
 									<span class="message-time">
