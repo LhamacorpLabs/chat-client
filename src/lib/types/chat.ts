@@ -26,6 +26,20 @@ export interface ChatMetadata {
 	lastMessageAt: string | null;
 }
 
+// Image attachment types
+export interface ImageMetadata {
+	ContentType: string;
+	filename: string;
+}
+
+export interface ImageAttachment {
+	id: string;
+	content?: string; // base64 content (optional, loaded on demand)
+	metadata: ImageMetadata;
+	createdBy: string;
+	createdAt: string;
+}
+
 // Message related types
 export interface Message {
 	id: string;
@@ -33,6 +47,7 @@ export interface Message {
 	userId: string;
 	username: string;
 	message: string;
+	images?: ImageAttachment[]; // Optional array of image attachments
 	createdAt: string;
 }
 

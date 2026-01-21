@@ -1,7 +1,8 @@
-import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata } from '../types/chat';
+import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment } from '../types/chat';
 import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 
 const CHAT_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/chats`;
+const IMAGE_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/images`;
 
 export async function fetchChats(token: string): Promise<ChatsResponse> {
 	const response = await fetch(CHAT_API_URL, {
@@ -206,4 +207,89 @@ export async function leaveChat(token: string, chatId: string, userId: string): 
 	if (!response.ok) {
 		throw new Error(`Failed to leave chat: ${response.status}`);
 	}
+}
+
+// Image-related API functions
+
+/**
+ * Upload an image file to the server
+ * @param token Bearer token for authentication
+ * @param file Image file to upload
+ * @returns Image attachment data with ID for referencing
+ */
+export async function uploadImage(token: string, file: File): Promise<ImageAttachment> {
+	const formData = new FormData();
+	formData.append('file', file);
+
+	const response = await fetch(IMAGE_API_URL, {
+		method: 'POST',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		},
+		body: formData
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to upload image: ${response.status}`);
+	}
+
+	return response.json();
+}
+
+/**
+ * Get an image by ID
+ * @param token Bearer token for authentication
+ * @param imageId ID of the image to retrieve
+ * @returns Image attachment data with base64 content
+ */
+export async function getImage(token: string, imageId: string): Promise<ImageAttachment> {
+	const response = await fetch(`${IMAGE_API_URL}/${imageId}`, {
+		method: 'GET',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to get image: ${response.status}`);
+	}
+
+	return response.json();
+}
+
+/**
+ * Send a message with optional image attachments
+ * @param token Bearer token for authentication
+ * @param chatId Chat ID to send message to
+ * @param messageText Text content of the message
+ * @param imageIds Array of uploaded image IDs to attach
+ * @returns Sent message with attachments
+ */
+export async function sendMessageWithImages(
+	token: string,
+	chatId: string,
+	messageText: string,
+	imageIds: string[] = []
+): Promise<Message> {
+	// For now, we'll send the message with text and reference image IDs
+	// The backend should handle associating the images with the message
+	const messageData: SendMessageRequest & { imageIds?: string[] } = {
+		message: messageText,
+		...(imageIds.length > 0 && { imageIds })
+	};
+
+	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${token}`
+		},
+		body: JSON.stringify(messageData)
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to send message with images: ${response.status}`);
+	}
+
+	return response.json();
 }

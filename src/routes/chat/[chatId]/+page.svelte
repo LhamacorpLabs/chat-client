@@ -2,8 +2,11 @@
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
-	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat } from '$lib/api/chat';
+	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
+	import ImageUpload from '$lib/components/ImageUpload.svelte';
+	import ParsedMessage from '$lib/components/ParsedMessage.svelte';
+	import { hasImages } from '$lib/utils/imageMessages';
 	import {
 		memberColorsStore,
 		assignColorsForChat,
@@ -39,6 +42,11 @@
 	let newMessage = $state('');
 	let isSending = $state(false);
 	let sendError = $state<string | null>(null);
+
+	// Image upload state
+	let selectedImages = $state<File[]>([]);
+	let isUploadingImages = $state(false);
+	let showImageUpload = $state(false);
 
 	// Invitation state
 	let showInviteModal = $state(false);
@@ -476,18 +484,49 @@
 	}
 
 	async function handleSendMessage() {
-		if (!$authStore.token || !newMessage.trim()) return;
+		if (!$authStore.token || (!newMessage.trim() && selectedImages.length === 0)) return;
 
 		const messageText = newMessage.trim();
-		newMessage = ''; // Clear input immediately
+		const imagesToUpload = [...selectedImages];
+
+		// Clear input immediately
+		newMessage = '';
+		selectedImages = [];
+		showImageUpload = false;
 		sendError = null;
 		isSending = true;
+		isUploadingImages = imagesToUpload.length > 0;
 
 		// Temporarily stop polling while sending
 		stopMessagePolling();
 
 		try {
-			const sentMessage = await sendMessage($authStore.token, chatId, { message: messageText });
+			let imageIds: string[] = [];
+
+			// Upload images first if any are selected
+			if (imagesToUpload.length > 0) {
+				const uploadPromises = imagesToUpload.map(file =>
+					uploadImage($authStore.token!, file)
+				);
+
+				try {
+					const uploadedImages = await Promise.all(uploadPromises);
+					imageIds = uploadedImages.map(img => img.id);
+				} catch (uploadErr: any) {
+					console.error('Failed to upload images:', uploadErr);
+					throw new Error('Failed to upload images: ' + (uploadErr.message || 'Unknown error'));
+				}
+			}
+
+			// Create message content with image references
+			let finalMessageContent = messageText;
+			if (imageIds.length > 0) {
+				const imageReferences = imageIds.map(id => `image:${id}`).join('\n');
+				finalMessageContent = messageText ? `${messageText}\n${imageReferences}` : imageReferences;
+			}
+
+			const sentMessage = await sendMessage($authStore.token, chatId, { message: finalMessageContent });
+
 			// Add the new message to the messages array
 			messages = [...messages, sentMessage];
 			// Update the cursor so polling can detect newer messages
@@ -507,12 +546,19 @@
 			// Ensure we scroll to bottom after sending
 			shouldAutoScroll = true;
 			setTimeout(scrollToBottom, 0);
-		} catch (err) {
-			sendError = err instanceof Error ? err.message : 'Failed to send message';
-			// Restore the message text if sending failed
+		} catch (err: any) {
+			console.error('Failed to send message:', err);
+			sendError = err.message || 'Failed to send message';
+
+			// Restore message and images on error
 			newMessage = messageText;
+			selectedImages = imagesToUpload;
+			if (imagesToUpload.length > 0) {
+				showImageUpload = true;
+			}
 		} finally {
 			isSending = false;
+			isUploadingImages = false;
 			// Restart polling after sending
 			if ($authStore.token && chatId) {
 				startMessagePolling();
@@ -527,6 +573,28 @@
 	function handleMessageSubmit(e: Event) {
 		e.preventDefault();
 		handleSendMessage();
+	}
+
+	// Image upload handlers
+	function handleImageFilesSelected(files: File[]) {
+		selectedImages = [...selectedImages, ...files];
+		if (!showImageUpload) {
+			showImageUpload = true;
+		}
+	}
+
+	function handleRemoveImage(index: number) {
+		selectedImages = selectedImages.filter((_, i) => i !== index);
+		if (selectedImages.length === 0) {
+			showImageUpload = false;
+		}
+	}
+
+	function toggleImageUpload() {
+		showImageUpload = !showImageUpload;
+		if (!showImageUpload) {
+			selectedImages = [];
+		}
 	}
 
 	function handleKeyPress(e: KeyboardEvent) {
@@ -841,17 +909,23 @@
 								</div>
 							</div>
 							<div class="message-content">
-								{@html linkifyResult.html}
+								{#if hasImages(message.message)}
+									<!-- Message with images - use ParsedMessage component -->
+									<ParsedMessage content={message.message} />
+								{:else}
+									<!-- Regular text message - use existing linkify logic -->
+									{@html linkifyResult.html}
 
-								{#if linkifyResult.previews.length > 0}
-									<div class="message-previews">
-										{#each linkifyResult.previews as preview (preview.url)}
-											<LinkPreview
-												{preview}
-												onLinkClick={handleLinkConfirmation}
-											/>
-										{/each}
-									</div>
+									{#if linkifyResult.previews.length > 0}
+										<div class="message-previews">
+											{#each linkifyResult.previews as preview (preview.url)}
+												<LinkPreview
+													{preview}
+													onLinkClick={handleLinkConfirmation}
+												/>
+											{/each}
+										</div>
+									{/if}
 								{/if}
 							</div>
 						</div>
@@ -868,22 +942,43 @@
 				</div>
 			{/if}
 
+			{#if showImageUpload}
+				<div class="image-upload-section">
+					<ImageUpload
+						onFilesSelected={handleImageFilesSelected}
+						selectedFiles={selectedImages}
+						onRemoveFile={handleRemoveImage}
+						disabled={isSending || isUploadingImages}
+						maxFiles={5}
+					/>
+				</div>
+			{/if}
+
 			<form onsubmit={handleMessageSubmit} class="input-container">
+				<button
+					type="button"
+					class="btn btn-secondary image-btn"
+					onclick={toggleImageUpload}
+					disabled={isSending || isUploadingImages}
+					title="Add images"
+				>
+					+
+				</button>
 				<input
 					type="text"
 					bind:value={newMessage}
 					bind:this={messageInputElement}
 					onkeydown={handleKeyPress}
-					placeholder="Type a message..."
-					disabled={isSending}
+					placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
+					disabled={isSending || isUploadingImages}
 					class="message-input"
 				/>
 				<button
 					type="submit"
 					class="btn btn-primary"
-					disabled={isSending || !newMessage.trim()}
+					disabled={(isSending || isUploadingImages) || (!newMessage.trim() && selectedImages.length === 0)}
 				>
-					{isSending ? 'Sending...' : 'Send'}
+					{isUploadingImages ? 'Uploading...' : isSending ? 'Sending...' : 'Send'}
 				</button>
 			</form>
 		</footer>
@@ -1418,6 +1513,48 @@
 		align-items: center;
 	}
 
+	.image-upload-section {
+		max-width: 1200px;
+		margin: 0 auto 1rem auto;
+		background: var(--bg-secondary);
+		border-radius: 8px;
+		border: 1px solid var(--border-light);
+		padding: 1rem;
+	}
+
+	.image-btn {
+		flex-shrink: 0;
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 16px;
+		padding: 0;
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-medium);
+		color: var(--text-primary);
+		transition: all 0.2s ease;
+	}
+
+	.image-btn:hover:not(:disabled) {
+		background: var(--bg-hover);
+		border-color: var(--border-primary);
+	}
+
+	.image-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.message-images {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 8px;
+	}
+
 	.message-input {
 		flex: 1;
 		padding: 0.75rem 1rem;
@@ -1500,6 +1637,16 @@
 
 		.input-container {
 			gap: 0.5rem;
+		}
+
+		.image-upload-section {
+			padding: 0.75rem;
+		}
+
+		.image-btn {
+			width: 36px;
+			height: 36px;
+			font-size: 14px;
 		}
 
 		.message-item {
