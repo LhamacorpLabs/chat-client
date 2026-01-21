@@ -6,6 +6,7 @@
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import ImageUpload from '$lib/components/ImageUpload.svelte';
 	import ParsedMessage from '$lib/components/ParsedMessage.svelte';
+	import MessageGif from '$lib/components/MessageGif.svelte';
 	import { hasImages } from '$lib/utils/imageMessages';
 	import {
 		memberColorsStore,
@@ -966,6 +967,14 @@
 									<!-- Regular text message - use existing linkify logic -->
 									{@html linkifyResult.html}
 
+									{#if linkifyResult.gifs && linkifyResult.gifs.length > 0}
+										<div class="message-gifs">
+											{#each linkifyResult.gifs as gif (gif.id)}
+												<MessageGif {gif} />
+											{/each}
+										</div>
+									{/if}
+
 									{#if linkifyResult.previews.length > 0}
 										<div class="message-previews">
 											{#each linkifyResult.previews as preview (preview.url)}
@@ -1601,6 +1610,13 @@
 	.message-images {
 		display: flex;
 		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 8px;
+	}
+
+	.message-gifs {
+		display: flex;
+		flex-direction: column;
 		gap: 8px;
 		margin-top: 8px;
 	}

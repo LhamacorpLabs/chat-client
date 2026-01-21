@@ -2,9 +2,15 @@ import { detectLinkPreview, type LinkPreview } from './linkPreview';
 
 const HTTPS_URL_REGEX = /https:\/\/[^\s<>"'`]+[^\s<>"'`.,;!?]/gi;
 
+export interface GifLink {
+	url: string;
+	id: string; // unique identifier for the gif
+}
+
 export interface LinkifyResult {
 	html: string;
 	previews: LinkPreview[];
+	gifs: GifLink[];
 }
 
 export function linkify(text: string): string;
@@ -38,13 +44,28 @@ export function linkify(text: string, includePreviews = false): string | Linkify
     ;
 
     const previews: LinkPreview[] = [];
+    const gifs: GifLink[] = [];
 
     const linkedText = withEmojis.replace(HTTPS_URL_REGEX, (url) => {
         try {
             new URL(url);
 
-            // Detect link preview if requested
-            if (includePreviews) {
+            // Check if this is a GIF URL (create new regex instances to avoid global flag issues)
+            const gifUrlTest = /https:\/\/[^\s<>"'`]*\.(gif)(\?[^\s<>"'`]*)?/i.test(url);
+            const gifDomainTest = /https:\/\/(media[0-9]*\.)?(giphy\.com|tenor\.com|gfycat\.com|imgur\.com)/i.test(url);
+            const isGifUrl = gifUrlTest || gifDomainTest;
+
+            if (includePreviews && isGifUrl) {
+                // Add to GIF collection
+                gifs.push({
+                    url: url,
+                    id: `gif_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`
+                });
+
+                // Hide the URL text - the GIF will be displayed by the MessageGif component
+                return '';
+            } else if (includePreviews) {
+                // Detect link preview for non-GIF URLs
                 const preview = detectLinkPreview(url);
                 if (preview) {
                     previews.push(preview);
@@ -60,7 +81,8 @@ export function linkify(text: string, includePreviews = false): string | Linkify
     if (includePreviews) {
         return {
             html: linkedText,
-            previews
+            previews,
+            gifs
         };
     }
 
