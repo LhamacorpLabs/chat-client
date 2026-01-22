@@ -7,6 +7,7 @@
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { chatNotifications } from '$lib/stores/chatNotifications';
 	import { metadataPollingService } from '$lib/services/metadataPolling';
+	import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 
 	let showCreateModal = $state(false);
 	let showJoinModal = $state(false);
@@ -17,6 +18,8 @@
 	let isJoining = $state(false);
 	let joinError = $state<string | null>(null);
 	let selectedChatIndex = $state(-1);
+	let backendVersion = $state('');
+	let frontendVersion = $state('');
 
 	$effect(() => {
 		if (!$authStore.token) {
@@ -27,6 +30,8 @@
 
 	$effect(() => {
 		chatNotifications.initialize();
+		fetchBackendVersion();
+		initializeFrontendVersion();
 	});
 
 	$effect(() => {
@@ -128,6 +133,31 @@
 		showJoinModal = false;
 		invitationCode = '';
 		joinError = null;
+	}
+
+	async function fetchBackendVersion() {
+		try {
+			const response = await fetch(`${PUBLIC_CHAT_API_URL}/actuator/info`);
+			if (response.ok) {
+				const data = await response.json();
+				const commitId = data.git?.commit?.id;
+				if (commitId) {
+					backendVersion = `be:${commitId}`;
+				}
+			}
+		} catch (error) {
+			console.error('Failed to fetch backend version:', error);
+			// Silently fail - version will remain empty
+		}
+	}
+
+	function initializeFrontendVersion() {
+		try {
+			frontendVersion = `fe:${__GIT_COMMIT_ID__}`;
+		} catch (error) {
+			console.error('Failed to get frontend version:', error);
+			// Silently fail - version will remain empty
+		}
 	}
 
 	$effect(() => {
@@ -400,6 +430,16 @@
 				</div>
 			</div>
 		{/if}
+
+		<footer class="app-footer">
+			©<span id="year"></span> Lhamacorp <script> document.getElementById('year').textContent = new Date().getFullYear(); </script>
+			{#if frontendVersion || backendVersion}
+				<span class="version-info">
+					{#if frontendVersion} • {frontendVersion}{/if}
+					{#if backendVersion} • {backendVersion}{/if}
+				</span>
+			{/if}
+		</footer>
 	</div>
 {:else}
 	<div class="loading-screen">
@@ -613,6 +653,26 @@
 		margin: 0 auto;
 		width: 100%;
 		padding: 2rem;
+	}
+
+	/* Footer */
+	.app-footer {
+		background: var(--bg-primary);
+		border-top: 1px solid var(--border-light);
+		padding: 1.5rem 2rem;
+		text-align: center;
+		flex-shrink: 0;
+		color: var(--text-secondary);
+		font-size: 0.85rem;
+	}
+
+	.app-footer p {
+		margin: 0;
+	}
+
+	.version-info {
+		color: var(--text-muted);
+		font-size: 0.8rem;
 	}
 
 	.chats-container {

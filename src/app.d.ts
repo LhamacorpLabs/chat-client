@@ -8,6 +8,9 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+
+	// Vite injected variables
+	const __GIT_COMMIT_ID__: string;
 }
 
 export {};
