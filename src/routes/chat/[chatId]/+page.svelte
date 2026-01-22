@@ -610,7 +610,7 @@
 			e.preventDefault();
 			cancelReply();
 		}
-		if (e.key === 'q') {
+		if (e.key === 'q' && e.ctrlKey) {
 			e.preventDefault();
 			messageInputElement?.blur();
 		}
