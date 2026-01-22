@@ -194,6 +194,7 @@
 				</div>
 
 				<div class="header-actions">
+					<ThemeToggle />
 					<div class="actions-menu">
 						<button
 							onclick={() => showActionsMenu = !showActionsMenu}
@@ -228,10 +229,6 @@
 							<div class="user-dropdown">
 								<div class="dropdown-item user-info">
 									<span>Logged as @{$authStore.user.username}</span>
-								</div>
-								<div class="dropdown-item theme-item" onclick={() => showUserMenu = false}>
-									<span>Theme</span>
-									<ThemeToggle />
 								</div>
 								<button
 									onclick={() => {
