@@ -83,6 +83,7 @@
 
 	let replyingTo = $state<Message | null>(null);
 	let highlightedMessageId = $state<string | null>(null);
+	let selectedMessageIndex = $state(-1);
 
 	const chatId = data.chatId;
 	const currentChat = data.chat;
@@ -455,6 +456,7 @@
 		sendError = null;
 		isSending = true;
 		isUploadingImages = imagesToUpload.length > 0;
+		selectedMessageIndex = -1;
 
 		// Temporarily stop polling while sending
 		stopMessagePolling();
@@ -607,6 +609,10 @@
 		if (e.key === 'Escape' && replyingTo) {
 			e.preventDefault();
 			cancelReply();
+		}
+		if (e.key === 'q') {
+			e.preventDefault();
+			messageInputElement?.blur();
 		}
 	}
 
@@ -788,6 +794,42 @@
 				event.preventDefault();
 				messageInputElement?.focus();
 			}
+
+			// Handle arrow keys for message navigation (only when not typing in input)
+			if (document.activeElement === messageInputElement) {
+				return; // Don't handle arrow keys or 'r' while typing
+			}
+
+			// Check if any modal is open
+			const modal = document.querySelector('.modal-overlay');
+			if (modal) {
+				return; // Don't handle navigation shortcuts in modals
+			}
+
+			if (event.key === 'ArrowDown') {
+				event.preventDefault();
+				if (selectedMessageIndex < messages.length - 1) {
+					selectedMessageIndex += 1;
+					scrollToMessage(selectedMessageIndex);
+				}
+			}
+
+			if (event.key === 'ArrowUp') {
+				event.preventDefault();
+				if (selectedMessageIndex > 0) {
+					selectedMessageIndex -= 1;
+					scrollToMessage(selectedMessageIndex);
+				} else if (selectedMessageIndex === -1 && messages.length > 0) {
+					selectedMessageIndex = messages.length - 1;
+					scrollToMessage(selectedMessageIndex);
+				}
+			}
+
+			if (event.key === 'r' && selectedMessageIndex >= 0 && selectedMessageIndex < messages.length) {
+				event.preventDefault();
+				handleReplyToMessage(messages[selectedMessageIndex]);
+				selectedMessageIndex = -1; // Reset selection after replying
+			}
 		}
 
 		document.addEventListener('keydown', handleKeyDown);
@@ -921,12 +963,13 @@
 						</div>
 					{/if}
 
-					{#each messages as message (message.id)}
+					{#each messages as message, index (message.id)}
 						{@const isOwnMessage = message.userId === $authStore.user?.id}
 						{@const memberColor = shouldUseColors && !isOwnMessage ? getMemberColor(chatId, message.userId) : null}
 						{@const linkifyResult = linkify(message.message, true)}
 						<div class="message-item {isOwnMessage ? 'own-message' : 'other-message'}"
 						     class:highlighted={highlightedMessageId === message.id}
+						     class:selected={selectedMessageIndex === index}
 						     style={memberColor ? `--current-member-color: ${memberColor}` : ''}>
 							<div class="message-header">
 								<span class="message-user"
@@ -1051,6 +1094,7 @@
 					bind:value={newMessage}
 					bind:this={messageInputElement}
 					onkeydown={handleKeyPress}
+					onfocus={() => { selectedMessageIndex = -1; }}
 					placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
 					disabled={isSending || isUploadingImages}
 					class="message-input"
@@ -1397,6 +1441,11 @@
 
 	.message-item.highlighted {
 		animation: highlightPulse 2s ease-out;
+	}
+
+	.message-item.selected {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
 	}
 
 	.own-message {
