@@ -37,6 +37,10 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
+      - name: Get git commit ID
+        id: git-info
+        run: echo "commit_id=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Build and push multi-platform Docker images
         run: |
           docker buildx create --use
@@ -44,4 +48,5 @@ jobs:
             --platform linux/amd64,linux/arm64 \
             --build-arg PUBLIC_CHAT_API_URL=https://chat-be.lhamacorp.com \
             --build-arg PUBLIC_AUTH_API_URL=https://auth.lhamacorp.com \
+            --build-arg GIT_COMMIT_ID=${{ steps.git-info.outputs.commit_id }} \
             -t lhamacorp/chat-client:latest . --push
