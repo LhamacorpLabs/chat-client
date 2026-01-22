@@ -572,7 +572,6 @@
 		}
 	}
 
-	// Handle clipboard paste for images
 	function handlePaste(event: ClipboardEvent) {
 		// Only handle paste if we're in the chat area (not in other inputs outside chat)
 		const target = event.target as HTMLElement;
@@ -594,9 +593,8 @@
 			}
 		}
 
-		// If we found images, add them to the selected images
 		if (imageFiles.length > 0) {
-			event.preventDefault(); // Prevent default paste behavior
+			event.preventDefault();
 			handleImageFilesSelected(imageFiles);
 		}
 	}
@@ -717,11 +715,24 @@
 		};
 	});
 
-	function jumpToNewest() {
+	async function jumpToNewest() {
 		shouldAutoScroll = true;
 		showJumpToNewest = false;
 		isInitialScroll = false; // Reset initial scroll flag
 		scrollToBottom();
+
+		// Mark all messages as read when explicitly jumping to newest
+		if ($authStore.token) {
+			try {
+				const chats = await apiFetchChats($authStore.token);
+				const updatedChat = chats.find(c => c.id === chatId);
+				if (updatedChat && updatedChat.lastMessageAt) {
+					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
+				}
+			} catch (error) {
+				console.warn('Failed to fetch updated chat info for notifications on jump to newest:', error);
+			}
+		}
 	}
 
 	async function handleDeleteChat() {
@@ -930,7 +941,7 @@
 					class="jump-to-newest-btn"
 					title="Jump to newest messages"
 				>
-					↓ New messages
+					↓ Jump to newer messages
 				</button>
 			{/if}
 			{#if error}
