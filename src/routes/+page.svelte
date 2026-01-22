@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authStore, logout } from '$lib/stores/auth';
+	import { authStore, logout, getValidToken } from '$lib/stores/auth';
 	import { chatStore, fetchChats, createChat, clearChats } from '$lib/stores/chat';
 	import { redeemInvitation } from '$lib/api/chat';
 	import type { Chat } from '$lib/types/chat';
@@ -34,9 +34,12 @@
 		initializeFrontendVersion();
 	});
 
-	$effect(() => {
+	$effect(async () => {
 		if ($authStore.token && $authStore.user) {
-			fetchChats($authStore.token, false);
+			const token = await getValidToken();
+			if (token) {
+				await fetchChats(token, false);
+			}
 		} else {
 			metadataPollingService.stop();
 			chatNotifications.clear();
@@ -60,7 +63,10 @@
 	async function handleCreateChat() {
 		if (!$authStore.token || !newChatName.trim()) return;
 
-		const success = await createChat($authStore.token, { name: newChatName.trim() });
+		const token = await getValidToken();
+		if (!token) return;
+
+		const success = await createChat(token, { name: newChatName.trim() });
 		if (success) {
 			newChatName = '';
 			showCreateModal = false;
@@ -107,12 +113,15 @@
 	async function handleJoinChat() {
 		if (!$authStore.token || !invitationCode.trim()) return;
 
+		const token = await getValidToken();
+		if (!token) return;
+
 		isJoining = true;
 		joinError = null;
 
 		try {
-			await redeemInvitation($authStore.token, { code: invitationCode.trim() });
-			await fetchChats($authStore.token);
+			await redeemInvitation(token, { code: invitationCode.trim() });
+			await fetchChats(token);
 			invitationCode = '';
 			showJoinModal = false;
 		} catch (err) {
@@ -147,7 +156,6 @@
 			}
 		} catch (error) {
 			console.error('Failed to fetch backend version:', error);
-			// Silently fail - version will remain empty
 		}
 	}
 
@@ -156,7 +164,6 @@
 			frontendVersion = `fe:${__GIT_COMMIT_ID__}`;
 		} catch (error) {
 			console.error('Failed to get frontend version:', error);
-			// Silently fail - version will remain empty
 		}
 	}
 

@@ -20,7 +20,6 @@ export async function login(credentials: AuthRequest): Promise<AuthResponse> {
 }
 
 export async function register(credentials: AuthRequest): Promise<AuthResponse> {
-	// Only include email if it's provided and not empty
 	const requestBody: any = {
 		username: credentials.username,
 		password: credentials.password
@@ -40,6 +39,21 @@ export async function register(credentials: AuthRequest): Promise<AuthResponse> 
 
 	if (!response.ok) {
 		throw new Error('Registration failed');
+	}
+
+	return response.json();
+}
+
+export async function refreshToken(token: string): Promise<AuthResponse> {
+	const response = await fetch(`${API_URL}/refresh`, {
+		method: 'POST',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error('Token refresh failed');
 	}
 
 	return response.json();

@@ -5,11 +5,11 @@
 
 	let { children } = $props();
 
-	onMount(() => {
+	onMount(async () => {
 		// Load theme first (for immediate visual feedback)
 		loadTheme();
-		// Then load auth data
-		loadAuth();
+		// Then load auth data and check token
+		await loadAuth();
 	});
 </script>
 

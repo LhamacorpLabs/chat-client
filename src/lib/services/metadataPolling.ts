@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { fetchChatMetadata } from '../api/chat.js';
 import { chatNotifications } from '../stores/chatNotifications.js';
-import { authStore } from '../stores/auth.js';
+import { authStore, checkAndRefreshToken } from '../stores/auth.js';
 import type { ChatMetadata } from '../types/chat.js';
 
 interface MetadataPollingService {
@@ -35,6 +35,13 @@ function createMetadataPollingService(): MetadataPollingService {
 
 	async function pollAllChatsMetadata() {
 		if (!isPolling || currentChatIds.length === 0) {
+			return;
+		}
+
+		// Check and refresh token before polling if needed
+		const tokenRefreshed = await checkAndRefreshToken();
+		if (!tokenRefreshed) {
+			// If token refresh failed or no token available, stop polling
 			return;
 		}
 
