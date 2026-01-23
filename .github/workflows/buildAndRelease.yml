@@ -24,7 +24,6 @@ jobs:
       - name: Build the application
         run: npm run build
         env:
-          # Environment variables required for SvelteKit build
           PUBLIC_CHAT_API_URL: https://chat-be.lhamacorp.com
           PUBLIC_AUTH_API_URL: https://auth.lhamacorp.com
 
@@ -50,3 +49,11 @@ jobs:
             --build-arg PUBLIC_AUTH_API_URL=https://auth.lhamacorp.com \
             --build-arg GIT_COMMIT_ID=${{ steps.git-info.outputs.commit_id }} \
             -t lhamacorp/chat-client:latest . --push
+
+  deploy:
+    name: Deploy
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Portainer Webhook
+        run: curl --location --request POST '${{ secrets.DEPLOY_WEBHOOK }}'
