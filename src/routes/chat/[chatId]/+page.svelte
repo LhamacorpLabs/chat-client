@@ -64,6 +64,9 @@
 	let pendingUrl = $state<string | null>(null);
 
 	let pollingInterval: NodeJS.Timeout | null = null;
+	let currentPollingDelay = 3000; // Start with 3 seconds
+	let consecutiveEmptyPolls = 0;
+	let isActivelyPolling = false;
 	let messageInputElement: HTMLTextAreaElement;
 	let chatContent: HTMLElement;
 	let windowFocused = $state(true);
@@ -89,6 +92,28 @@
 	const currentChat = data.chat;
 	const chatName = currentChat.name;
 	const isOwner = data.isOwner;
+
+	// Memory management constants
+	const MAX_MESSAGES_IN_MEMORY = 500; // Keep max 500 messages in memory
+	const CLEANUP_THRESHOLD = 600; // Cleanup when we exceed this
+
+	/**
+	 * Cleans up message array to prevent unbounded memory growth
+	 * Keeps recent messages and preserves scroll position
+	 */
+	function cleanupMessages() {
+		if (messages.length > CLEANUP_THRESHOLD) {
+			// Keep the most recent messages (from the end of the array)
+			const newMessages = messages.slice(-MAX_MESSAGES_IN_MEMORY);
+			messages = newMessages;
+
+			// If we cleaned up older messages, we have more to load
+			hasMoreMessages = true;
+
+			console.log(`Cleaned up messages: kept ${newMessages.length} out of ${messages.length + (CLEANUP_THRESHOLD - newMessages.length)}`);
+		}
+	}
+
 	$effect(() => {
 		if ($authStore.token && chatId) {
 			loadMemberColors();
@@ -204,6 +229,11 @@
 		async function handleFocus() {
 			windowFocused = true;
 			hasUnreadMessages = false;
+			// Increase polling frequency when window gains focus
+			if (pollingInterval) {
+				stopMessagePolling();
+				startMessagePolling();
+			}
 			try {
 				const chats = await apiFetchChats($authStore.token);
 				const updatedChat = chats.find(c => c.id === chatId);
@@ -217,6 +247,11 @@
 
 		function handleBlur() {
 			windowFocused = false;
+			// Reduce polling frequency when window loses focus
+			if (pollingInterval) {
+				stopMessagePolling();
+				startMessagePolling();
+			}
 		}
 
 		async function handleVisibilityChange() {
@@ -355,6 +390,9 @@
 			nextCursor = response.nextCursor;
 			hasMoreMessages = response.hasMore;
 
+			// Clean up messages if we have too many
+			cleanupMessages();
+
 			setTimeout(() => {
 				const newScrollHeight = chatContent.scrollHeight;
 				const scrollDifference = newScrollHeight - prevScrollHeight;
@@ -368,8 +406,26 @@
 		}
 	}
 
+	/**
+	 * Calculates the next polling delay based on activity
+	 */
+	function getNextPollingDelay(): number {
+		const MIN_DELAY = 2000; // 2 seconds minimum
+		const MAX_DELAY = 15000; // 15 seconds maximum
+
+		// If window is focused, poll more frequently
+		if (windowFocused) {
+			return Math.min(3000 + (consecutiveEmptyPolls * 500), 8000);
+		}
+
+		// If window is not focused, poll less frequently
+		return Math.min(5000 + (consecutiveEmptyPolls * 1000), MAX_DELAY);
+	}
+
 	async function pollForMessages() {
-		if (!$authStore.token || isLoading) return;
+		if (!$authStore.token || isLoading || isActivelyPolling) return;
+
+		isActivelyPolling = true;
 
 		try {
 			const response: PagedMessageResponse = await fetchMessagesPaginated(
@@ -383,6 +439,9 @@
 			const currentMessageCount = messages.length;
 
 			if (response.messages.length > 0) {
+				// Reset empty poll counter when we get messages
+				consecutiveEmptyPolls = 0;
+
 				const hasNewMessages = currentMessageCount > 0;
 				if (hasNewMessages && !isWindowFocused()) {
 					const hasOtherUserMessages = response.messages.some(msg => msg.userId !== $authStore.user?.id);
@@ -421,6 +480,9 @@
 				messages = [...messages, ...newMessages];
 				prevCursor = response.prevCursor;
 
+				// Clean up messages if we have too many
+				cleanupMessages();
+
 				if (newMessages.length > 0) {
 					try {
 						const chats = await apiFetchChats($authStore.token);
@@ -432,22 +494,56 @@
 						console.warn('Failed to fetch updated chat info for notifications:', error);
 					}
 				}
+			} else {
+				// Increment empty poll counter when no new messages
+				consecutiveEmptyPolls = Math.min(consecutiveEmptyPolls + 1, 10);
 			}
+
+			// Reset consecutive error counter on success
+			consecutiveEmptyPolls = Math.max(0, consecutiveEmptyPolls - 1);
+
 		} catch (err) {
 			console.error('Message polling error:', err);
+			// Increase delay on errors
+			consecutiveEmptyPolls = Math.min(consecutiveEmptyPolls + 2, 10);
+		} finally {
+			isActivelyPolling = false;
 		}
+	}
+
+	function scheduleNextPoll() {
+		if (pollingInterval) {
+			clearTimeout(pollingInterval);
+		}
+
+		const delay = getNextPollingDelay();
+		pollingInterval = setTimeout(() => {
+			pollForMessages().then(() => {
+				// Schedule next poll after this one completes
+				if ($authStore.token && chatId && !isLoading) {
+					scheduleNextPoll();
+				}
+			});
+		}, delay);
 	}
 
 	function startMessagePolling() {
 		if (pollingInterval) return;
-		pollingInterval = setInterval(pollForMessages, 1000);
+
+		// Reset polling state
+		consecutiveEmptyPolls = 0;
+		currentPollingDelay = 3000;
+
+		// Schedule the first poll
+		scheduleNextPoll();
 	}
 
 	function stopMessagePolling() {
 		if (pollingInterval) {
-			clearInterval(pollingInterval);
+			clearTimeout(pollingInterval);
 			pollingInterval = null;
 		}
+		isActivelyPolling = false;
 	}
 
 	function goBack() {
@@ -519,6 +615,9 @@
 			messages = [...messages, sentMessage];
 			// Update the cursor so polling can detect newer messages
 			prevCursor = sentMessage.id;
+
+			// Clean up messages if we have too many
+			cleanupMessages();
 
 			// Mark this message as read by fetching updated chat info and using backend's lastMessageAt
 			try {

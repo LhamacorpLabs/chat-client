@@ -8,6 +8,7 @@
 	import { chatNotifications } from '$lib/stores/chatNotifications';
 	import { metadataPollingService } from '$lib/services/metadataPolling';
 	import { PUBLIC_CHAT_API_URL } from '$env/static/public';
+	import { cleanupAllChatData, schedulePeriodicCleanup } from '$lib/utils/localStorageCleanup';
 
 	let showCreateModal = $state(false);
 	let showJoinModal = $state(false);
@@ -32,6 +33,9 @@
 		chatNotifications.initialize();
 		fetchBackendVersion();
 		initializeFrontendVersion();
+
+		// Schedule periodic localStorage cleanup
+		schedulePeriodicCleanup();
 	});
 
 	$effect(async () => {
@@ -54,6 +58,9 @@
 		if ($authStore.token && $authStore.user && $chatStore.chats.length > 0) {
 			const chatIds = $chatStore.chats.map(chat => chat.id);
 			metadataPollingService.start(chatIds);
+
+			// Clean up localStorage data for inactive chats
+			cleanupAllChatData(chatIds);
 		} else if ($chatStore.chats.length === 0) {
 			// No chats to poll
 			metadataPollingService.stop();

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { parseImageMessage, type ParsedMessage } from '../utils/imageMessages';
 	import { parseReplyMessage } from '../utils/replyMessages';
+	import { linkify } from '../utils/linkify';
 	import MessageImage from './MessageImage.svelte';
 	import ReplyPreview from './ReplyPreview.svelte';
 	import { getImage } from '../api/chat';
@@ -21,6 +22,12 @@
 	let repliedMessage = $derived(
 		parsedReply.replyToId ? messages.find((m) => m.id === parsedReply.replyToId) : null
 	);
+	// Apply linkify to reply text for emoji translation and link processing
+	let processedReplyText = $derived(
+		parsedReply.text ? linkify(parsedReply.text) : ''
+	);
+	// Process fallback content as well
+	let processedFallbackContent = $derived(linkify(content));
 
 	// State for image loading - keyed by content to avoid loops
 	let loadState = $state<{
@@ -93,9 +100,9 @@
 </script>
 
 {#if loadState.loadingFailed}
-	<!-- Fallback: display original message as-is when loading failed -->
+	<!-- Fallback: display processed message when loading failed -->
 	<div class="message-text">
-		{content}
+		{@html processedFallbackContent}
 	</div>
 {:else}
 	<!-- Normal parsed message display -->
@@ -112,7 +119,7 @@
 	<!-- Render text content if any -->
 	{#if parsedReply.text}
 		<div class="message-text">
-			{parsedReply.text}
+			{@html processedReplyText}
 		</div>
 	{/if}
 

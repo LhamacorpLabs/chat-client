@@ -2,6 +2,9 @@
  * OS Notification utilities for new message alerts
  */
 
+// Track active notifications to prevent memory leaks
+const activeNotifications = new Map<string, Notification>();
+
 interface NotificationOptions {
 	title: string;
 	body: string;
@@ -27,6 +30,25 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 }
 
 /**
+ * Properly closes and cleans up a notification
+ */
+function cleanupNotification(notificationTag: string) {
+	const notification = activeNotifications.get(notificationTag);
+	if (notification) {
+		// Clear event handlers to prevent memory leaks
+		notification.onclick = null;
+		notification.onclose = null;
+		notification.onerror = null;
+
+		// Close the notification if it's still open
+		notification.close();
+
+		// Remove from tracking
+		activeNotifications.delete(notificationTag);
+	}
+}
+
+/**
  * Shows an OS notification for a new message
  */
 export async function showMessageNotification(options: NotificationOptions): Promise<void> {
@@ -49,21 +71,30 @@ export async function showMessageNotification(options: NotificationOptions): Pro
 	}
 
 	try {
+		const notificationTag = options.tag || `chat-${options.chatId}`;
+
+		// Close any existing notification for this chat to prevent accumulation
+		cleanupNotification(notificationTag);
+
 		const notification = new Notification(options.title, {
 			body: options.body,
 			icon: options.icon || '/favicon.ico',
-			tag: options.tag || `chat-${options.chatId}`,
+			tag: notificationTag,
 			requireInteraction: false,
 			silent: false
 		});
 
-		// Auto-close after 5 seconds
-		setTimeout(() => {
-			notification.close();
+		// Track the notification
+		activeNotifications.set(notificationTag, notification);
+
+		// Auto-close after 5 seconds with proper cleanup
+		const timeoutId = setTimeout(() => {
+			cleanupNotification(notificationTag);
 		}, 5000);
 
 		// Handle click to focus window and navigate to chat
 		notification.onclick = () => {
+			clearTimeout(timeoutId);
 			window.focus();
 
 			// Navigate to chat if not already there
@@ -74,22 +105,43 @@ export async function showMessageNotification(options: NotificationOptions): Pro
 				window.location.href = chatPath;
 			}
 
-			notification.close();
+			cleanupNotification(notificationTag);
 		};
 
-		// Handle close
+		// Handle close with proper cleanup
 		notification.onclose = () => {
-			// Optional: track notification dismissed
+			clearTimeout(timeoutId);
+			activeNotifications.delete(notificationTag);
 		};
 
-		// Handle error
+		// Handle error with proper cleanup
 		notification.onerror = (error) => {
+			clearTimeout(timeoutId);
 			console.error('Notification error:', error);
+			cleanupNotification(notificationTag);
 		};
 
 	} catch (error) {
 		console.error('Failed to show notification:', error);
 	}
+}
+
+/**
+ * Cleans up all active notifications (call on app shutdown)
+ */
+export function cleanupAllNotifications(): void {
+	for (const [tag, notification] of activeNotifications.entries()) {
+		// Clear event handlers
+		notification.onclick = null;
+		notification.onclose = null;
+		notification.onerror = null;
+
+		// Close notification
+		notification.close();
+	}
+
+	// Clear the map
+	activeNotifications.clear();
 }
 
 /**

@@ -2,9 +2,24 @@ import { detectLinkPreview, type LinkPreview } from './linkPreview';
 
 const HTTPS_URL_REGEX = /https:\/\/[^\s<>"'`]+[^\s<>"'`.,;!?]/gi;
 
+// Memoization cache for linkify results to improve performance
+const linkifyCache = new Map<string, LinkifyResult | string>();
+const MAX_CACHE_SIZE = 1000; // Limit cache size to prevent memory bloat
+
+// Cache cleanup function to prevent unbounded growth
+function cleanupCache() {
+	if (linkifyCache.size > MAX_CACHE_SIZE) {
+		// Remove oldest 25% of entries
+		const keysToDelete = Array.from(linkifyCache.keys()).slice(0, Math.floor(MAX_CACHE_SIZE * 0.25));
+		for (const key of keysToDelete) {
+			linkifyCache.delete(key);
+		}
+	}
+}
+
 export interface GifLink {
 	url: string;
-	id: string; // unique identifier for the gif
+	id: string;
 }
 
 export interface LinkifyResult {
@@ -16,6 +31,16 @@ export interface LinkifyResult {
 export function linkify(text: string): string;
 export function linkify(text: string, includePreviews: true): LinkifyResult;
 export function linkify(text: string, includePreviews = false): string | LinkifyResult {
+	// Create cache key that includes the includePreviews flag
+	const cacheKey = `${text}|${includePreviews}`;
+
+	// Check cache first
+	if (linkifyCache.has(cacheKey)) {
+		return linkifyCache.get(cacheKey)!;
+	}
+
+	// Clean up cache if it's getting too large
+	cleanupCache();
     const escapedText = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -80,13 +105,31 @@ export function linkify(text: string, includePreviews = false): string | Linkify
         }
     });
 
-    if (includePreviews) {
-        return {
-            html: linkedText,
-            previews,
-            gifs
-        };
-    }
+    const result = includePreviews ? {
+        html: linkedText,
+        previews,
+        gifs
+    } : linkedText;
 
-    return linkedText;
+    // Cache the result for future use
+    linkifyCache.set(cacheKey, result);
+
+    return result;
+}
+
+/**
+ * Clear the linkify cache (useful for memory management)
+ */
+export function clearLinkifyCache(): void {
+    linkifyCache.clear();
+}
+
+/**
+ * Get current cache statistics for debugging
+ */
+export function getLinkifyCacheStats(): { size: number; maxSize: number } {
+    return {
+        size: linkifyCache.size,
+        maxSize: MAX_CACHE_SIZE
+    };
 }
