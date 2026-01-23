@@ -86,8 +86,6 @@ function createMetadataPollingService(): MetadataPollingService {
 
 			pollAllChatsMetadata();
 			intervalId = window.setInterval(pollAllChatsMetadata, POLL_INTERVAL);
-
-			console.log(`Metadata polling started for ${chatIds.length} chats`);
 		},
 
 		stop: () => {
@@ -102,13 +100,10 @@ function createMetadataPollingService(): MetadataPollingService {
 				clearInterval(intervalId);
 				intervalId = null;
 			}
-
-			console.log('Metadata polling stopped');
 		},
 
 		updateChatIds: (chatIds: string[]) => {
 			currentChatIds = [...chatIds];
-			console.log(`Updated metadata polling for ${chatIds.length} chats`);
 		},
 
 		isRunning: () => isPolling
