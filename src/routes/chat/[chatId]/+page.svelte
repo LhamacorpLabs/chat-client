@@ -1623,7 +1623,7 @@
 		color: var(--text-primary);
 		line-height: 1.5;
 		word-wrap: break-word;
-		white-space: pre-wrap;
+		white-space: pre-line;
 		overflow-wrap: break-word;
 	}
 
@@ -1913,7 +1913,6 @@
 		cursor: not-allowed;
 	}
 
-	/* Loading Screen */
 	.loading-screen {
 		display: flex;
 		flex-direction: column;
