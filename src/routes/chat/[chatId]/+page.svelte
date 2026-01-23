@@ -906,7 +906,8 @@
 		function handleKeyDown(event: KeyboardEvent) {
 			if (event.key === 'Escape') {
 				const imageModal = document.querySelector('.image-modal-overlay');
-				if (imageModal) {
+				const gifModal = document.querySelector('.gif-modal-overlay');
+				if (imageModal || gifModal) {
 					return;
 				}
 
