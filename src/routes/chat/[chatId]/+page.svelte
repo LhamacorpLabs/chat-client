@@ -1481,11 +1481,17 @@
 	}
 
 	.other-message {
-		background: var(--bg-secondary);
-		border: 1px solid var(--border-light);
+		background: rgba(59, 130, 246, 0.08);
+		border: 1px solid rgba(59, 130, 246, 0.15);
 		border-left: 3px solid var(--current-member-color, var(--border-color));
 		align-self: flex-start;
 		border-bottom-left-radius: 4px;
+	}
+
+	/* Dark theme override for other messages - keep original dark styling */
+	[data-theme='dark'] .other-message {
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-light);
 	}
 
 	.message-header {
@@ -1718,6 +1724,11 @@
 		align-items: center;
 	}
 
+	.input-container .btn {
+		height: 48px;
+		padding: 0 1.5rem;
+	}
+
 	.image-upload-section {
 		max-width: 1200px;
 		margin: 0 auto 1rem auto;
@@ -1729,23 +1740,24 @@
 
 	.image-btn {
 		flex-shrink: 0;
-		width: 40px;
-		height: 40px;
+		width: 48px;
+		height: 48px;
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		font-size: 16px;
 		padding: 0;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border-medium);
+		background: var(--bg-primary);
+		border: 2px solid var(--border-color);
 		color: var(--text-primary);
 		transition: all 0.2s ease;
+		box-sizing: border-box;
 	}
 
 	.image-btn:hover:not(:disabled) {
-		background: var(--bg-hover);
-		border-color: var(--border-primary);
+		background: var(--bg-secondary);
+		border-color: var(--accent);
 	}
 
 	.image-btn:disabled {
@@ -1769,20 +1781,22 @@
 
 	.message-input {
 		flex: 1;
-		padding: 0.75rem 1rem;
+		padding: 0.5rem 1rem;
 		border-radius: 10px;
-		border: 0px solid var(--border-color);
-		background: var(--bg-secondary);
+		border: 2px solid var(--border-color);
+		background: var(--bg-primary);
 		color: var(--text-primary);
 		font-family: inherit;
 		font-size: 1rem;
 		resize: none;
 		overflow-y: auto;
-		min-height: 40px;
+		height: 48px;
+		min-height: 48px;
 		max-height: 120px;
 		line-height: 1.5;
 		scrollbar-width: none; /* Firefox */
 		-ms-overflow-style: none; /* IE/Edge */
+		box-sizing: border-box;
 	}
 
 	.message-input::-webkit-scrollbar {
@@ -1791,6 +1805,8 @@
 
 	.message-input:focus {
 		outline: none;
+		border-color: var(--accent);
+		box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 	}
 
 	.message-input:disabled {
@@ -1877,6 +1893,16 @@
 			width: 36px;
 			height: 36px;
 			font-size: 14px;
+		}
+
+		.input-container .btn {
+			height: 36px;
+			padding: 0 1rem;
+		}
+
+		.message-input {
+			height: 36px;
+			min-height: 36px;
 		}
 
 		.message-item {
