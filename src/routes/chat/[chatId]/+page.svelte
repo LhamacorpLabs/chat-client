@@ -102,7 +102,13 @@
 
 	$effect(() => {
 		if (messageInputElement && !isSending) {
-			messageInputElement.focus();
+			// Only auto-focus on desktop, not on mobile
+			const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+				|| window.matchMedia('(max-width: 768px)').matches;
+
+			if (!isMobile) {
+				messageInputElement.focus();
+			}
 		}
 	});
 
@@ -1331,7 +1337,6 @@
 		gap: 1rem;
 	}
 
-
 	/* Chat Content */
 	.chat-content {
 		flex: 1;
@@ -1765,8 +1770,8 @@
 	.message-input {
 		flex: 1;
 		padding: 0.75rem 1rem;
-		border-radius: 25px;
-		border: 2px solid var(--border-color);
+		border-radius: 10px;
+		border: 0px solid var(--border-color);
 		background: var(--bg-secondary);
 		color: var(--text-primary);
 		font-family: inherit;
@@ -1776,6 +1781,16 @@
 		min-height: 40px;
 		max-height: 120px;
 		line-height: 1.5;
+		scrollbar-width: none; /* Firefox */
+		-ms-overflow-style: none; /* IE/Edge */
+	}
+
+	.message-input::-webkit-scrollbar {
+		display: none;
+	}
+
+	.message-input:focus {
+		outline: none;
 	}
 
 	.message-input:disabled {
