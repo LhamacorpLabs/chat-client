@@ -410,16 +410,18 @@
 	 * Calculates the next polling delay based on activity
 	 */
 	function getNextPollingDelay(): number {
-		const MIN_DELAY = 2000; // 2 seconds minimum
-		const MAX_DELAY = 15000; // 15 seconds maximum
+		// const MIN_DELAY = 2000; // 2 seconds minimum
+		// const MAX_DELAY = 15000; // 15 seconds maximum
+		//
+		// // If window is focused, poll more frequently
+		// if (windowFocused) {
+		// 	return Math.min(3000 + (consecutiveEmptyPolls * 500), 8000);
+		// }
+		//
+		// // If window is not focused, poll less frequently
+		// return Math.min(5000 + (consecutiveEmptyPolls * 1000), MAX_DELAY);
 
-		// If window is focused, poll more frequently
-		if (windowFocused) {
-			return Math.min(3000 + (consecutiveEmptyPolls * 500), 8000);
-		}
-
-		// If window is not focused, poll less frequently
-		return Math.min(5000 + (consecutiveEmptyPolls * 1000), MAX_DELAY);
+		return 1000;
 	}
 
 	async function pollForMessages() {
