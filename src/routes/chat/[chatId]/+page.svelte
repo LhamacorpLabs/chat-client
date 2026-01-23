@@ -64,7 +64,7 @@
 	let pendingUrl = $state<string | null>(null);
 
 	let pollingInterval: NodeJS.Timeout | null = null;
-	let messageInputElement: HTMLInputElement;
+	let messageInputElement: HTMLTextAreaElement;
 	let chatContent: HTMLElement;
 	let windowFocused = $state(true);
 	let hasUnreadMessages = $state(false);
@@ -103,6 +103,14 @@
 	$effect(() => {
 		if (messageInputElement && !isSending) {
 			messageInputElement.focus();
+		}
+	});
+
+	$effect(() => {
+		if (messageInputElement && newMessage !== undefined) {
+			messageInputElement.style.height = 'auto';
+			const newHeight = Math.min(messageInputElement.scrollHeight, 120);
+			messageInputElement.style.height = newHeight + 'px';
 		}
 	});
 
@@ -1100,8 +1108,8 @@
 				>
 					+
 				</button>
-				<input
-					type="text"
+				<textarea
+					rows="1"
 					bind:value={newMessage}
 					bind:this={messageInputElement}
 					onkeydown={handleKeyPress}
@@ -1109,7 +1117,7 @@
 					placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
 					disabled={isSending || isUploadingImages}
 					class="message-input"
-				/>
+				></textarea>
 				<button
 					type="submit"
 					class="btn btn-primary"
@@ -1505,6 +1513,8 @@
 		color: var(--text-primary);
 		line-height: 1.5;
 		word-wrap: break-word;
+		white-space: pre-wrap;
+		overflow-wrap: break-word;
 	}
 
 	.message-previews {
@@ -1758,6 +1768,14 @@
 		border-radius: 25px;
 		border: 2px solid var(--border-color);
 		background: var(--bg-secondary);
+		color: var(--text-primary);
+		font-family: inherit;
+		font-size: 1rem;
+		resize: none;
+		overflow-y: auto;
+		min-height: 40px;
+		max-height: 120px;
+		line-height: 1.5;
 	}
 
 	.message-input:disabled {

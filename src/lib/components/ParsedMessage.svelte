@@ -140,6 +140,9 @@
 <style>
 	.message-text {
 		margin-bottom: 8px;
+		white-space: pre-wrap;
+		word-wrap: break-word;
+		overflow-wrap: break-word;
 	}
 
 	.message-images {
