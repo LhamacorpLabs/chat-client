@@ -1154,6 +1154,8 @@
 												⋮
 											</button>
 											{#if openActionMenuId === message.id}
+												<!-- Mobile backdrop -->
+												<div class="mobile-menu-backdrop" onclick={closeActionMenu}></div>
 												<div class="action-dropdown">
 													<button class="dropdown-item reply-item"
 													        onclick={() => handleReplyToMessage(message)}>
@@ -1837,6 +1839,11 @@
 		left: 0;
 	}
 
+	/* Mobile menu backdrop - hidden on desktop */
+	.mobile-menu-backdrop {
+		display: none;
+	}
+
 	/* Own message styling overrides */
 	.own-message .message-user {
 		color: rgba(255, 255, 255, 0.9);
@@ -2045,6 +2052,75 @@
 			gap: 0.5rem;
 		}
 
+		/* Mobile-optimized action menu */
+		.action-dropdown {
+			min-width: 140px;
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+			border-radius: 8px;
+		}
+
+		.dropdown-item {
+			padding: 0.875rem 1rem;
+			font-size: 0.95rem;
+			min-height: 44px; /* Minimum touch target size */
+			display: flex;
+			align-items: center;
+		}
+
+		/* Ensure menu doesn't go off-screen on mobile */
+		.message-item:first-child .action-dropdown,
+		.message-item:nth-child(2) .action-dropdown {
+			top: auto;
+			bottom: 100%;
+			margin-top: 0;
+			margin-bottom: 4px;
+		}
+
+		/* Position menus more carefully on mobile */
+		.own-message .action-dropdown {
+			right: 0;
+			left: auto;
+		}
+
+		.other-message .action-dropdown {
+			left: 0;
+			right: auto;
+		}
+
+		/* Make action buttons more touch-friendly */
+		.action-btn {
+			width: 32px;
+			height: 32px;
+			padding: 0.5rem;
+		}
+
+		.menu-btn {
+			font-size: 1rem;
+		}
+
+		/* Show mobile backdrop on tablets and smaller */
+		.mobile-menu-backdrop {
+			display: block;
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(0, 0, 0, 0.2);
+			z-index: 999;
+			animation: fadeIn 0.15s ease-out;
+		}
+
+		@keyframes fadeIn {
+			from { opacity: 0; }
+			to { opacity: 1; }
+		}
+
+		/* Increase z-index of action dropdown on mobile */
+		.action-dropdown {
+			z-index: 1001;
+		}
+
 	}
 
 	@media (max-width: 480px) {
@@ -2100,6 +2176,40 @@
 
 		.message-time {
 			font-size: 0.7rem;
+		}
+
+		/* Extra mobile optimizations for very small screens */
+		.action-dropdown {
+			min-width: 160px;
+			max-width: calc(100vw - 2rem);
+			box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+		}
+
+		.dropdown-item {
+			padding: 1rem 1.25rem;
+			font-size: 1rem;
+			min-height: 48px; /* Larger touch targets for small screens */
+		}
+
+		/* Prevent menu cutoff on very small screens */
+		.action-dropdown {
+			transform: translateX(0);
+		}
+
+		.own-message .action-dropdown {
+			right: 1rem;
+			left: auto;
+		}
+
+		.other-message .action-dropdown {
+			left: 1rem;
+			right: auto;
+		}
+
+		/* Larger action buttons for easier tapping */
+		.action-btn {
+			width: 36px;
+			height: 36px;
 		}
 	}
 
