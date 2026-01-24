@@ -1159,16 +1159,19 @@
 												<div class="action-dropdown">
 													<button class="dropdown-item reply-item"
 													        onclick={() => handleReplyToMessage(message)}>
-														↩ Reply
+														<span class="desktop-text">↩ Reply</span>
+														<span class="mobile-text">Reply</span>
 													</button>
 													<button class="dropdown-item favorite-item"
 													        onclick={() => handleToggleFavorite(message.id)}>
-														{favoriteMessageIds.has(message.id) ? '★ Unfavorite' : '☆ Favorite'}
+														<span class="desktop-text">{favoriteMessageIds.has(message.id) ? '★ Unfavorite' : '☆ Favorite'}</span>
+														<span class="mobile-text">{favoriteMessageIds.has(message.id) ? 'Unfavorite' : 'Favorite'}</span>
 													</button>
 													{#if isOwnMessage}
 														<button class="dropdown-item delete-item"
 														        onclick={() => handleDeleteMessage(message.id)}>
-															🗑 Delete
+															<span class="desktop-text">🗑 Delete</span>
+															<span class="mobile-text">Delete</span>
 														</button>
 													{/if}
 												</div>
@@ -1844,6 +1847,15 @@
 		display: none;
 	}
 
+	/* Text visibility control */
+	.desktop-text {
+		display: inline;
+	}
+
+	.mobile-text {
+		display: none;
+	}
+
 	/* Own message styling overrides */
 	.own-message .message-user {
 		color: rgba(255, 255, 255, 0.9);
@@ -2054,9 +2066,12 @@
 
 		/* Mobile-optimized action menu */
 		.action-dropdown {
-			min-width: 140px;
+			min-width: 120px;
 			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 			border-radius: 8px;
+			/* Ensure menu stays within chat window */
+			position: absolute;
+			max-width: calc(100vw - 4rem);
 		}
 
 		.dropdown-item {
@@ -2065,6 +2080,17 @@
 			min-height: 44px; /* Minimum touch target size */
 			display: flex;
 			align-items: center;
+			justify-content: center;
+			text-align: center;
+		}
+
+		/* Switch to mobile text (no icons) */
+		.desktop-text {
+			display: none;
+		}
+
+		.mobile-text {
+			display: inline;
 		}
 
 		/* Ensure menu doesn't go off-screen on mobile */
@@ -2076,15 +2102,23 @@
 			margin-bottom: 4px;
 		}
 
-		/* Position menus more carefully on mobile */
+		/* Position menus more carefully on mobile - stay within chat bounds */
 		.own-message .action-dropdown {
 			right: 0;
 			left: auto;
+			max-width: calc(100vw - 6rem);
 		}
 
 		.other-message .action-dropdown {
 			left: 0;
 			right: auto;
+			max-width: calc(100vw - 6rem);
+		}
+
+		/* Prevent horizontal overflow */
+		.action-dropdown {
+			transform: translateX(0);
+			white-space: nowrap;
 		}
 
 		/* Make action buttons more touch-friendly */
@@ -2109,6 +2143,9 @@
 			background: rgba(0, 0, 0, 0.2);
 			z-index: 999;
 			animation: fadeIn 0.15s ease-out;
+			/* Ensure backdrop covers everything including chat header */
+			width: 100vw;
+			height: 100vh;
 		}
 
 		@keyframes fadeIn {
@@ -2119,6 +2156,8 @@
 		/* Increase z-index of action dropdown on mobile */
 		.action-dropdown {
 			z-index: 1001;
+			/* Ensure menu appears above backdrop */
+			position: relative;
 		}
 
 	}
@@ -2180,30 +2219,40 @@
 
 		/* Extra mobile optimizations for very small screens */
 		.action-dropdown {
-			min-width: 160px;
-			max-width: calc(100vw - 2rem);
+			min-width: 120px;
+			max-width: calc(100vw - 3rem);
 			box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+			/* Ensure menu stays within chat content area */
+			position: absolute;
 		}
 
 		.dropdown-item {
 			padding: 1rem 1.25rem;
 			font-size: 1rem;
 			min-height: 48px; /* Larger touch targets for small screens */
+			justify-content: center;
 		}
 
-		/* Prevent menu cutoff on very small screens */
-		.action-dropdown {
-			transform: translateX(0);
+		/* Ensure mobile text is shown on very small screens too */
+		.desktop-text {
+			display: none;
 		}
 
+		.mobile-text {
+			display: inline;
+		}
+
+		/* Position menus within chat bounds on very small screens */
 		.own-message .action-dropdown {
-			right: 1rem;
+			right: 0.5rem;
 			left: auto;
+			max-width: calc(100vw - 4rem);
 		}
 
 		.other-message .action-dropdown {
-			left: 1rem;
+			left: 0.5rem;
 			right: auto;
+			max-width: calc(100vw - 4rem);
 		}
 
 		/* Larger action buttons for easier tapping */
