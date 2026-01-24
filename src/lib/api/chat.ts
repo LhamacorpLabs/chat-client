@@ -1,4 +1,4 @@
-import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment } from '../types/chat';
+import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment, FavoriteMessagesResponse } from '../types/chat';
 import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 
 const CHAT_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/chats`;
@@ -181,6 +181,34 @@ export async function deleteMessage(token: string, chatId: string, messageId: st
 	if (!response.ok) {
 		throw new Error(`Failed to delete message: ${response.status}`);
 	}
+}
+
+export async function toggleMessageFavorite(token: string, chatId: string, messageId: string): Promise<void> {
+	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/${messageId}/favorites`, {
+		method: 'PUT',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to toggle message favorite: ${response.status}`);
+	}
+}
+
+export async function fetchFavoriteMessages(token: string, chatId: string): Promise<FavoriteMessagesResponse> {
+	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/favorites`, {
+		method: 'GET',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch favorite messages: ${response.status}`);
+	}
+
+	return response.json();
 }
 
 export async function deleteChat(token: string, chatId: string): Promise<void> {

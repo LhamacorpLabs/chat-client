@@ -79,3 +79,12 @@ export interface Invitation {
 export interface RedeemInvitationRequest {
 	code: string;
 }
+
+// Favorite message related types
+export interface FavoriteMessage {
+	chatId: string;
+	messageId: string;
+	createdAt: string;
+}
+
+export interface FavoriteMessagesResponse extends Array<FavoriteMessage> {}

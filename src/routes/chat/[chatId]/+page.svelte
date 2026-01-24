@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
-	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage } from '$lib/api/chat';
+	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage, toggleMessageFavorite, fetchFavoriteMessages } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import ImageUpload from '$lib/components/ImageUpload.svelte';
 	import ParsedMessage from '$lib/components/ParsedMessage.svelte';
@@ -88,6 +88,9 @@
 	let highlightedMessageId = $state<string | null>(null);
 	let selectedMessageIndex = $state(-1);
 
+	// Track favorited messages locally
+	let favoriteMessageIds = $state(new Set<string>());
+
 	const chatId = data.chatId;
 	const currentChat = data.chat;
 	const chatName = currentChat.name;
@@ -122,6 +125,7 @@
 				assignColorsForChat(chatId, currentChat.members);
 			}
 			loadMessages();
+			loadFavoriteMessages();
 		}
 	});
 
@@ -365,6 +369,19 @@
 			error = err instanceof Error ? err.message : 'Failed to load messages';
 		} finally {
 			isLoading = false;
+		}
+	}
+
+	async function loadFavoriteMessages() {
+		if (!$authStore.token) return;
+
+		try {
+			const favorites = await fetchFavoriteMessages($authStore.token, chatId);
+			const favoriteIds = favorites.map(fav => fav.messageId);
+			favoriteMessageIds = new Set(favoriteIds);
+		} catch (err) {
+			console.error('Failed to load favorite messages:', err);
+			// Don't show error to user, this is not critical functionality
 		}
 	}
 
@@ -764,6 +781,27 @@
 		setTimeout(() => messageInputElement?.focus(), 100);
 	}
 
+	async function handleToggleFavorite(messageId: string) {
+		if (!$authStore.token) return;
+
+		try {
+			await toggleMessageFavorite($authStore.token, chatId, messageId);
+
+			// Toggle the favorite status locally
+			if (favoriteMessageIds.has(messageId)) {
+				favoriteMessageIds.delete(messageId);
+			} else {
+				favoriteMessageIds.add(messageId);
+			}
+			// Trigger reactivity
+			favoriteMessageIds = new Set(favoriteMessageIds);
+
+			closeActionMenu();
+		} catch (err) {
+			console.error('Failed to toggle message favorite:', err);
+		}
+	}
+
 	function cancelReply() {
 		replyingTo = null;
 	}
@@ -1097,11 +1135,15 @@
 						<div class="message-item {isOwnMessage ? 'own-message' : 'other-message'}"
 						     class:highlighted={highlightedMessageId === message.id}
 						     class:selected={selectedMessageIndex === index}
+						     class:favorited={favoriteMessageIds.has(message.id)}
 						     style={memberColor ? `--current-member-color: ${memberColor}` : ''}>
 							<div class="message-header">
 								<span class="message-user"
 								      style={memberColor ? `color: ${memberColor}` : ''}>
 									{message.userId === $authStore.user?.id ? 'You' : message.username}
+									{#if favoriteMessageIds.has(message.id)}
+										<span class="favorite-indicator">★</span>
+									{/if}
 								</span>
 								<div class="message-header-right">
 									{#if message.message !== '[deleted message]'}
@@ -1115,12 +1157,16 @@
 												<div class="action-dropdown">
 													<button class="dropdown-item reply-item"
 													        onclick={() => handleReplyToMessage(message)}>
-														Reply
+														↩ Reply
+													</button>
+													<button class="dropdown-item favorite-item"
+													        onclick={() => handleToggleFavorite(message.id)}>
+														{favoriteMessageIds.has(message.id) ? '★ Unfavorite' : '☆ Favorite'}
 													</button>
 													{#if isOwnMessage}
 														<button class="dropdown-item delete-item"
 														        onclick={() => handleDeleteMessage(message.id)}>
-															Delete
+															🗑 Delete
 														</button>
 													{/if}
 												</div>
@@ -1574,6 +1620,16 @@
 		outline-offset: 2px;
 	}
 
+	.message-item.favorited {
+		border-left: 3px solid gold;
+		box-shadow: 0 2px 8px rgba(255, 215, 0, 0.2);
+	}
+
+	.message-item.favorited.own-message {
+		border-right: 3px solid gold;
+		border-left: 1px solid var(--accent);
+	}
+
 	.own-message {
 		background: var(--accent);
 		color: white;
@@ -1608,6 +1664,16 @@
 		font-weight: 600;
 		color: var(--current-member-color, var(--accent));
 		font-size: 0.85rem;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.favorite-indicator {
+		color: gold;
+		font-size: 0.8rem;
+		display: inline-block;
+		margin-left: 0.25rem;
 	}
 
 	.message-header-right {
@@ -1755,6 +1821,14 @@
 
 	.reply-item:hover {
 		background: rgba(var(--accent-rgb, 0, 123, 255), 0.1);
+	}
+
+	.favorite-item {
+		color: gold;
+	}
+
+	.favorite-item:hover {
+		background: rgba(255, 215, 0, 0.1);
 	}
 
 	/* Position menu on left for other messages */
