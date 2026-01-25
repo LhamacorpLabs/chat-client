@@ -198,7 +198,7 @@ export async function checkAndRefreshToken(): Promise<boolean> {
 		return false;
 	}
 
-	if (isTokenExpiringSoon(storedAuth.expirationDate, 10)) {
+	if (isTokenExpiringSoon(storedAuth.expirationDate, 60)) {
 		return await refreshToken();
 	}
 
