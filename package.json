@@ -11,6 +11,10 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
+	"dependencies": {
+		"@stomp/stompjs": "^7.0.0",
+		"sockjs-client": "^1.6.1"
+	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.49.1",

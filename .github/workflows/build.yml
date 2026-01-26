@@ -24,6 +24,6 @@ jobs:
       - name: Build the application
         run: npm run build
         env:
-          # Environment variables required for SvelteKit build
           PUBLIC_CHAT_API_URL: https://chat-be.lhamacorp.com
           PUBLIC_AUTH_API_URL: https://auth.lhamacorp.com
+          PUBLIC_REALTIME_MODE: websocket
