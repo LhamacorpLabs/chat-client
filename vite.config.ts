@@ -21,6 +21,7 @@ function getGitCommitId(): string {
 export default defineConfig({
 	plugins: [sveltekit()],
 	define: {
-		__GIT_COMMIT_ID__: JSON.stringify(getGitCommitId())
+		__GIT_COMMIT_ID__: JSON.stringify(getGitCommitId()),
+		global: 'globalThis'
 	}
 });

@@ -2,7 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
-	import { fetchMessages, fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage, toggleMessageFavorite, fetchFavoriteMessages } from '$lib/api/chat';
+	import { webSocketService, websocketStore } from '$lib/stores/websocket';
+	import { fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage, toggleMessageFavorite, fetchFavoriteMessages } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import ImageUpload from '$lib/components/ImageUpload.svelte';
 	import ParsedMessage from '$lib/components/ParsedMessage.svelte';
@@ -24,6 +25,10 @@
 	import { chatMuteStore } from '$lib/stores/chatMute';
 	import { hasReply, formatReplyMessage } from '$lib/utils/replyMessages';
 	import ReplyPreview from '$lib/components/ReplyPreview.svelte';
+	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
+
+	// Realtime mode: 'websocket' or 'polling'
+	const realtimeMode = PUBLIC_REALTIME_MODE || 'websocket';
 
 	interface PageData {
 		chatId: string;
@@ -63,10 +68,11 @@
 	let showLinkConfirmation = $state(false);
 	let pendingUrl = $state<string | null>(null);
 
-	let pollingInterval: NodeJS.Timeout | null = null;
-	let currentPollingDelay = 3000; // Start with 3 seconds
-	let consecutiveEmptyPolls = 0;
-	let isActivelyPolling = false;
+	let websocketUnsubscribe: (() => void) | null = null;
+	let isConnectingWebSocket = false;
+	let websocketError = $state<string | null>(null);
+	let pollingInterval: ReturnType<typeof setInterval> | null = null;
+	const POLLING_INTERVAL_MS = 1000;
 	let messageInputElement: HTMLTextAreaElement;
 	let chatContent: HTMLElement;
 	let windowFocused = $state(true);
@@ -118,7 +124,7 @@
 	}
 
 	$effect(() => {
-		if ($authStore.token && chatId) {
+		if ($authStore.token && chatId && $authStore.user) {
 			loadMemberColors();
 			shouldUseColors = shouldUseMemberColors(currentChat.members);
 			if (shouldUseColors) {
@@ -126,7 +132,22 @@
 			}
 			loadMessages();
 			loadFavoriteMessages();
+
+			// Use WebSocket or polling based on realtime mode
+			if (realtimeMode === 'websocket') {
+				connectWebSocket();
+			} else {
+				startPolling();
+			}
 		}
+
+		return () => {
+			if (realtimeMode === 'websocket') {
+				disconnectWebSocket();
+			} else {
+				stopPolling();
+			}
+		};
 	});
 
 	$effect(() => {
@@ -233,11 +254,6 @@
 		async function handleFocus() {
 			windowFocused = true;
 			hasUnreadMessages = false;
-			// Increase polling frequency when window gains focus
-			if (pollingInterval) {
-				stopMessagePolling();
-				startMessagePolling();
-			}
 			try {
 				const chats = await apiFetchChats($authStore.token);
 				const updatedChat = chats.find(c => c.id === chatId);
@@ -251,11 +267,6 @@
 
 		function handleBlur() {
 			windowFocused = false;
-			// Reduce polling frequency when window loses focus
-			if (pollingInterval) {
-				stopMessagePolling();
-				startMessagePolling();
-			}
 		}
 
 		async function handleVisibilityChange() {
@@ -285,17 +296,6 @@
 		};
 	});
 
-	$effect(() => {
-		if ($authStore.token && chatId && !isLoading && messages.length >= 0) {
-			startMessagePolling();
-		} else {
-			stopMessagePolling();
-		}
-
-		return () => {
-			stopMessagePolling();
-		};
-	});
 
 	$effect(() => {
 		document.addEventListener('paste', handlePaste);
@@ -318,6 +318,134 @@
 			return () => document.removeEventListener('click', handleClickOutside);
 		}
 	});
+
+	async function connectWebSocket() {
+		if (!$authStore.token || isConnectingWebSocket) return;
+
+		try {
+			isConnectingWebSocket = true;
+			websocketError = null;
+
+			await webSocketService.connect($authStore.token);
+
+			// Subscribe to this chat's messages
+			websocketUnsubscribe = webSocketService.subscribeToChat(chatId, handleWebSocketMessage);
+
+			console.log(`Connected to WebSocket and subscribed to chat: ${chatId}`);
+		} catch (error) {
+			console.error('Failed to connect WebSocket:', error);
+			websocketError = error instanceof Error ? error.message : 'WebSocket connection failed';
+		} finally {
+			isConnectingWebSocket = false;
+		}
+	}
+
+	function disconnectWebSocket() {
+		if (websocketUnsubscribe) {
+			websocketUnsubscribe();
+			websocketUnsubscribe = null;
+		}
+		webSocketService.disconnect();
+	}
+
+	// Polling functions for REST mode
+	function startPolling() {
+		if (pollingInterval) return;
+
+		console.log('Starting message polling (REST mode)');
+		pollingInterval = setInterval(pollForNewMessages, POLLING_INTERVAL_MS);
+	}
+
+	function stopPolling() {
+		if (pollingInterval) {
+			console.log('Stopping message polling');
+			clearInterval(pollingInterval);
+			pollingInterval = null;
+		}
+	}
+
+	async function pollForNewMessages() {
+		if (!$authStore.token || !prevCursor) return;
+
+		try {
+			// Fetch messages newer than our most recent one
+			const response: PagedMessageResponse = await fetchMessagesPaginated(
+				$authStore.token,
+				chatId,
+				50,
+				undefined, // no 'before' cursor
+				prevCursor // 'after' cursor - get messages after this timestamp
+			);
+
+			if (response.messages.length > 0) {
+				// Messages come in desc order, reverse to get chronological
+				const newMessages = response.messages.reverse();
+
+				// Filter out any messages we already have
+				const existingIds = new Set(messages.map(m => m.id));
+				const trulyNewMessages = newMessages.filter(m => !existingIds.has(m.id));
+
+				if (trulyNewMessages.length > 0) {
+					// Process each new message similar to WebSocket handler
+					for (const msg of trulyNewMessages) {
+						handleNewMessage(msg);
+					}
+
+					// Update cursor to the newest message
+					prevCursor = response.prevCursor;
+				}
+			}
+		} catch (error) {
+			console.error('Failed to poll for new messages:', error);
+		}
+	}
+
+	function handleNewMessage(newMsg: Message) {
+		// Add the new message to the messages array
+		messages = [...messages, newMsg];
+
+		// Handle notifications for messages from other users
+		if (newMsg.userId !== $authStore.user?.id && !isWindowFocused()) {
+			hasUnreadMessages = true;
+
+			const isChatMuted = chatMuteStore.isMuted(data.chatId);
+			if (!isChatMuted) {
+				playNotificationSound();
+				showMessageNotification({
+					title: `New message in ${data.chat.name}`,
+					body: `${newMsg.username}: ${newMsg.message.length > 50
+						? newMsg.message.substring(0, 50) + '...'
+						: newMsg.message}`,
+					chatId: data.chatId,
+					tag: `chat-${data.chatId}`
+				});
+			}
+		}
+
+		// Update colors if needed
+		if (shouldUseColors && newMsg.userId !== $authStore.user?.id) {
+			addMemberColor(chatId, newMsg.userId);
+		}
+
+		// Clean up messages if we have too many
+		cleanupMessages();
+	}
+
+	function handleWebSocketMessage(newMessage: Message) {
+		handleNewMessage(newMessage);
+
+		// Update chat notifications
+		if ($authStore.token) {
+			apiFetchChats($authStore.token).then(chats => {
+				const updatedChat = chats.find(c => c.id === chatId);
+				if (updatedChat && updatedChat.lastMessageAt) {
+					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
+				}
+			}).catch(error => {
+				console.warn('Failed to fetch updated chat info for notifications:', error);
+			});
+		}
+	}
 
 	async function loadMessages() {
 		if (!$authStore.token) return;
@@ -423,150 +551,9 @@
 		}
 	}
 
-	/**
-	 * Calculates the next polling delay based on activity
-	 */
-	function getNextPollingDelay(): number {
-		// const MIN_DELAY = 2000; // 2 seconds minimum
-		// const MAX_DELAY = 15000; // 15 seconds maximum
-		//
-		// // If window is focused, poll more frequently
-		// if (windowFocused) {
-		// 	return Math.min(3000 + (consecutiveEmptyPolls * 500), 8000);
-		// }
-		//
-		// // If window is not focused, poll less frequently
-		// return Math.min(5000 + (consecutiveEmptyPolls * 1000), MAX_DELAY);
-
-		return 1000;
-	}
-
-	async function pollForMessages() {
-		if (!$authStore.token || isLoading || isActivelyPolling) return;
-
-		isActivelyPolling = true;
-
-		try {
-			const response: PagedMessageResponse = await fetchMessagesPaginated(
-				$authStore.token,
-				chatId,
-				50,
-				undefined,
-				prevCursor
-			);
-
-			const currentMessageCount = messages.length;
-
-			if (response.messages.length > 0) {
-				// Reset empty poll counter when we get messages
-				consecutiveEmptyPolls = 0;
-
-				const hasNewMessages = currentMessageCount > 0;
-				if (hasNewMessages && !isWindowFocused()) {
-					const hasOtherUserMessages = response.messages.some(msg => msg.userId !== $authStore.user?.id);
-
-					if (hasOtherUserMessages) {
-						hasUnreadMessages = true;
-
-						const isChatMuted = chatMuteStore.isMuted(data.chatId);
-						if (!isChatMuted) {
-							playNotificationSound();
-
-							const latestMessage = response.messages[response.messages.length - 1];
-							if (latestMessage) {
-								showMessageNotification({
-									title: `New message in ${data.chat.name}`,
-									body: `${latestMessage.username}: ${latestMessage.message.length > 50 ? latestMessage.message.substring(0, 50) + '...' : latestMessage.message}`,
-									chatId: data.chatId,
-									tag: `chat-${data.chatId}`
-								});
-							}
-						}
-					}
-				}
-
-				if (shouldUseColors && response.messages.length > 0) {
-					const newUserIds = [...new Set(response.messages.map(msg => msg.userId))];
-
-					newUserIds.forEach(userId => {
-						if (userId !== $authStore.user?.id) {
-							addMemberColor(chatId, userId);
-						}
-					});
-				}
-
-				const newMessages = response.messages.reverse();
-				messages = [...messages, ...newMessages];
-				prevCursor = response.prevCursor;
-
-				// Clean up messages if we have too many
-				cleanupMessages();
-
-				if (newMessages.length > 0) {
-					try {
-						const chats = await apiFetchChats($authStore.token);
-						const updatedChat = chats.find(c => c.id === chatId);
-						if (updatedChat && updatedChat.lastMessageAt) {
-							chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
-						}
-					} catch (error) {
-						console.warn('Failed to fetch updated chat info for notifications:', error);
-					}
-				}
-			} else {
-				// Increment empty poll counter when no new messages
-				consecutiveEmptyPolls = Math.min(consecutiveEmptyPolls + 1, 10);
-			}
-
-			// Reset consecutive error counter on success
-			consecutiveEmptyPolls = Math.max(0, consecutiveEmptyPolls - 1);
-
-		} catch (err) {
-			console.error('Message polling error:', err);
-			// Increase delay on errors
-			consecutiveEmptyPolls = Math.min(consecutiveEmptyPolls + 2, 10);
-		} finally {
-			isActivelyPolling = false;
-		}
-	}
-
-	function scheduleNextPoll() {
-		if (pollingInterval) {
-			clearTimeout(pollingInterval);
-		}
-
-		const delay = getNextPollingDelay();
-		pollingInterval = setTimeout(() => {
-			pollForMessages().then(() => {
-				// Schedule next poll after this one completes
-				if ($authStore.token && chatId && !isLoading) {
-					scheduleNextPoll();
-				}
-			});
-		}, delay);
-	}
-
-	function startMessagePolling() {
-		if (pollingInterval) return;
-
-		// Reset polling state
-		consecutiveEmptyPolls = 0;
-		currentPollingDelay = 3000;
-
-		// Schedule the first poll
-		scheduleNextPoll();
-	}
-
-	function stopMessagePolling() {
-		if (pollingInterval) {
-			clearTimeout(pollingInterval);
-			pollingInterval = null;
-		}
-		isActivelyPolling = false;
-	}
 
 	function goBack() {
-		stopMessagePolling();
+		disconnectWebSocket();
 		goto('/');
 	}
 
@@ -587,8 +574,7 @@
 		isUploadingImages = imagesToUpload.length > 0;
 		selectedMessageIndex = -1;
 
-		// Temporarily stop polling while sending
-		stopMessagePolling();
+		// No need to stop polling - WebSocket handles real-time delivery
 
 		try {
 			let imageIds: string[] = [];
@@ -630,13 +616,8 @@
 
 			const sentMessage = await sendMessage($authStore.token, chatId, { message: finalMessageContent });
 
-			// Add the new message to the messages array
-			messages = [...messages, sentMessage];
-			// Update the cursor so polling can detect newer messages
-			prevCursor = sentMessage.createdAt;
-
-			// Clean up messages if we have too many
-			cleanupMessages();
+			// WebSocket will automatically deliver the message to all clients including sender
+			// No need to manually add message to array or update cursor
 
 			// Mark this message as read by fetching updated chat info and using backend's lastMessageAt
 			try {
@@ -666,10 +647,6 @@
 		} finally {
 			isSending = false;
 			isUploadingImages = false;
-			// Restart polling after sending
-			if ($authStore.token && chatId) {
-				startMessagePolling();
-			}
 			// Keep input focused for continuous typing
 			if (messageInputElement) {
 				messageInputElement.focus();

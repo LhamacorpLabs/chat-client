@@ -51,21 +51,6 @@ export async function createChat(token: string, chatData: CreateChatRequest): Pr
 	return response.json();
 }
 
-export async function fetchMessages(token: string, chatId: string): Promise<MessagesResponse> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/legacy`, {
-		method: 'GET',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
-	});
-
-	if (!response.ok) {
-		throw new Error(`Failed to fetch messages: ${response.status}`);
-	}
-
-	return response.json();
-}
-
 /**
  * Fetch paginated messages with cursor-based pagination
  * @param token Bearer token for authentication
