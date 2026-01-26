@@ -633,7 +633,7 @@
 			// Add the new message to the messages array
 			messages = [...messages, sentMessage];
 			// Update the cursor so polling can detect newer messages
-			prevCursor = sentMessage.id;
+			prevCursor = sentMessage.createdAt;
 
 			// Clean up messages if we have too many
 			cleanupMessages();
