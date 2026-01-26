@@ -13,24 +13,9 @@ export interface MemberColorsState {
 // Theme-optimized color palette with excellent visibility in both light and dark modes
 // Each color tested for contrast against white (#ffffff) and dark gray (#1a1a1a) backgrounds
 const MEMBER_COLORS = [
-	'#E74C3C', // Bright Red - excellent contrast both themes
-	'#3498DB', // Sky Blue - excellent contrast both themes
-	'#27AE60', // Emerald Green - excellent contrast both themes
-	'#E67E22', // Pumpkin Orange - good contrast both themes (darker than previous)
-	'#9B59B6', // Amethyst Purple - excellent contrast both themes
-	'#1ABC9C', // Turquoise - excellent contrast both themes
-	'#E91E63', // Pink - excellent contrast both themes
-	'#D35400', // Burnt Orange - good contrast both themes
-	'#2980B9', // Belize Blue - good contrast both themes (lighter than deep blue)
-	'#8BC34A', // Light Green - excellent contrast both themes
-	'#AD1457', // Dark Pink - excellent contrast both themes
-	'#FF9800', // Orange - good contrast both themes
-	'#795548', // Medium Brown - good contrast both themes (lighter than deep brown)
-	'#673AB7', // Deep Purple - good contrast both themes (lighter than indigo)
-	'#009688', // Teal - good contrast both themes (brighter than dark teal)
-	'#F44336', // Material Red - excellent contrast both themes
-	'#607D8B', // Blue Grey - good contrast both themes
-	'#4CAF50'  // Material Green - excellent contrast both themes
+	'#E74C3C', '#3498DB', '#27AE60', '#E67E22', '#9B59B6', '#1ABC9C',
+	'#E91E63', '#D35400', '#2980B9', '#8BC34A', '#AD1457', '#FF9800',
+	'#795548', '#673AB7', '#009688', '#F44336', '#607D8B', '#4CAF50'
 ];
 
 // Initial state

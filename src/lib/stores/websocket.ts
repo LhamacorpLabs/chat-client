@@ -27,25 +27,20 @@ class WebSocketService {
 
     connect(token: string): Promise<void> {
         return new Promise((resolve, reject) => {
-            console.log('WebSocket: Attempting to connect...');
-
             // If already connected with same token, resolve immediately
             if (this.client?.connected && this.currentToken === token) {
-                console.log('WebSocket: Already connected');
                 resolve();
                 return;
             }
 
             // If currently connecting, wait for it
             if (this.isConnecting) {
-                console.log('WebSocket: Connection already in progress');
                 resolve();
                 return;
             }
 
             // If connected with different token, disconnect first
             if (this.client?.connected && this.currentToken !== token) {
-                console.log('WebSocket: Reconnecting with different token');
                 this.client.deactivate();
             }
 
@@ -54,18 +49,15 @@ class WebSocketService {
             websocketStore.update(state => ({ ...state, connecting: true }));
 
             const wsUrl = `${WS_BASE_URL}/ws?token=${encodeURIComponent(token)}`;
-            console.log('WebSocket: Connecting to', WS_BASE_URL + '/ws');
 
             this.client = new Client({
                 webSocketFactory: () => new SockJS(wsUrl),
-                debug: (str) => console.log('STOMP Debug:', str),
                 reconnectDelay: 5000,
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,
             });
 
             this.client.onConnect = () => {
-                console.log('WebSocket connected');
                 this.isConnecting = false;
                 websocketStore.update(state => ({
                     client: this.client,
@@ -91,7 +83,6 @@ class WebSocketService {
             };
 
             this.client.onDisconnect = () => {
-                console.log('WebSocket disconnected');
                 this.isConnecting = false;
                 // Clear active subscriptions but keep handlers for reconnect
                 this.activeSubscriptions.clear();
@@ -109,12 +100,8 @@ class WebSocketService {
     private resubscribeAll() {
         if (!this.client?.connected) return;
 
-        console.log('WebSocket: Re-subscribing to', this.messageHandlers.size, 'chat(s)');
-
         for (const [chatId, handler] of this.messageHandlers) {
-            console.log('WebSocket: Re-subscribing to /topic/chat/' + chatId);
             const subscription = this.client.subscribe(`/topic/chat/${chatId}`, (message) => {
-                console.log('WebSocket: Received message', message.body);
                 try {
                     const parsedMessage: Message = JSON.parse(message.body);
                     handler(parsedMessage);
@@ -129,7 +116,6 @@ class WebSocketService {
     disconnect() {
         // Only disconnect if not currently connecting
         if (this.client && !this.isConnecting) {
-            console.log('WebSocket: Disconnecting');
             this.client.deactivate();
             this.client = null;
             this.currentToken = null;
@@ -141,8 +127,6 @@ class WebSocketService {
                 connected: false,
                 connecting: false
             }));
-        } else if (this.isConnecting) {
-            console.log('WebSocket: Skipping disconnect - connection in progress');
         }
     }
 
@@ -151,7 +135,6 @@ class WebSocketService {
         this.messageHandlers.set(chatId, onMessage);
 
         if (!this.client?.connected) {
-            console.log('WebSocket: Not connected yet, handler stored for when connection is ready');
             return () => {
                 this.messageHandlers.delete(chatId);
                 this.activeSubscriptions.get(chatId)?.unsubscribe();
@@ -159,10 +142,7 @@ class WebSocketService {
             };
         }
 
-        console.log('WebSocket: Subscribing to /topic/chat/' + chatId);
-
         const subscription = this.client.subscribe(`/topic/chat/${chatId}`, (message) => {
-            console.log('WebSocket: Received message', message.body);
             try {
                 const parsedMessage: Message = JSON.parse(message.body);
                 onMessage(parsedMessage);

@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 
 interface ChatMuteState {
 	// Map of chatId -> boolean (true = muted)
@@ -38,7 +38,8 @@ function saveToStorage(state: ChatMuteState): void {
 }
 
 // Create the store
-const { subscribe, update } = writable<ChatMuteState>(loadFromStorage());
+const store = writable<ChatMuteState>(loadFromStorage());
+const { subscribe, update } = store;
 
 export const chatMuteStore = {
 	subscribe,
@@ -98,26 +99,18 @@ export const chatMuteStore = {
 	 * Check if a chat is muted
 	 */
 	isMuted: (chatId: string): boolean => {
-		let isMuted = false;
-		const unsubscribe = subscribe(state => {
-			isMuted = state.mutedChats[chatId] || false;
-		});
-		unsubscribe();
-		return isMuted;
+		const state = get(store);
+		return state.mutedChats[chatId] || false;
 	},
 
 	/**
 	 * Get all muted chat IDs
 	 */
 	getMutedChats: (): string[] => {
-		let mutedChats: string[] = [];
-		const unsubscribe = subscribe(state => {
-			mutedChats = Object.entries(state.mutedChats)
-				.filter(([_, isMuted]) => isMuted)
-				.map(([chatId, _]) => chatId);
-		});
-		unsubscribe();
-		return mutedChats;
+		const state = get(store);
+		return Object.entries(state.mutedChats)
+			.filter(([_, isMuted]) => isMuted)
+			.map(([chatId, _]) => chatId);
 	},
 
 	/**

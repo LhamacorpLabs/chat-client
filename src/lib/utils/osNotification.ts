@@ -52,13 +52,7 @@ function cleanupNotification(notificationTag: string) {
  * Shows an OS notification for a new message
  */
 export async function showMessageNotification(options: NotificationOptions): Promise<void> {
-	// Check if notifications are supported
-	if (!('Notification' in window)) {
-		console.warn('This browser does not support notifications');
-		return;
-	}
-
-	// Check permission
+	// Check permission (this will handle browser support check internally)
 	const permission = await requestNotificationPermission();
 	if (permission !== 'granted') {
 		console.warn('Notification permission denied');

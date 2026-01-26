@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import type { Chat } from '../types/chat.js';
 import { playNotificationSound, isWindowFocused } from '../utils/notificationSound.js';
 import { showMessageNotification } from '../utils/osNotification.js';
@@ -33,7 +33,8 @@ function createChatNotificationStore(): ChatNotificationStore {
 		hasUnreadMessages: {}
 	};
 
-	const { subscribe, update } = writable(initialState);
+	const store = writable(initialState);
+	const { subscribe, update } = store;
 
 	// Helper to save state to localStorage
 	function saveToStorage(state: ChatNotificationState) {
@@ -140,21 +141,13 @@ function createChatNotificationStore(): ChatNotificationStore {
 		},
 
 		isUnread: (chatId: string) => {
-			let isUnread = false;
-			const unsubscribe = subscribe(state => {
-				isUnread = state.hasUnreadMessages[chatId] || false;
-			});
-			unsubscribe();
-			return isUnread;
+			const state = get(store);
+			return state.hasUnreadMessages[chatId] || false;
 		},
 
 		getLastKnownTimestamp: (chatId: string) => {
-			let timestamp = null;
-			const unsubscribe = subscribe(state => {
-				timestamp = state.lastKnownTimestamps[chatId] || null;
-			});
-			unsubscribe();
-			return timestamp;
+			const state = get(store);
+			return state.lastKnownTimestamps[chatId] || null;
 		},
 
 		clear: () => {

@@ -61,8 +61,7 @@ export function cleanupMemberColors(activeChatIds: string[]): void {
 
 		if (hasChanges) {
 			localStorage.setItem('member_colors', JSON.stringify(memberColors));
-			console.log('Cleaned up member colors for inactive chats');
-		}
+					}
 	} catch (error) {
 		console.warn('Failed to cleanup member colors:', error);
 	}
@@ -101,8 +100,7 @@ export function cleanupChatNotifications(activeChatIds: string[]): void {
 
 		if (hasChanges) {
 			localStorage.setItem('chat-notifications', JSON.stringify(notifications));
-			console.log('Cleaned up chat notifications for inactive chats');
-		}
+					}
 	} catch (error) {
 		console.warn('Failed to cleanup chat notifications:', error);
 	}
@@ -128,8 +126,7 @@ export function cleanupChatMutes(activeChatIds: string[]): void {
 
 		if (hasChanges) {
 			localStorage.setItem('chat_mutes', JSON.stringify(mutes));
-			console.log('Cleaned up chat mute settings for inactive chats');
-		}
+					}
 	} catch (error) {
 		console.warn('Failed to cleanup chat mute settings:', error);
 	}
@@ -139,7 +136,6 @@ export function cleanupChatMutes(activeChatIds: string[]): void {
  * Comprehensive cleanup of all chat-related localStorage data
  */
 export function cleanupAllChatData(activeChatIds: string[]): void {
-	console.log(`Cleaning up localStorage for ${activeChatIds.length} active chats`);
 
 	cleanupMemberColors(activeChatIds);
 	cleanupChatNotifications(activeChatIds);
@@ -167,7 +163,6 @@ export function emergencyCleanup(): void {
 
 	nonEssentialKeys.forEach(item => {
 		localStorage.removeItem(item.key);
-		console.log(`Removed localStorage key: ${item.key}`);
 	});
 }
 
@@ -191,20 +186,3 @@ export function schedulePeriodicCleanup(): void {
 	}, 30 * 60 * 1000); // 30 minutes
 }
 
-/**
- * Debug function to log localStorage usage
- */
-export function logLocalStorageUsage(): void {
-	const stats = getLocalStorageStats();
-
-	console.group('localStorage Usage');
-	console.log(`Total keys: ${stats.totalKeys}`);
-	console.log(`Estimated size: ${Math.round(stats.estimatedSize / 1024)}KB`);
-	console.log('Largest items:');
-
-	stats.keysBySize.slice(0, 5).forEach(item => {
-		console.log(`  ${item.key}: ${Math.round(item.size / 1024)}KB`);
-	});
-
-	console.groupEnd();
-}

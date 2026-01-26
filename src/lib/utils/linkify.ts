@@ -41,7 +41,7 @@ export function linkify(text: string, includePreviews = false): string | Linkify
 
 	// Clean up cache if it's getting too large
 	cleanupCache();
-    const escapedText = text
+	const escapedText = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -124,12 +124,3 @@ export function clearLinkifyCache(): void {
     linkifyCache.clear();
 }
 
-/**
- * Get current cache statistics for debugging
- */
-export function getLinkifyCacheStats(): { size: number; maxSize: number } {
-    return {
-        size: linkifyCache.size,
-        maxSize: MAX_CACHE_SIZE
-    };
-}
