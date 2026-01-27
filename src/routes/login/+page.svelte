@@ -57,7 +57,6 @@
 					<img src="/logo.png" alt="Lhama Chat Logo" class="login-logo" />
 					<h1>Lhama Chat</h1>
 				</div>
-				<p>{isRegisterMode ? 'Create your account' : 'Welcome back'}</p>
 			</div>
 
 			<form onsubmit={handleSubmit} class="login-form">
