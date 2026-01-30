@@ -3,11 +3,12 @@
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
 	import { webSocketService, websocketStore } from '$lib/stores/websocket';
-	import { fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage, toggleMessageFavorite, fetchFavoriteMessages } from '$lib/api/chat';
+	import { fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage, toggleMessageFavorite, fetchFavoriteMessages, reactToMessage, fetchMultipleMessageReactions } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import ImageUpload from '$lib/components/ImageUpload.svelte';
 	import ParsedMessage from '$lib/components/ParsedMessage.svelte';
 	import MessageGif from '$lib/components/MessageGif.svelte';
+	import MessageReactions from '$lib/components/MessageReactions.svelte';
 	import { hasImages } from '$lib/utils/imageMessages';
 	import {
 		memberColorsStore,
@@ -26,6 +27,8 @@
 	import { hasReply, formatReplyMessage } from '$lib/utils/replyMessages';
 	import ReplyPreview from '$lib/components/ReplyPreview.svelte';
 	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
+	import { mergeMessagesWithPerMessageReactions, getUserReactionForMessage } from '$lib/utils/reactionUtils';
+	import type { ReactionSummary } from '$lib/types/chat';
 
 	// Realtime mode: 'websocket' or 'polling'
 	const realtimeMode = PUBLIC_REALTIME_MODE || 'websocket';
@@ -73,6 +76,8 @@
 	let websocketError = $state<string | null>(null);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 	const POLLING_INTERVAL_MS = 1000;
+	let reactionPollingInterval: ReturnType<typeof setInterval> | null = null;
+	const REACTION_POLLING_INTERVAL_MS = 10000; // Poll reactions every 10 seconds
 	let messageInputElement: HTMLTextAreaElement;
 	let chatContent: HTMLElement;
 	let windowFocused = $state(true);
@@ -132,6 +137,7 @@
 			}
 			loadMessages();
 			loadFavoriteMessages();
+			startReactionPolling(); // Start polling reactions on initial load
 
 			// Use WebSocket or polling based on realtime mode
 			if (realtimeMode === 'websocket') {
@@ -254,6 +260,7 @@
 		async function handleFocus() {
 			windowFocused = true;
 			hasUnreadMessages = false;
+			startReactionPolling(); // Start polling reactions when window becomes active
 			try {
 				const chats = await apiFetchChats($authStore.token);
 				const updatedChat = chats.find(c => c.id === chatId);
@@ -267,11 +274,13 @@
 
 		function handleBlur() {
 			windowFocused = false;
+			stopReactionPolling(); // Stop polling reactions when window loses focus
 		}
 
 		async function handleVisibilityChange() {
 			windowFocused = !document.hidden;
 			if (!document.hidden) {
+				startReactionPolling(); // Start polling when page becomes visible
 				hasUnreadMessages = false;
 				try {
 					const chats = await apiFetchChats($authStore.token);
@@ -282,6 +291,8 @@
 				} catch (error) {
 					console.warn('Failed to fetch updated chat info for notifications on visibility change:', error);
 				}
+			} else {
+				stopReactionPolling(); // Stop polling when page becomes hidden
 			}
 		}
 
@@ -293,6 +304,7 @@
 			window.removeEventListener('focus', handleFocus);
 			window.removeEventListener('blur', handleBlur);
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			stopReactionPolling(); // Cleanup reaction polling on component destroy
 		};
 	});
 
@@ -404,6 +416,9 @@
 		// Add the new message to the messages array
 		messages = [...messages, newMsg];
 
+		// Refresh reactions when there's chat activity to show others' reactions
+		refreshReactions();
+
 		// Handle notifications for messages from other users
 		if (newMsg.userId !== $authStore.user?.id && !isWindowFocused()) {
 			hasUnreadMessages = true;
@@ -448,17 +463,37 @@
 	}
 
 	async function loadMessages() {
-		if (!$authStore.token) return;
+		if (!$authStore.token || !$authStore.user) return;
 
 		isLoading = true;
 		error = null;
 
 		try {
-			const response: PagedMessageResponse = await fetchMessagesPaginated($authStore.token, chatId, 50);
-			messages = response.messages.reverse();
-			nextCursor = response.nextCursor;
-			prevCursor = response.prevCursor;
-			hasMoreMessages = response.hasMore;
+			// Fetch messages first
+			const messagesResponse = await fetchMessagesPaginated($authStore.token, chatId, 50);
+			const reversedMessages = messagesResponse.messages.reverse();
+
+			// Fetch reactions for all visible messages in parallel
+			const messageIds = reversedMessages.map(m => m.id);
+			const reactionsByMessage = await fetchMultipleMessageReactions($authStore.token, chatId, messageIds);
+
+			// Create member mapping from chat data
+			const memberMapping: { [userId: string]: string } = {};
+			for (const member of data.chat.members) {
+				memberMapping[member.id] = member.name;
+			}
+
+			// Merge reactions with messages
+			const messagesWithReactions = mergeMessagesWithPerMessageReactions(
+				reversedMessages,
+				reactionsByMessage,
+				memberMapping
+			);
+
+			messages = messagesWithReactions;
+			nextCursor = messagesResponse.nextCursor;
+			prevCursor = messagesResponse.prevCursor;
+			hasMoreMessages = messagesResponse.hasMore;
 
 			const lastKnownTimestamp = chatNotifications.getLastKnownTimestamp(chatId);
 			if (lastKnownTimestamp && messages.length > 0) {
@@ -497,6 +532,124 @@
 			error = err instanceof Error ? err.message : 'Failed to load messages';
 		} finally {
 			isLoading = false;
+		}
+	}
+
+	// Optimistically update a specific message's reactions without refreshing all messages
+	// Handles adding, removing, or changing user's reaction to a message
+	async function updateMessageReaction(messageId: string, reactionType?: 'FUNNY' | 'LIKE' | 'LOVE') {
+		if (!$authStore.token || !$authStore.user) return;
+
+		// Find the message index
+		const messageIndex = messages.findIndex(m => m.id === messageId);
+		if (messageIndex === -1) return;
+
+		const currentMessage = messages[messageIndex];
+		const currentUserReaction = getUserReactionForMessage(currentMessage, $authStore.user.id);
+
+		// Create optimistic update
+		let newReactions: ReactionSummary[] = [...(currentMessage.reactions || [])];
+
+		if (currentUserReaction) {
+			// Remove user from existing reaction
+			newReactions = newReactions.map(reaction => {
+				if (reaction.type === currentUserReaction) {
+					const updatedUsers = reaction.users.filter(user => user.userId !== $authStore.user.id);
+					return {
+						...reaction,
+						count: updatedUsers.length,
+						users: updatedUsers
+					};
+				}
+				return reaction;
+			}).filter(reaction => reaction.count > 0); // Remove reactions with no users
+		}
+
+		if (reactionType && reactionType !== currentUserReaction) {
+			// Add new reaction
+			const existingReactionIndex = newReactions.findIndex(r => r.type === reactionType);
+			if (existingReactionIndex >= 0) {
+				// Add user to existing reaction (if not already there)
+				const existingReaction = newReactions[existingReactionIndex];
+				if (!existingReaction.users.some(user => user.userId === $authStore.user.id)) {
+					newReactions[existingReactionIndex] = {
+						...existingReaction,
+						count: existingReaction.count + 1,
+						users: [...existingReaction.users, {
+							userId: $authStore.user.id,
+							username: $authStore.user.username || 'You'
+						}]
+					};
+				}
+			} else {
+				// Create new reaction
+				newReactions.push({
+					type: reactionType,
+					count: 1,
+					users: [{
+						userId: $authStore.user.id,
+						username: $authStore.user.username || 'You'
+					}]
+				});
+			}
+		}
+
+		// Update message optimistically
+		messages[messageIndex] = {
+			...currentMessage,
+			reactions: newReactions
+		};
+
+		// Make API call in background (no need to await)
+		try {
+			await reactToMessage($authStore.token, chatId, messageId, reactionType);
+			// Refresh reactions after successful API call to catch any other recent reactions
+			refreshReactions();
+		} catch (error) {
+			console.error('Failed to react to message:', error);
+			// On error, refresh reactions as fallback (more efficient than full reload)
+			refreshReactions();
+		}
+	}
+
+	// Start periodic reaction polling when chat is active
+	function startReactionPolling() {
+		if (reactionPollingInterval) return; // Already running
+
+		reactionPollingInterval = setInterval(() => {
+			if (windowFocused && !document.hidden) {
+				refreshReactions();
+			}
+		}, REACTION_POLLING_INTERVAL_MS);
+	}
+
+	// Stop periodic reaction polling
+	function stopReactionPolling() {
+		if (reactionPollingInterval) {
+			clearInterval(reactionPollingInterval);
+			reactionPollingInterval = null;
+		}
+	}
+
+	// Refresh only reactions without reloading messages - more efficient for real-time updates
+	async function refreshReactions() {
+		if (!$authStore.token || messages.length === 0) return;
+
+		try {
+			// Fetch reactions for all currently visible messages
+			const messageIds = messages.map(m => m.id);
+			const reactionsByMessage = await fetchMultipleMessageReactions($authStore.token, chatId, messageIds);
+
+			// Create member mapping from chat data
+			const memberMapping: { [userId: string]: string } = {};
+			for (const member of data.chat.members) {
+				memberMapping[member.id] = member.name;
+			}
+
+			// Update existing messages with fresh reaction data
+			messages = mergeMessagesWithPerMessageReactions(messages, reactionsByMessage, memberMapping);
+		} catch (error) {
+			console.warn('Failed to refresh reactions:', error);
 		}
 	}
 
@@ -1197,6 +1350,15 @@
 										</div>
 									{/if}
 								{/if}
+
+								<!-- Message reactions -->
+								{#if message.message !== '[deleted message]'}
+									<MessageReactions
+										{message}
+										{isOwnMessage}
+										onReactionChange={(reactionType) => updateMessageReaction(message.id, reactionType)}
+									/>
+								{/if}
 							</div>
 						</div>
 					{/each}
@@ -1671,6 +1833,7 @@
 	}
 
 	.message-content {
+		position: relative;
 		color: var(--text-primary);
 		line-height: 1.5;
 		word-wrap: break-word;

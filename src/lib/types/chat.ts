@@ -40,6 +40,26 @@ export interface ImageAttachment {
 	createdAt: string;
 }
 
+// Reaction related types
+export type ReactionType = 'FUNNY' | 'LIKE' | 'LOVE';
+
+export interface MessageReaction {
+	chatId: string;
+	messageId: string;
+	userId: string;
+	type: ReactionType;
+	createdAt: string;
+}
+
+export interface ReactionSummary {
+	type: ReactionType;
+	count: number;
+	users: Array<{
+		userId: string;
+		username: string;
+	}>;
+}
+
 // Message related types
 export interface Message {
 	id: string;
@@ -48,6 +68,7 @@ export interface Message {
 	username: string;
 	message: string;
 	images?: ImageAttachment[]; // Optional array of image attachments
+	reactions?: ReactionSummary[]; // Optional array of reaction summaries grouped by type
 	createdAt: string;
 }
 

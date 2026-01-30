@@ -1,4 +1,4 @@
-import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment, FavoriteMessagesResponse } from '../types/chat';
+import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment, FavoriteMessagesResponse, MessageReaction } from '../types/chat';
 import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 
 const CHAT_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/chats`;
@@ -179,6 +179,61 @@ export async function toggleMessageFavorite(token: string, chatId: string, messa
 	if (!response.ok) {
 		throw new Error(`Failed to toggle message favorite: ${response.status}`);
 	}
+}
+
+export async function reactToMessage(token: string, chatId: string, messageId: string, reactionType?: 'FUNNY' | 'LIKE' | 'LOVE'): Promise<void> {
+	const url = reactionType
+		? `${CHAT_API_URL}/${chatId}/messages/${messageId}/reacts?type=${reactionType}`
+		: `${CHAT_API_URL}/${chatId}/messages/${messageId}/reacts`;
+
+	const response = await fetch(url, {
+		method: 'PUT',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to react to message: ${response.status}`);
+	}
+}
+
+export async function fetchMessageReactions(token: string, chatId: string, messageId: string): Promise<MessageReaction[]> {
+	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/${messageId}/reacts`, {
+		method: 'GET',
+		headers: {
+			'Authorization': `Bearer ${token}`
+		}
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch message reactions: ${response.status}`);
+	}
+
+	return response.json();
+}
+
+// Fetch reactions for multiple messages at once
+export async function fetchMultipleMessageReactions(token: string, chatId: string, messageIds: string[]): Promise<{ [messageId: string]: MessageReaction[] }> {
+	const reactionPromises = messageIds.map(async (messageId) => {
+		try {
+			const reactions = await fetchMessageReactions(token, chatId, messageId);
+			return { messageId, reactions };
+		} catch (error) {
+			console.warn(`Failed to fetch reactions for message ${messageId}:`, error);
+			return { messageId, reactions: [] };
+		}
+	});
+
+	const results = await Promise.all(reactionPromises);
+
+	// Convert to object mapping messageId -> reactions
+	const reactionMap: { [messageId: string]: MessageReaction[] } = {};
+	for (const result of results) {
+		reactionMap[result.messageId] = result.reactions;
+	}
+
+	return reactionMap;
 }
 
 export async function fetchFavoriteMessages(token: string, chatId: string): Promise<FavoriteMessagesResponse> {
