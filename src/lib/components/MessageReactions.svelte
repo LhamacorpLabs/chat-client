@@ -164,41 +164,10 @@
 		gap: 2px;
 		opacity: 0;
 		transition: opacity 0.2s ease;
-		visibility: hidden;
 	}
 
-	/* Use a more specific selector and ensure proper reset */
-	:global(.message-item:hover) .add-reactions,
-	:global(.message-item.hover-active) .add-reactions {
+	:global(.message-item:hover) .add-reactions {
 		opacity: 1;
-		visibility: visible;
-	}
-
-	/* Force reset hover states when not hovering */
-	:global(.message-item:not(:hover):not(.hover-active):not(.touch-active)) .add-reactions {
-		opacity: 0;
-		visibility: hidden;
-	}
-
-	/* Force hide on touch devices when not actively hovering */
-	@media (hover: none) and (pointer: coarse) {
-		.add-reactions {
-			opacity: 0 !important;
-			visibility: hidden !important;
-			transition: opacity 0.1s ease, visibility 0.1s ease;
-		}
-
-		/* Only show on explicit tap/touch interaction */
-		:global(.message-item.touch-active) .add-reactions {
-			opacity: 1 !important;
-			visibility: visible !important;
-		}
-
-		/* Ensure cleanup after touch ends */
-		:global(.message-item:not(.touch-active)) .add-reactions {
-			opacity: 0 !important;
-			visibility: hidden !important;
-		}
 	}
 
 	.add-reaction-button {

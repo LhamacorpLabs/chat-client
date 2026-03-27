@@ -168,56 +168,12 @@
 		}
 	});
 
-	let resizeTimeout: ReturnType<typeof setTimeout>;
-
-	function resizeTextarea() {
-		if (!messageInputElement) return;
-
-		// Check if we're on mobile
-		const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-			|| window.matchMedia('(max-width: 768px)').matches;
-
-		// Use requestAnimationFrame to batch layout changes
-		requestAnimationFrame(() => {
-			if (messageInputElement) {
-				// Store current scroll position to prevent jumping
-				const currentScrollTop = chatContent?.scrollTop;
-				const wasAtBottom = chatContent ?
-					chatContent.scrollTop + chatContent.clientHeight >= chatContent.scrollHeight - 10 : false;
-
-				messageInputElement.style.height = 'auto';
-				const newHeight = Math.min(messageInputElement.scrollHeight, isMobile ? 100 : 120);
-				messageInputElement.style.height = newHeight + 'px';
-
-				// On mobile, maintain scroll position more aggressively
-				if (chatContent && currentScrollTop !== undefined) {
-					if (isMobile && wasAtBottom) {
-						// If we were at the bottom, stay at the bottom
-						setTimeout(() => {
-							if (chatContent) {
-								chatContent.scrollTop = chatContent.scrollHeight;
-							}
-						}, 0);
-					} else {
-						// Otherwise, restore the exact position
-						chatContent.scrollTop = currentScrollTop;
-					}
-				}
-			}
-		});
-	}
-
 	$effect(() => {
 		if (messageInputElement && newMessage !== undefined) {
-			// Debounce the resize to reduce frequency of layout calculations
-			clearTimeout(resizeTimeout);
-			resizeTimeout = setTimeout(resizeTextarea, 10);
+			messageInputElement.style.height = 'auto';
+			const newHeight = Math.min(messageInputElement.scrollHeight, 120);
+			messageInputElement.style.height = newHeight + 'px';
 		}
-
-		return () => {
-			// Cleanup timeout on effect cleanup
-			clearTimeout(resizeTimeout);
-		};
 	});
 
 	function scrollToBottom() {
@@ -243,56 +199,8 @@
 	}
 
 	$effect(() => {
-		// Only auto-scroll if we're not actively typing and should auto-scroll
-		const isActivelyTyping = document.activeElement === messageInputElement && newMessage.length > 0;
-
-		if (messages.length > 0 && shouldAutoScroll && !isUserScrolling && !isInitialScroll && !isActivelyTyping) {
+		if (messages.length > 0 && shouldAutoScroll && !isUserScrolling && !isInitialScroll) {
 			scrollToBottom();
-		}
-	});
-
-	// Handle mobile virtual keyboard to prevent layout jumping
-	$effect(() => {
-		if (typeof window === 'undefined') return;
-
-		let initialViewportHeight = window.visualViewport?.height || window.innerHeight;
-		let keyboardVisible = false;
-
-		function handleViewportChange() {
-			if (!window.visualViewport) return;
-
-			const currentHeight = window.visualViewport.height;
-			const heightDifference = initialViewportHeight - currentHeight;
-			const isKeyboardNowVisible = heightDifference > 150; // Threshold for keyboard detection
-
-			// Only react to significant keyboard changes
-			if (isKeyboardNowVisible !== keyboardVisible) {
-				keyboardVisible = isKeyboardNowVisible;
-
-				if (keyboardVisible) {
-					// Keyboard appeared - prevent layout jumps
-					document.body.style.setProperty('--keyboard-height', `${heightDifference}px`);
-
-					// Scroll to bottom if we were already there
-					if (shouldAutoScroll && chatContent) {
-						setTimeout(() => {
-							scrollToBottom();
-						}, 100);
-					}
-				} else {
-					// Keyboard disappeared - restore normal layout
-					document.body.style.removeProperty('--keyboard-height');
-				}
-			}
-		}
-
-		if (window.visualViewport) {
-			window.visualViewport.addEventListener('resize', handleViewportChange);
-
-			return () => {
-				window.visualViewport?.removeEventListener('resize', handleViewportChange);
-				document.body.style.removeProperty('--keyboard-height');
-			};
 		}
 	});
 
@@ -323,7 +231,7 @@
 			}, 150);
 		}
 
-		let userScrollTimeout: ReturnType<typeof setTimeout>;
+		let userScrollTimeout: NodeJS.Timeout;
 
 		chatContent.addEventListener('scroll', handleScroll);
 
@@ -421,81 +329,6 @@
 			document.addEventListener('click', handleClickOutside);
 			return () => document.removeEventListener('click', handleClickOutside);
 		}
-	});
-
-	// Handle touch interactions for reaction hovers
-	$effect(() => {
-		let activeMessage: HTMLElement | null = null;
-
-		function handleTouchStart(event: TouchEvent) {
-			// Clear any previous active state
-			if (activeMessage) {
-				activeMessage.classList.remove('touch-active', 'hover-active');
-			}
-
-			const target = event.target as HTMLElement;
-			const messageItem = target.closest('.message-item') as HTMLElement;
-
-			if (messageItem) {
-				activeMessage = messageItem;
-				messageItem.classList.add('touch-active');
-			}
-		}
-
-		function handleTouchEnd() {
-			// Remove touch-active after a short delay to allow for reaction clicks
-			setTimeout(() => {
-				if (activeMessage) {
-					activeMessage.classList.remove('touch-active');
-					activeMessage = null;
-				}
-			}, 300);
-		}
-
-		function handleTouchCancel() {
-			if (activeMessage) {
-				activeMessage.classList.remove('touch-active');
-				activeMessage = null;
-			}
-		}
-
-		// Handle mouse events for proper hover cleanup on desktop
-		function handleMouseLeave(event: MouseEvent) {
-			const target = event.target as HTMLElement;
-			const messageItem = target.closest('.message-item') as HTMLElement;
-			if (messageItem) {
-				messageItem.classList.remove('hover-active');
-			}
-		}
-
-		function handleMouseEnter(event: MouseEvent) {
-			const target = event.target as HTMLElement;
-			const messageItem = target.closest('.message-item') as HTMLElement;
-			if (messageItem) {
-				messageItem.classList.add('hover-active');
-			}
-		}
-
-		// Add event listeners
-		document.addEventListener('touchstart', handleTouchStart, { passive: true });
-		document.addEventListener('touchend', handleTouchEnd);
-		document.addEventListener('touchcancel', handleTouchCancel);
-
-		// Add mouse event listeners for proper hover cleanup
-		if (chatContent) {
-			chatContent.addEventListener('mouseover', handleMouseEnter);
-			chatContent.addEventListener('mouseout', handleMouseLeave);
-		}
-
-		return () => {
-			document.removeEventListener('touchstart', handleTouchStart);
-			document.removeEventListener('touchend', handleTouchEnd);
-			document.removeEventListener('touchcancel', handleTouchCancel);
-			if (chatContent) {
-				chatContent.removeEventListener('mouseover', handleMouseEnter);
-				chatContent.removeEventListener('mouseout', handleMouseLeave);
-			}
-		};
 	});
 
 	async function connectWebSocket() {
@@ -1804,8 +1637,6 @@
 		max-width: 1200px;
 		margin: 0 auto;
 		width: 100%;
-		scroll-behavior: smooth;
-		overflow-anchor: none; /* Prevent browser from trying to maintain scroll position during DOM changes */
 	}
 
 	.loading-container,
@@ -2301,8 +2132,6 @@
 		scrollbar-width: none; /* Firefox */
 		-ms-overflow-style: none; /* IE/Edge */
 		box-sizing: border-box;
-		transition: height 0.1s ease; /* Smooth height transitions */
-		will-change: height; /* Optimize for height changes */
 	}
 
 	.message-input::-webkit-scrollbar {
@@ -2335,52 +2164,6 @@
 		height: 40px;
 		border: 4px solid var(--border-color);
 		margin-bottom: 1rem;
-	}
-
-	/* Mobile viewport handling */
-	@supports (-webkit-touch-callout: none) {
-		/* iOS Safari */
-		.chat-page {
-			height: -webkit-fill-available;
-		}
-	}
-
-	@media screen and (max-height: 700px) and (hover: none) {
-		/* Mobile devices with virtual keyboards */
-		.chat-content {
-			/* Use viewport units that account for virtual keyboards */
-			height: calc(100vh - 120px - var(--keyboard-height, 0px));
-			min-height: calc(100vh - 120px - var(--keyboard-height, 0px));
-			transition: height 0.2s ease;
-		}
-
-		.message-input-area {
-			position: relative;
-			/* Prevent keyboard from pushing input too high */
-			max-height: 200px;
-			transform: translateY(calc(-1 * var(--keyboard-height, 0px) * 0.1));
-			transition: transform 0.2s ease;
-		}
-
-		.message-input {
-			max-height: 80px; /* Smaller on mobile to prevent keyboard issues */
-		}
-	}
-
-	/* Additional mobile keyboard support */
-	@media (hover: none) and (pointer: coarse) {
-		.chat-page {
-			/* Ensure full viewport usage on touch devices */
-			height: 100vh;
-			height: 100dvh; /* Dynamic viewport height for mobile browsers */
-		}
-
-		.message-input-area {
-			/* Sticky positioning to handle keyboard better */
-			position: sticky;
-			bottom: 0;
-			z-index: 10;
-		}
 	}
 
 	/* Responsive Design */
@@ -2419,18 +2202,6 @@
 			justify-content: space-between;
 			align-items: center;
 			gap: 0.5rem;
-		}
-
-		/* Better mobile input handling */
-		.message-input {
-			font-size: 16px; /* Prevents zoom on iOS */
-			transform: translateZ(0); /* Forces hardware acceleration */
-		}
-
-		.chat-content {
-			/* Smooth scrolling on mobile */
-			-webkit-overflow-scrolling: touch;
-			overflow-scrolling: touch;
 		}
 
 		/* Mobile-optimized action menu */
