@@ -234,7 +234,7 @@
 			<div class="header-content">
 				<div class="app-title">
 					<img src="/logo.png" alt="Lhama Chat Logo" class="app-logo" />
-					<h1>Lhama Chat</h1>
+					<h1>Chat</h1>
 				</div>
 
 				<div class="header-actions">
