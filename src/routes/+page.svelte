@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { authStore, logout, getValidToken } from '$lib/stores/auth';
 	import { chatStore, fetchChats, createChat, clearChats } from '$lib/stores/chat';
 	import { redeemInvitation } from '$lib/api/chat';
@@ -38,12 +39,15 @@
 		schedulePeriodicCleanup();
 	});
 
-	$effect(async () => {
-		if ($authStore.token && $authStore.user) {
-			const token = await getValidToken();
-			if (token) {
-				await fetchChats(token, false);
-			}
+	$effect(() => {
+		const hasAuth = !!$authStore.token && !!$authStore.user;
+		if (hasAuth) {
+			untrack(async () => {
+				const token = await getValidToken();
+				if (token) {
+					await fetchChats(token, false);
+				}
+			});
 		} else {
 			metadataPollingService.stop();
 			chatNotifications.clear();

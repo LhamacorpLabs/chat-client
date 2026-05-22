@@ -38,10 +38,13 @@ function createMetadataPollingService(): MetadataPollingService {
 			return;
 		}
 
-		// Check and refresh token before polling if needed
 		const tokenRefreshed = await checkAndRefreshToken();
 		if (!tokenRefreshed) {
-			// If token refresh failed or no token available, stop polling
+			isPolling = false;
+			if (intervalId !== null) {
+				clearInterval(intervalId);
+				intervalId = null;
+			}
 			return;
 		}
 
