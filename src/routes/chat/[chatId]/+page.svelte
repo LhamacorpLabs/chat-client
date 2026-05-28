@@ -1287,6 +1287,23 @@
 												<!-- Mobile backdrop -->
 												<div class="mobile-menu-backdrop" onclick={closeActionMenu}></div>
 												<div class="action-dropdown">
+													<div class="sheet-reactions">
+														<button class="sheet-reaction-btn"
+														        class:active={message.reactions?.some(r => r.type === 'FUNNY' && r.users.some(u => u.userId === $authStore.user?.id))}
+														        onclick={() => { updateMessageReaction(message.id, 'FUNNY'); closeActionMenu(); }}>
+															😂
+														</button>
+														<button class="sheet-reaction-btn"
+														        class:active={message.reactions?.some(r => r.type === 'LIKE' && r.users.some(u => u.userId === $authStore.user?.id))}
+														        onclick={() => { updateMessageReaction(message.id, 'LIKE'); closeActionMenu(); }}>
+															👍
+														</button>
+														<button class="sheet-reaction-btn"
+														        class:active={message.reactions?.some(r => r.type === 'LOVE' && r.users.some(u => u.userId === $authStore.user?.id))}
+														        onclick={() => { updateMessageReaction(message.id, 'LOVE'); closeActionMenu(); }}>
+															❤️
+														</button>
+													</div>
 													<button class="dropdown-item reply-item"
 													        onclick={() => handleReplyToMessage(message)}>
 														<span class="desktop-text">↩ Reply</span>
@@ -1573,7 +1590,10 @@
 		display: flex;
 		flex-direction: column;
 		height: 100vh;
+		height: 100dvh;
 		background: var(--bg-primary);
+		padding-top: env(safe-area-inset-top);
+		padding-bottom: env(safe-area-inset-bottom);
 	}
 
 	/* Header */
@@ -1871,6 +1891,12 @@
 		opacity: 1;
 	}
 
+	@media (hover: none) {
+		.message-actions {
+			opacity: 0.6;
+		}
+	}
+
 	.action-btn {
 		background: transparent;
 		border: none;
@@ -1895,11 +1921,11 @@
 	.menu-btn {
 		font-weight: bold;
 		font-size: 0.9rem;
-		color: rgba(255, 255, 255, 0.8);
+		color: var(--text-muted);
 	}
 
 	.menu-btn:hover {
-		color: white;
+		color: var(--text-primary);
 	}
 
 	/* Action dropdown menu */
@@ -1980,6 +2006,11 @@
 	.other-message .action-dropdown {
 		right: auto;
 		left: 0;
+	}
+
+	/* Reaction row in bottom sheet - hidden on desktop */
+	.sheet-reactions {
+		display: none;
 	}
 
 	/* Mobile menu backdrop - hidden on desktop */
@@ -2204,63 +2235,6 @@
 			gap: 0.5rem;
 		}
 
-		/* Mobile-optimized action menu */
-		.action-dropdown {
-			min-width: 120px;
-			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-			border-radius: 8px;
-			/* Ensure menu stays within chat window */
-			position: absolute;
-			max-width: calc(100vw - 4rem);
-		}
-
-		.dropdown-item {
-			padding: 0.875rem 1rem;
-			font-size: 0.95rem;
-			min-height: 44px; /* Minimum touch target size */
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			text-align: center;
-		}
-
-		/* Switch to mobile text (no icons) */
-		.desktop-text {
-			display: none;
-		}
-
-		.mobile-text {
-			display: inline;
-		}
-
-		/* Ensure menu doesn't go off-screen on mobile */
-		.message-item:first-child .action-dropdown,
-		.message-item:nth-child(2) .action-dropdown {
-			top: auto;
-			bottom: 100%;
-			margin-top: 0;
-			margin-bottom: 4px;
-		}
-
-		/* Position menus more carefully on mobile - stay within chat bounds */
-		.own-message .action-dropdown {
-			right: 0;
-			left: auto;
-			max-width: calc(100vw - 6rem);
-		}
-
-		.other-message .action-dropdown {
-			left: 0;
-			right: auto;
-			max-width: calc(100vw - 6rem);
-		}
-
-		/* Prevent horizontal overflow */
-		.action-dropdown {
-			transform: translateX(0);
-			white-space: nowrap;
-		}
-
 		/* Make action buttons more touch-friendly */
 		.action-btn {
 			width: 32px;
@@ -2272,20 +2246,26 @@
 			font-size: 1rem;
 		}
 
-		/* Show mobile backdrop on tablets and smaller */
+		/* Switch to mobile text (no icons) */
+		.desktop-text {
+			display: none;
+		}
+
+		.mobile-text {
+			display: inline;
+		}
+
+		/* Bottom sheet backdrop */
 		.mobile-menu-backdrop {
 			display: block;
 			position: fixed;
 			top: 0;
 			left: 0;
-			right: 0;
-			bottom: 0;
-			background: rgba(0, 0, 0, 0.2);
-			z-index: 999;
-			animation: fadeIn 0.15s ease-out;
-			/* Ensure backdrop covers everything including chat header */
 			width: 100vw;
 			height: 100vh;
+			background: rgba(0, 0, 0, 0.4);
+			z-index: 9998;
+			animation: fadeIn 0.15s ease-out;
 		}
 
 		@keyframes fadeIn {
@@ -2293,11 +2273,88 @@
 			to { opacity: 1; }
 		}
 
-		/* Increase z-index of action dropdown on mobile */
+		/* Bottom sheet action menu */
 		.action-dropdown {
-			z-index: 1001;
-			/* Ensure menu appears above backdrop */
-			position: relative;
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			top: auto;
+			z-index: 9999;
+			min-width: 100%;
+			max-width: 100%;
+			margin-top: 0;
+			border-radius: 16px 16px 0 0;
+			box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.2);
+			padding-bottom: env(safe-area-inset-bottom);
+			animation: slideUp 0.2s ease-out;
+		}
+
+		/* Override position for both message types */
+		.own-message .action-dropdown,
+		.other-message .action-dropdown {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			top: auto;
+		}
+
+		@keyframes slideUp {
+			from {
+				transform: translateY(100%);
+			}
+			to {
+				transform: translateY(0);
+			}
+		}
+
+		.action-dropdown .dropdown-item {
+			padding: 1rem 1.5rem;
+			font-size: 1rem;
+			min-height: 52px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			border-bottom: 1px solid var(--border-light);
+		}
+
+		.action-dropdown .dropdown-item:last-child {
+			border-bottom: none;
+		}
+
+		/* Reaction row in bottom sheet */
+		.sheet-reactions {
+			display: flex;
+			justify-content: center;
+			gap: 1rem;
+			padding: 1rem 1.5rem;
+			border-bottom: 1px solid var(--border-light);
+		}
+
+		.sheet-reaction-btn {
+			width: 48px;
+			height: 48px;
+			border-radius: 50%;
+			border: 2px solid var(--border-color);
+			background: var(--bg-secondary);
+			font-size: 1.4rem;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: all 0.15s ease;
+		}
+
+		.sheet-reaction-btn:active {
+			transform: scale(0.9);
+		}
+
+		.sheet-reaction-btn.active {
+			border-color: var(--accent);
+			background: var(--accent);
+			box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
 		}
 
 	}
@@ -2309,6 +2366,7 @@
 
 		.message-input-area {
 			padding: 0.75rem;
+			padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 		}
 
 		.input-container {
@@ -2320,19 +2378,19 @@
 		}
 
 		.image-btn {
-			width: 36px;
-			height: 36px;
+			width: 40px;
+			height: 40px;
 			font-size: 14px;
 		}
 
 		.input-container .btn {
-			height: 36px;
+			height: 40px;
 			padding: 0 1rem;
 		}
 
 		.message-input {
-			height: 36px;
-			min-height: 36px;
+			height: 40px;
+			min-height: 40px;
 		}
 
 		.message-item {
@@ -2357,44 +2415,6 @@
 			font-size: 0.7rem;
 		}
 
-		/* Extra mobile optimizations for very small screens */
-		.action-dropdown {
-			min-width: 120px;
-			max-width: calc(100vw - 3rem);
-			box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-			/* Ensure menu stays within chat content area */
-			position: absolute;
-		}
-
-		.dropdown-item {
-			padding: 1rem 1.25rem;
-			font-size: 1rem;
-			min-height: 48px; /* Larger touch targets for small screens */
-			justify-content: center;
-		}
-
-		/* Ensure mobile text is shown on very small screens too */
-		.desktop-text {
-			display: none;
-		}
-
-		.mobile-text {
-			display: inline;
-		}
-
-		/* Position menus within chat bounds on very small screens */
-		.own-message .action-dropdown {
-			right: 0.5rem;
-			left: auto;
-			max-width: calc(100vw - 4rem);
-		}
-
-		.other-message .action-dropdown {
-			left: 0.5rem;
-			right: auto;
-			max-width: calc(100vw - 4rem);
-		}
-
 		/* Larger action buttons for easier tapping */
 		.action-btn {
 			width: 36px;
@@ -2405,7 +2425,7 @@
 	/* Very small screens - truncate group name */
 	@media (max-width: 428px) {
 		.header-content h1 {
-			max-width: 6ch;
+			max-width: 14ch;
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;

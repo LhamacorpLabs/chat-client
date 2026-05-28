@@ -3,9 +3,13 @@
 	import { authStore } from '../stores/auth';
 	import { getUserReactionForMessage, messageHasReactions } from '../utils/reactionUtils';
 
-	export let message: Message;
-	export let isOwnMessage: boolean = false;
-	export let onReactionChange: ((reactionType?: ReactionType) => Promise<void>) | null = null;
+	interface Props {
+		message: Message;
+		isOwnMessage?: boolean;
+		onReactionChange?: ((reactionType?: ReactionType) => Promise<void>) | null;
+	}
+
+	let { message, isOwnMessage = false, onReactionChange = null }: Props = $props();
 
 	const reactionEmojis: Record<ReactionType, string> = {
 		FUNNY: '😂',
@@ -15,23 +19,19 @@
 
 	const reactionTypes: ReactionType[] = ['FUNNY', 'LIKE', 'LOVE'];
 
-	let isUpdating = false;
+	let isUpdating = $state(false);
 
-	function getUserReaction(): ReactionType | null {
-		if (!$authStore.user) return null;
-		return getUserReactionForMessage(message, $authStore.user.id);
-	}
+	let currentUserReaction = $derived(
+		$authStore.user ? getUserReactionForMessage(message, $authStore.user.id) : null
+	);
+	let hasReactions = $derived(messageHasReactions(message));
 
 	async function handleReactionClick(reactionType: ReactionType) {
 		if (isUpdating || !onReactionChange) return;
 
-		const currentUserReaction = getUserReaction();
-
 		try {
 			isUpdating = true;
 
-			// If user already has this reaction, remove it (pass undefined)
-			// Otherwise, add/change to this reaction
 			if (currentUserReaction === reactionType) {
 				await onReactionChange();
 			} else {
@@ -43,13 +43,9 @@
 			isUpdating = false;
 		}
 	}
-
-	$: currentUserReaction = getUserReaction();
-	$: hasReactions = messageHasReactions(message);
 </script>
 
 <div class="reactions-container" class:own-message={isOwnMessage} class:other-message={!isOwnMessage}>
-	<!-- Existing reactions display -->
 	{#if hasReactions}
 		<div class="reactions-display">
 			{#each message.reactions as reaction (reaction.type)}
@@ -57,7 +53,7 @@
 					class="reaction-button"
 					class:user-reacted={currentUserReaction === reaction.type}
 					class:updating={isUpdating}
-					on:click={() => handleReactionClick(reaction.type)}
+					onclick={() => handleReactionClick(reaction.type)}
 					disabled={isUpdating}
 					title="{reaction.users.map(u => u.username).join(', ')}"
 				>
@@ -68,14 +64,13 @@
 		</div>
 	{/if}
 
-	<!-- Add reaction buttons -->
 	<div class="add-reactions">
 		{#each reactionTypes as reactionType}
 			{#if !message.reactions?.some(r => r.type === reactionType)}
 				<button
 					class="add-reaction-button"
 					class:updating={isUpdating}
-					on:click={() => handleReactionClick(reactionType)}
+					onclick={() => handleReactionClick(reactionType)}
 					disabled={isUpdating}
 				>
 					{reactionEmojis[reactionType]}
@@ -118,28 +113,29 @@
 		align-items: center;
 		gap: 4px;
 		padding: 2px 6px;
-		border: 1px solid var(--border-color, #ddd);
+		border: 1px solid var(--border-color);
 		border-radius: 12px;
-		background: var(--background-secondary, #f5f5f5);
+		background: var(--bg-secondary);
 		cursor: pointer;
 		transition: all 0.2s ease;
 		font-size: 12px;
 		min-height: 24px;
+		color: var(--text-primary);
 	}
 
 	.reaction-button:hover {
-		background: var(--background-hover, #e5e5e5);
+		background: var(--bg-tertiary);
 		transform: scale(1.05);
 	}
 
 	.reaction-button.user-reacted {
-		background: var(--accent-color, #007acc);
+		background: var(--accent);
 		color: white;
-		border-color: var(--accent-color, #007acc);
+		border-color: var(--accent);
 	}
 
 	.reaction-button.user-reacted:hover {
-		background: var(--accent-color-dark, #005a99);
+		background: var(--accent-hover);
 	}
 
 	.reaction-button.updating {
@@ -170,6 +166,12 @@
 		opacity: 1;
 	}
 
+	@media (hover: none) {
+		.add-reactions {
+			display: none;
+		}
+	}
+
 	.add-reaction-button {
 		padding: 2px 4px;
 		border: 1px solid transparent;
@@ -178,16 +180,16 @@
 		cursor: pointer;
 		font-size: 12px;
 		transition: all 0.2s ease;
-		min-height: 20px;
-		min-width: 20px;
+		min-height: 24px;
+		min-width: 24px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 	}
 
 	.add-reaction-button:hover {
-		background: var(--background-hover, #e5e5e5);
-		border-color: var(--border-color, #ddd);
+		background: var(--bg-tertiary);
+		border-color: var(--border-color);
 		transform: scale(1.1);
 	}
 
@@ -196,21 +198,15 @@
 		cursor: not-allowed;
 	}
 
-	/* Dark theme support */
-	@media (prefers-color-scheme: dark) {
+	@media (max-width: 480px) {
 		.reaction-button {
-			border-color: #444;
-			background: #333;
-			color: #fff;
+			min-height: 28px;
+			padding: 4px 8px;
 		}
 
-		.reaction-button:hover {
-			background: #444;
-		}
-
-		.add-reaction-button:hover {
-			background: #444;
-			border-color: #555;
+		.add-reaction-button {
+			min-height: 28px;
+			min-width: 28px;
 		}
 	}
 </style>

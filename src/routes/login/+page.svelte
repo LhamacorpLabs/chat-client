@@ -216,8 +216,7 @@
 	input:focus {
 		border-color: var(--accent);
 		background: var(--bg-primary);
-		transform: translateY(-2px);
-		box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+		box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
 	}
 
 	.btn {

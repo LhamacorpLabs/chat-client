@@ -4,12 +4,12 @@
 	interface Props {
 		message: Message | null;
 		mode: 'composition' | 'display';
-		onCancel?: () => void;
-		onClick?: () => void;
+		onCancel?: (() => void) | undefined;
+		onClick?: (() => void) | undefined;
 		compact?: boolean;
 	}
 
-	const { message, mode, onCancel, onClick, compact = false } = $props();
+	let { message, mode, onCancel = undefined, onClick = undefined, compact = false }: Props = $props();
 
 	function getPreviewText(msg: string | undefined): string {
 		if (!msg) return '';
@@ -154,18 +154,16 @@
 		color: var(--text-primary, #000);
 	}
 
-	@media (prefers-color-scheme: dark) {
-		.reply-preview.composition {
-			background: var(--bg-tertiary, #2a2a2a);
-			border-color: var(--border-light, #444);
-		}
+	:global([data-theme='dark']) .reply-preview.composition {
+		background: var(--bg-tertiary, #2a2a2a);
+		border-color: var(--border-light, #444);
+	}
 
-		.reply-preview.display {
-			background: rgba(255, 255, 255, 0.05);
-		}
+	:global([data-theme='dark']) .reply-preview.display {
+		background: rgba(255, 255, 255, 0.05);
+	}
 
-		.reply-preview.display:hover {
-			background: rgba(255, 255, 255, 0.1);
-		}
+	:global([data-theme='dark']) .reply-preview.display:hover {
+		background: rgba(255, 255, 255, 0.1);
 	}
 </style>

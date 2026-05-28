@@ -469,6 +469,7 @@
 <style>
 	.chat-app {
 		min-height: 100vh;
+		min-height: 100dvh;
 		background: var(--bg-primary);
 		display: flex;
 		flex-direction: column;
@@ -677,11 +678,12 @@
 	.app-footer {
 		background: var(--bg-primary);
 		border-top: 1px solid var(--border-light);
-		padding: 1.5rem 2rem;
+		padding: 1rem 2rem;
+		padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 		text-align: center;
 		flex-shrink: 0;
-		color: var(--text-secondary);
-		font-size: 0.85rem;
+		color: var(--text-muted);
+		font-size: 0.8rem;
 	}
 
 	.app-footer p {

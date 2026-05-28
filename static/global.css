@@ -60,6 +60,8 @@ body {
 	color: var(--text-primary);
 	transition: background-color 0.3s ease, color 0.3s ease;
 	min-height: 100vh;
+	min-height: 100dvh;
+	-webkit-text-size-adjust: 100%;
 }
 
 /* Typography */
@@ -107,6 +109,7 @@ input:focus {
 	outline: none;
 	border-color: var(--accent);
 	box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+	transform: none;
 }
 
 input::placeholder {
