@@ -1317,7 +1317,7 @@
 													{#if isOwnMessage}
 														<button class="dropdown-item delete-item"
 														        onclick={() => handleDeleteMessage(message.id)}>
-															<span class="desktop-text">🗑 Delete</span>
+															<span class="desktop-text">✕ Delete</span>
 															<span class="mobile-text">Delete</span>
 														</button>
 													{/if}
