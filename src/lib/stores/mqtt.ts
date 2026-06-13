@@ -20,7 +20,7 @@ class MqttService {
     private messageHandlers: Map<string, (message: Message) => void> = new Map();
     private subscribedTopics: Set<string> = new Set();
 
-    connect(): Promise<void> {
+    connect(token: string): Promise<void> {
         return new Promise((resolve, reject) => {
             if (this.client?.connected) {
                 resolve();
@@ -31,7 +31,9 @@ class MqttService {
 
             this.client = mqtt.connect(MQTT_BROKER_URL, {
                 reconnectPeriod: 5000,
-                connectTimeout: 10000
+                connectTimeout: 10000,
+                username: token,
+                password: token
             });
 
             this.client.on('connect', () => {

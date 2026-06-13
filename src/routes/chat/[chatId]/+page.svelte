@@ -372,8 +372,9 @@
 	}
 
 	async function connectMqtt() {
+		if (!$authStore.token) return;
 		try {
-			await mqttService.connect();
+			await mqttService.connect($authStore.token);
 			mqttUnsubscribe = mqttService.subscribeToChat(chatId, handleWebSocketMessage);
 		} catch (error) {
 			console.error('Failed to connect MQTT:', error);
