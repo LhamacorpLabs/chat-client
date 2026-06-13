@@ -12,7 +12,7 @@ interface ChatNotificationState {
 }
 
 interface ChatNotificationStore {
-	subscribe: typeof subscribe;
+	subscribe: (run: (value: ChatNotificationState) => void) => () => void;
 	// Update the last known timestamp for a chat (call this when user views chat)
 	markChatAsRead: (chatId: string, timestamp: string | null) => void;
 	// Check for new messages across all chats and update unread status

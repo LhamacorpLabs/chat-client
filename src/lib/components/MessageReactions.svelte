@@ -199,6 +199,11 @@
 	}
 
 	@media (max-width: 480px) {
+		.reactions-container {
+			position: static;
+			margin-top: 4px;
+		}
+
 		.reaction-button {
 			min-height: 28px;
 			padding: 4px 8px;

@@ -266,9 +266,11 @@
 		async function handleFocus() {
 			windowFocused = true;
 			hasUnreadMessages = false;
-			startReactionPolling(); // Start polling reactions when window becomes active
+			startReactionPolling();
+			const token = $authStore.token;
+			if (!token) return;
 			try {
-				const chats = await apiFetchChats($authStore.token);
+				const chats = await apiFetchChats(token);
 				const updatedChat = chats.find(c => c.id === chatId);
 				if (updatedChat && updatedChat.lastMessageAt) {
 					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
@@ -280,16 +282,18 @@
 
 		function handleBlur() {
 			windowFocused = false;
-			stopReactionPolling(); // Stop polling reactions when window loses focus
+			stopReactionPolling();
 		}
 
 		async function handleVisibilityChange() {
 			windowFocused = !document.hidden;
 			if (!document.hidden) {
-				startReactionPolling(); // Start polling when page becomes visible
+				startReactionPolling();
 				hasUnreadMessages = false;
+				const token = $authStore.token;
+				if (!token) return;
 				try {
-					const chats = await apiFetchChats($authStore.token);
+					const chats = await apiFetchChats(token);
 					const updatedChat = chats.find(c => c.id === chatId);
 					if (updatedChat && updatedChat.lastMessageAt) {
 						chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
@@ -338,13 +342,14 @@
 	});
 
 	async function connectWebSocket() {
-		if (!$authStore.token || isConnectingWebSocket) return;
+		const token = $authStore.token;
+		if (!token || isConnectingWebSocket) return;
 
 		try {
 			isConnectingWebSocket = true;
 			websocketError = null;
 
-			await webSocketService.connect($authStore.token);
+			await webSocketService.connect(token);
 
 			// Subscribe to this chat's messages
 			websocketUnsubscribe = webSocketService.subscribeToChat(chatId, handleWebSocketMessage);
@@ -400,12 +405,12 @@
 	}
 
 	async function pollForNewMessages() {
-		if (!$authStore.token || !prevCursor) return;
+		const token = $authStore.token;
+		if (!token || !prevCursor) return;
 
 		try {
-			// Fetch messages newer than our most recent one
 			const response: PagedMessageResponse = await fetchMessagesPaginated(
-				$authStore.token,
+				token,
 				chatId,
 				50,
 				undefined, // no 'before' cursor
@@ -472,33 +477,33 @@
 	function handleWebSocketMessage(newMessage: Message) {
 		handleNewMessage(newMessage);
 
-		// Update chat notifications
-		if ($authStore.token) {
-			apiFetchChats($authStore.token).then(chats => {
-				const updatedChat = chats.find(c => c.id === chatId);
-				if (updatedChat && updatedChat.lastMessageAt) {
-					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
-				}
-			}).catch(error => {
-				console.warn('Failed to fetch updated chat info for notifications:', error);
-			});
-		}
+		const token = $authStore.token;
+		if (!token) return;
+		apiFetchChats(token).then(chats => {
+			const updatedChat = chats.find(c => c.id === chatId);
+			if (updatedChat && updatedChat.lastMessageAt) {
+				chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
+			}
+		}).catch(error => {
+			console.warn('Failed to fetch updated chat info for notifications:', error);
+		});
 	}
 
 	async function loadMessages() {
-		if (!$authStore.token || !$authStore.user) return;
+		const token = $authStore.token;
+		if (!token || !$authStore.user) return;
 
 		isLoading = true;
 		error = null;
 
 		try {
 			// Fetch messages first
-			const messagesResponse = await fetchMessagesPaginated($authStore.token, chatId, 50);
+			const messagesResponse = await fetchMessagesPaginated(token, chatId, 50);
 			const reversedMessages = messagesResponse.messages.reverse();
 
 			// Fetch reactions for all visible messages in parallel
 			const messageIds = reversedMessages.map(m => m.id);
-			const reactionsByMessage = await fetchMultipleMessageReactions($authStore.token, chatId, messageIds);
+			const reactionsByMessage = await fetchMultipleMessageReactions(token, chatId, messageIds);
 
 			// Create member mapping from chat data
 			const memberMapping: { [userId: string]: string } = {};
@@ -543,7 +548,7 @@
 			}
 
 			try {
-				const chats = await apiFetchChats($authStore.token);
+				const chats = await apiFetchChats(token);
 				const updatedChat = chats.find(c => c.id === chatId);
 				if (updatedChat && updatedChat.lastMessageAt) {
 					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
@@ -561,23 +566,24 @@
 	// Optimistically update a specific message's reactions without refreshing all messages
 	// Handles adding, removing, or changing user's reaction to a message
 	async function updateMessageReaction(messageId: string, reactionType?: 'FUNNY' | 'LIKE' | 'LOVE') {
-		if (!$authStore.token || !$authStore.user) return;
+		const token = $authStore.token;
+		const user = $authStore.user;
+		if (!token || !user) return;
 
 		// Find the message index
 		const messageIndex = messages.findIndex(m => m.id === messageId);
 		if (messageIndex === -1) return;
 
 		const currentMessage = messages[messageIndex];
-		const currentUserReaction = getUserReactionForMessage(currentMessage, $authStore.user.id);
+		const currentUserReaction = getUserReactionForMessage(currentMessage, user.id);
 
 		// Create optimistic update
 		let newReactions: ReactionSummary[] = [...(currentMessage.reactions || [])];
 
 		if (currentUserReaction) {
-			// Remove user from existing reaction
 			newReactions = newReactions.map(reaction => {
 				if (reaction.type === currentUserReaction) {
-					const updatedUsers = reaction.users.filter(user => user.userId !== $authStore.user.id);
+					const updatedUsers = reaction.users.filter(u => u.userId !== user.id);
 					return {
 						...reaction,
 						count: updatedUsers.length,
@@ -585,52 +591,45 @@
 					};
 				}
 				return reaction;
-			}).filter(reaction => reaction.count > 0); // Remove reactions with no users
+			}).filter(reaction => reaction.count > 0);
 		}
 
 		if (reactionType && reactionType !== currentUserReaction) {
-			// Add new reaction
 			const existingReactionIndex = newReactions.findIndex(r => r.type === reactionType);
 			if (existingReactionIndex >= 0) {
-				// Add user to existing reaction (if not already there)
 				const existingReaction = newReactions[existingReactionIndex];
-				if (!existingReaction.users.some(user => user.userId === $authStore.user.id)) {
+				if (!existingReaction.users.some(u => u.userId === user.id)) {
 					newReactions[existingReactionIndex] = {
 						...existingReaction,
 						count: existingReaction.count + 1,
 						users: [...existingReaction.users, {
-							userId: $authStore.user.id,
-							username: $authStore.user.username || 'You'
+							userId: user.id,
+							username: user.username || 'You'
 						}]
 					};
 				}
 			} else {
-				// Create new reaction
 				newReactions.push({
 					type: reactionType,
 					count: 1,
 					users: [{
-						userId: $authStore.user.id,
-						username: $authStore.user.username || 'You'
+						userId: user.id,
+						username: user.username || 'You'
 					}]
 				});
 			}
 		}
 
-		// Update message optimistically
 		messages[messageIndex] = {
 			...currentMessage,
 			reactions: newReactions
 		};
 
-		// Make API call in background (no need to await)
 		try {
-			await reactToMessage($authStore.token, chatId, messageId, reactionType);
-			// Refresh reactions after successful API call to catch any other recent reactions
+			await reactToMessage(token, chatId, messageId, reactionType);
 			refreshReactions();
 		} catch (error) {
 			console.error('Failed to react to message:', error);
-			// On error, refresh reactions as fallback (more efficient than full reload)
 			refreshReactions();
 		}
 	}
@@ -656,20 +655,18 @@
 
 	// Refresh only reactions without reloading messages - more efficient for real-time updates
 	async function refreshReactions() {
-		if (!$authStore.token || messages.length === 0) return;
+		const token = $authStore.token;
+		if (!token || messages.length === 0) return;
 
 		try {
-			// Fetch reactions for all currently visible messages
 			const messageIds = messages.map(m => m.id);
-			const reactionsByMessage = await fetchMultipleMessageReactions($authStore.token, chatId, messageIds);
+			const reactionsByMessage = await fetchMultipleMessageReactions(token, chatId, messageIds);
 
-			// Create member mapping from chat data
 			const memberMapping: { [userId: string]: string } = {};
 			for (const member of data.chat.members) {
 				memberMapping[member.id] = member.name;
 			}
 
-			// Update existing messages with fresh reaction data
 			messages = mergeMessagesWithPerMessageReactions(messages, reactionsByMessage, memberMapping);
 		} catch (error) {
 			console.warn('Failed to refresh reactions:', error);
@@ -677,27 +674,28 @@
 	}
 
 	async function loadFavoriteMessages() {
-		if (!$authStore.token) return;
+		const token = $authStore.token;
+		if (!token) return;
 
 		try {
-			const favorites = await fetchFavoriteMessages($authStore.token, chatId);
+			const favorites = await fetchFavoriteMessages(token, chatId);
 			const favoriteIds = favorites.map(fav => fav.messageId);
 			favoriteMessageIds = new Set(favoriteIds);
 		} catch (err) {
 			console.error('Failed to load favorite messages:', err);
-			// Don't show error to user, this is not critical functionality
 		}
 	}
 
 	async function loadMoreMessages() {
-		if (!$authStore.token || !nextCursor || isLoadingMore) return;
+		const token = $authStore.token;
+		if (!token || !nextCursor || isLoadingMore) return;
 
 		isLoadingMore = true;
 		shouldAutoScroll = false;
 
 		try {
 			const response: PagedMessageResponse = await fetchMessagesPaginated(
-				$authStore.token,
+				token,
 				chatId,
 				50,
 				nextCursor
@@ -734,13 +732,13 @@
 	}
 
 	async function handleSendMessage() {
-		if (!$authStore.token || (!newMessage.trim() && selectedImages.length === 0)) return;
+		const token = $authStore.token;
+		if (!token || (!newMessage.trim() && selectedImages.length === 0)) return;
 
 		const messageText = newMessage.trim();
 		const imagesToUpload = [...selectedImages];
 		const replyToMessage = replyingTo;
 
-		// Clear input immediately
 		newMessage = '';
 		selectedImages = [];
 		replyingTo = null;
@@ -750,15 +748,12 @@
 		isUploadingImages = imagesToUpload.length > 0;
 		selectedMessageIndex = -1;
 
-		// No need to stop polling - WebSocket handles real-time delivery
-
 		try {
 			let imageIds: string[] = [];
 
-			// Upload images first if any are selected
 			if (imagesToUpload.length > 0) {
 				const uploadPromises = imagesToUpload.map(file =>
-					uploadImage($authStore.token!, file)
+					uploadImage(token, file)
 				);
 
 				try {
@@ -790,14 +785,10 @@
 				finalMessageContent = messageText ? `${messageText}\n${imageReferences}` : imageReferences;
 			}
 
-			const sentMessage = await sendMessage($authStore.token, chatId, { message: finalMessageContent });
+			await sendMessage(token, chatId, { message: finalMessageContent });
 
-			// WebSocket will automatically deliver the message to all clients including sender
-			// No need to manually add message to array or update cursor
-
-			// Mark this message as read by fetching updated chat info and using backend's lastMessageAt
 			try {
-				const chats = await apiFetchChats($authStore.token);
+				const chats = await apiFetchChats(token);
 				const updatedChat = chats.find(c => c.id === chatId);
 				if (updatedChat && updatedChat.lastMessageAt) {
 					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
@@ -900,19 +891,16 @@
 	}
 
 	async function handleDeleteMessage(messageId: string) {
-		if (!$authStore.token) return;
+		const token = $authStore.token;
+		if (!token) return;
 
 		try {
-			await deleteMessage($authStore.token, chatId, messageId);
-
-			// Update the message in local state to show "[deleted message]"
+			await deleteMessage(token, chatId, messageId);
 			messages = messages.map(msg =>
 				msg.id === messageId
 					? { ...msg, message: '[deleted message]' }
 					: msg
 			);
-
-			// Close the action menu
 			openActionMenuId = null;
 		} catch (err) {
 			console.error('Failed to delete message:', err);
@@ -935,20 +923,17 @@
 	}
 
 	async function handleToggleFavorite(messageId: string) {
-		if (!$authStore.token) return;
+		const token = $authStore.token;
+		if (!token) return;
 
 		try {
-			await toggleMessageFavorite($authStore.token, chatId, messageId);
-
-			// Toggle the favorite status locally
+			await toggleMessageFavorite(token, chatId, messageId);
 			if (favoriteMessageIds.has(messageId)) {
 				favoriteMessageIds.delete(messageId);
 			} else {
 				favoriteMessageIds.add(messageId);
 			}
-			// Trigger reactivity
 			favoriteMessageIds = new Set(favoriteMessageIds);
-
 			closeActionMenu();
 		} catch (err) {
 			console.error('Failed to toggle message favorite:', err);
@@ -973,14 +958,15 @@
 	}
 
 	async function handleCreateInvite() {
-		if (!$authStore.token) return;
+		const token = $authStore.token;
+		if (!token) return;
 
 		isCreatingInvite = true;
 		inviteError = null;
 		inviteCode = null;
 
 		try {
-			const invitation = await createInvitation($authStore.token, chatId);
+			const invitation = await createInvitation(token, chatId);
 			inviteCode = invitation.code;
 			showInviteModal = true;
 		} catch (err) {
@@ -1027,10 +1013,10 @@
 		isInitialScroll = false; // Reset initial scroll flag
 		scrollToBottom();
 
-		// Mark all messages as read when explicitly jumping to newest
-		if ($authStore.token) {
+		const token = $authStore.token;
+		if (token) {
 			try {
-				const chats = await apiFetchChats($authStore.token);
+				const chats = await apiFetchChats(token);
 				const updatedChat = chats.find(c => c.id === chatId);
 				if (updatedChat && updatedChat.lastMessageAt) {
 					chatNotifications.markChatAsRead(chatId, updatedChat.lastMessageAt);
@@ -1042,23 +1028,24 @@
 	}
 
 	async function handleDeleteChat() {
-		if (!$authStore.token) return;
+		const token = $authStore.token;
+		if (!token) return;
 
-		const success = await deleteChat($authStore.token, chatId);
-
+		const success = await deleteChat(token, chatId);
 		if (success) {
 			showDeleteModal = false;
-			goto('/');  // Navigate back to chat list
+			goto('/');
 		}
-		// Error handling is done in the store, error state will show via $chatStore.error
 	}
 
 	async function handleLeaveChat() {
-		if (!$authStore.token || !$authStore.user?.id) return;
+		const token = $authStore.token;
+		const userId = $authStore.user?.id;
+		if (!token || !userId) return;
 
 		isLeaving = true;
 		try {
-			await leaveChat($authStore.token, chatId, $authStore.user.id);
+			await leaveChat(token, chatId, userId);
 			showLeaveModal = false;
 			goto('/');
 		} catch (error) {
@@ -1093,6 +1080,23 @@
 		return () => {
 			delete (window as any).showLinkConfirmation;
 		};
+	});
+
+	$effect(() => {
+		const viewport = window.visualViewport;
+		if (!viewport) return;
+
+		function handleViewportResize() {
+			const page = document.querySelector('.chat-page') as HTMLElement;
+			if (!page) return;
+			page.style.height = `${viewport!.height}px`;
+			if (shouldAutoScroll) {
+				scrollToBottom();
+			}
+		}
+
+		viewport.addEventListener('resize', handleViewportResize);
+		return () => viewport.removeEventListener('resize', handleViewportResize);
 	});
 
 	$effect(() => {
@@ -1615,7 +1619,7 @@
 		height: 100dvh;
 		background: var(--bg-primary);
 		padding-top: env(safe-area-inset-top);
-		padding-bottom: env(safe-area-inset-bottom);
+		overflow: hidden;
 	}
 
 	/* Header */
@@ -1679,6 +1683,8 @@
 		max-width: 900px;
 		margin: 0 auto;
 		width: 100%;
+		position: relative;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.loading-container,
@@ -2068,6 +2074,7 @@
 		background: var(--bg-primary);
 		border-top: 1px solid var(--border-color);
 		padding: 0.75rem 1.5rem;
+		padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 		flex-shrink: 0;
 	}
 
@@ -2360,8 +2367,8 @@
 		}
 
 		.message-input-area {
-			padding: 0.625rem 0.75rem;
-			padding-bottom: calc(0.625rem + env(safe-area-inset-bottom));
+			padding: 0.5rem 0.75rem;
+			padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
 		}
 
 		.input-container {
@@ -2644,9 +2651,11 @@
 
 	/* Jump to Newest Button */
 	.jump-to-newest-btn {
-		position: absolute;
-		bottom: 1.5rem;
-		right: 1.5rem;
+		position: sticky;
+		bottom: 0.75rem;
+		align-self: center;
+		margin-left: auto;
+		margin-right: auto;
 		background: var(--accent);
 		color: white;
 		border: none;
@@ -2683,17 +2692,8 @@
 
 	@media (max-width: 768px) {
 		.jump-to-newest-btn {
-			bottom: 1rem;
-			right: 1rem;
 			padding: 0.4rem 0.875rem;
 			font-size: 0.75rem;
-		}
-	}
-
-	@media (max-width: 480px) {
-		.jump-to-newest-btn {
-			bottom: 0.75rem;
-			right: 0.75rem;
 		}
 	}
 </style>
