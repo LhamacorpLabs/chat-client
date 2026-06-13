@@ -478,15 +478,14 @@
 	/* Header */
 	.app-header {
 		background: var(--bg-primary);
-		border-bottom: 2px solid var(--border-light);
-		box-shadow: 0 2px 8px var(--shadow);
+		border-bottom: 1px solid var(--border-color);
 		flex-shrink: 0;
 	}
 
 	.header-content {
-		max-width: 1200px;
+		max-width: 720px;
 		margin: 0 auto;
-		padding: 1rem 2rem;
+		padding: 0.875rem 1.5rem;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -495,29 +494,27 @@
 	.app-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: 0.625rem;
 	}
 
 	.app-logo {
-		width: 32px;
-		height: 32px;
+		width: 28px;
+		height: 28px;
 		object-fit: contain;
 	}
 
 	.header-content h1 {
 		margin: 0;
-		font-size: 1.5rem;
+		font-size: 1.25rem;
 		font-weight: 700;
-		background: var(--gradient);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
+		color: var(--text-primary);
+		letter-spacing: -0.02em;
 	}
 
 	.header-actions {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 0.5rem;
 	}
 
 	/* Actions Menu (+ Button) */
@@ -526,54 +523,45 @@
 	}
 
 	.add-btn {
-		font-size: 0.9rem;
-		padding: 0.5rem 1rem;
+		font-size: 1rem;
+		padding: 0.375rem 0.75rem;
+		font-weight: 500;
 	}
 
 	.actions-dropdown {
 		position: absolute;
-		top: 100%;
+		top: calc(100% + 4px);
 		right: 0;
 		background: var(--bg-primary);
-		border: 1px solid var(--border-light);
-		border-radius: 8px;
-		box-shadow: 0 4px 12px var(--shadow);
+		border: 1px solid var(--border-color);
+		border-radius: var(--radius-md);
+		box-shadow: 0 4px 16px var(--shadow-elevated);
 		z-index: 1000;
-		min-width: 100px;
-		margin-top: 0.5rem;
+		min-width: 120px;
+		padding: 0.25rem;
 	}
 
 	.actions-dropdown .dropdown-item {
 		display: block;
 		width: 100%;
-		padding: 0.75rem 1rem;
+		padding: 0.5rem 0.75rem;
 		background: none;
 		border: none;
 		text-align: left;
 		color: var(--text-primary);
 		cursor: pointer;
-		transition: background-color 0.2s ease;
-		font-size: 0.9rem;
+		transition: background-color 0.1s ease;
+		font-size: 0.8125rem;
+		border-radius: var(--radius-sm);
 	}
 
 	.actions-dropdown .dropdown-item:hover {
 		background: var(--bg-secondary);
 	}
 
-	.actions-dropdown .dropdown-item:first-child {
-		border-top-left-radius: 8px;
-		border-top-right-radius: 8px;
-	}
-
-	.actions-dropdown .dropdown-item:last-child {
-		border-bottom-left-radius: 8px;
-		border-bottom-right-radius: 8px;
-	}
-
 	.actions-dropdown .dropdown-item span {
 		display: block;
 	}
-
 
 	/* User Menu */
 	.user-menu {
@@ -581,38 +569,39 @@
 	}
 
 	.user-toggle {
-		font-size: 1.2rem;
-		padding: 0.5rem 0.75rem;
+		font-size: 1rem;
+		padding: 0.375rem 0.5rem;
 		font-weight: bold;
 		line-height: 1;
 	}
 
 	.user-dropdown {
 		position: absolute;
-		top: 100%;
+		top: calc(100% + 4px);
 		right: 0;
 		background: var(--bg-primary);
-		border: 1px solid var(--border-light);
-		border-radius: 8px;
-		box-shadow: 0 4px 12px var(--shadow);
+		border: 1px solid var(--border-color);
+		border-radius: var(--radius-md);
+		box-shadow: 0 4px 16px var(--shadow-elevated);
 		z-index: 1000;
 		min-width: 180px;
-		margin-top: 0.5rem;
+		padding: 0.25rem;
 	}
 
 	.user-dropdown .dropdown-item {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: 0.5rem;
 		width: 100%;
-		padding: 0.75rem 1rem;
+		padding: 0.5rem 0.75rem;
 		background: none;
 		border: none;
 		text-align: left;
 		color: var(--text-primary);
 		cursor: pointer;
-		transition: background-color 0.2s ease;
-		font-size: 0.9rem;
+		transition: background-color 0.1s ease;
+		font-size: 0.8125rem;
+		border-radius: var(--radius-sm);
 	}
 
 	.user-dropdown .dropdown-item:hover {
@@ -621,69 +610,45 @@
 
 	.user-info {
 		cursor: default !important;
-		color: var(--text-secondary) !important;
-		font-size: 0.85rem !important;
-		border-bottom: 1px solid var(--border-light);
-		margin-bottom: 0;
+		color: var(--text-muted) !important;
+		font-size: 0.75rem !important;
+		padding-bottom: 0.5rem !important;
+		margin-bottom: 0.25rem;
+		border-bottom: 1px solid var(--border-color);
+		border-radius: 0 !important;
 	}
 
 	.user-info:hover {
 		background: none !important;
 	}
 
-	.user-dropdown .dropdown-item:first-child {
-		border-top-left-radius: 8px;
-		border-top-right-radius: 8px;
-	}
-
-	.user-dropdown .dropdown-item:last-child {
-		border-bottom-left-radius: 8px;
-		border-bottom-right-radius: 8px;
-	}
-
 	.logout-item {
-		color: var(--danger);
-		border-top: 1px solid var(--border-light);
+		color: var(--danger) !important;
 	}
 
 	.logout-item:hover {
-		background: var(--danger);
-		color: white;
-	}
-
-	.theme-item {
-		justify-content: space-between;
-		align-items: center;
-	}
-
-	/* Ensure theme toggle doesn't inherit hover styles from dropdown item */
-	.theme-item:hover :global(.theme-toggle) {
-		transform: none;
-	}
-
-	.theme-item :global(.theme-toggle) {
-		flex-shrink: 0;
+		background: rgba(239, 68, 68, 0.08) !important;
 	}
 
 	/* Main Content */
 	.main-content {
 		flex: 1;
-		max-width: 1200px;
+		max-width: 720px;
 		margin: 0 auto;
 		width: 100%;
-		padding: 2rem;
+		padding: 2rem 1.5rem;
 	}
 
 	/* Footer */
 	.app-footer {
 		background: var(--bg-primary);
-		border-top: 1px solid var(--border-light);
-		padding: 1rem 2rem;
-		padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+		border-top: 1px solid var(--border-color);
+		padding: 0.75rem 1.5rem;
+		padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 		text-align: center;
 		flex-shrink: 0;
 		color: var(--text-muted);
-		font-size: 0.8rem;
+		font-size: 0.7rem;
 	}
 
 	.app-footer p {
@@ -692,11 +657,11 @@
 
 	.version-info {
 		color: var(--text-muted);
-		font-size: 0.8rem;
+		font-size: 0.7rem;
 	}
 
 	.chats-container {
-		max-width: 800px;
+		max-width: 600px;
 		margin: 0 auto;
 	}
 
@@ -704,18 +669,16 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 2rem;
+		margin-bottom: 1.5rem;
 	}
 
 	.chats-header h2 {
 		margin: 0;
 		color: var(--text-primary);
-		font-size: 1.8rem;
-		font-weight: 700;
+		font-size: 1.25rem;
+		font-weight: 600;
+		letter-spacing: -0.01em;
 	}
-
-
-
 
 	/* Loading Container */
 	.loading-container {
@@ -724,18 +687,18 @@
 		align-items: center;
 		justify-content: center;
 		padding: 3rem;
-		color: var(--text-secondary);
+		color: var(--text-muted);
 	}
 
 	.loading-spinner {
 		display: inline-block;
-		width: 32px;
-		height: 32px;
-		border: 3px solid var(--border-color);
+		width: 24px;
+		height: 24px;
+		border: 2px solid var(--border-color);
 		border-radius: 50%;
 		border-top-color: var(--accent);
-		animation: spin 1s ease-in-out infinite;
-		margin-bottom: 1rem;
+		animation: spin 0.8s linear infinite;
+		margin-bottom: 0.75rem;
 	}
 
 	@keyframes spin {
@@ -744,17 +707,20 @@
 
 	/* Chat List */
 	.chats-list {
-		display: grid;
-		gap: 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
 	.chat-item {
-		padding: 1.5rem;
+		padding: 1rem 1.25rem;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		border: 2px solid var(--border-light);
-		transition: all 0.2s ease;
+		border: 1px solid var(--border-color);
+		border-radius: var(--radius-lg);
+		transition: all 0.15s ease;
+		background: var(--bg-primary);
 	}
 
 	.chat-item.clickable {
@@ -763,12 +729,12 @@
 	}
 
 	.chat-item:hover {
+		background: var(--bg-secondary);
 		border-color: var(--accent);
-		transform: translateY(-1px);
 	}
 
 	.chat-item.clickable:hover {
-		box-shadow: 0 4px 12px var(--shadow);
+		box-shadow: 0 2px 8px var(--shadow-hover);
 	}
 
 	.chat-info {
@@ -778,62 +744,48 @@
 	.chat-name-container {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		margin-bottom: 0.5rem;
+		gap: 0.5rem;
+		margin-bottom: 0.25rem;
 	}
 
 	.chat-name {
 		margin: 0;
 		color: var(--text-primary);
-		font-size: 1.2rem;
+		font-size: 0.9375rem;
 		font-weight: 600;
 	}
 
 	.unread-indicator {
-		width: 8px;
-		height: 8px;
+		width: 7px;
+		height: 7px;
 		background: var(--accent);
 		border-radius: 50%;
 		flex-shrink: 0;
-		animation: pulse 2s infinite;
-	}
-
-	@keyframes pulse {
-		0%, 100% {
-			opacity: 1;
-			transform: scale(1);
-		}
-		50% {
-			opacity: 0.7;
-			transform: scale(1.1);
-		}
 	}
 
 	.chat-meta {
 		margin: 0;
 		color: var(--text-muted);
-		font-size: 0.85rem;
+		font-size: 0.75rem;
 	}
 
 	.chat-chevron {
 		color: var(--text-muted);
-		font-size: 1.5rem;
-		font-weight: bold;
-		opacity: 0.6;
-		transition: all 0.2s ease;
+		font-size: 1rem;
+		opacity: 0.4;
+		transition: all 0.15s ease;
 	}
 
 	.chat-item.clickable:hover .chat-chevron {
 		color: var(--accent);
 		opacity: 1;
-		transform: translateX(3px);
+		transform: translateX(2px);
 	}
 
 	/* Selected state for keyboard navigation */
 	.chat-item.selected {
 		border-color: var(--accent);
-		background: var(--bg-secondary);
-		box-shadow: 0 4px 12px var(--shadow);
+		background: var(--accent-subtle);
 	}
 
 	.chat-item.selected .chat-chevron {
@@ -845,26 +797,27 @@
 	.empty-state {
 		text-align: center;
 		padding: 4rem 2rem;
-		color: var(--text-secondary);
+		color: var(--text-muted);
 	}
 
 	.empty-icon {
-		font-size: 4rem;
+		font-size: 2.5rem;
 		margin-bottom: 1rem;
+		opacity: 0.6;
 	}
 
 	.empty-state h3 {
 		margin: 0 0 0.5rem 0;
 		color: var(--text-primary);
-		font-size: 1.4rem;
+		font-size: 1.125rem;
 		font-weight: 600;
 	}
 
 	.empty-state p {
-		margin: 0 0 2rem 0;
-		font-size: 1rem;
+		margin: 0;
+		font-size: 0.875rem;
+		color: var(--text-muted);
 	}
-
 
 	/* Loading Screen */
 	.loading-screen {
@@ -874,14 +827,13 @@
 		align-items: center;
 		min-height: 100vh;
 		background: var(--bg-primary);
-		color: var(--text-primary);
+		color: var(--text-muted);
 	}
 
 	.loading-screen .loading-spinner {
-		width: 40px;
-		height: 40px;
-		border: 4px solid var(--border-color);
-		margin-bottom: 1rem;
+		width: 28px;
+		height: 28px;
+		margin-bottom: 0.75rem;
 	}
 
 	/* Modal Styles */
@@ -891,7 +843,8 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: rgba(0, 0, 0, 0.5);
+		background: rgba(15, 23, 42, 0.4);
+		backdrop-filter: blur(4px);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -900,32 +853,32 @@
 
 	.modal-content {
 		background: var(--bg-primary);
-		border-radius: 12px;
-		box-shadow: 0 8px 32px var(--shadow);
-		max-width: 400px;
+		border-radius: var(--radius-xl);
+		box-shadow: 0 16px 48px var(--shadow-elevated);
+		max-width: 380px;
 		width: 90%;
-		border: 1px solid var(--border-light);
+		border: 1px solid var(--border-color);
 	}
 
 	.modal-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 1.5rem;
-		border-bottom: 1px solid var(--border-light);
+		padding: 1.25rem 1.5rem;
+		border-bottom: 1px solid var(--border-color);
 	}
 
 	.modal-header h3 {
 		margin: 0;
 		color: var(--text-primary);
-		font-size: 1.2rem;
-		font-weight: 700;
+		font-size: 1rem;
+		font-weight: 600;
 	}
 
 	.close-btn {
 		background: none;
 		border: none;
-		font-size: 1.5rem;
+		font-size: 1.25rem;
 		color: var(--text-muted);
 		cursor: pointer;
 		padding: 0;
@@ -934,7 +887,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border-radius: 4px;
+		border-radius: var(--radius-sm);
+		transition: all 0.1s ease;
 	}
 
 	.close-btn:hover {
@@ -949,64 +903,49 @@
 	.modal-body p {
 		margin: 0 0 1rem 0;
 		color: var(--text-secondary);
+		font-size: 0.875rem;
 	}
 
 	.modal-input {
 		width: 100%;
-		margin-bottom: 1rem;
+		margin-bottom: 0.75rem;
 	}
 
 	.modal-error {
-		margin-bottom: 1rem;
+		margin-bottom: 0.75rem;
 	}
 
 	.modal-actions {
 		display: flex;
-		gap: 1rem;
+		gap: 0.75rem;
 		justify-content: flex-end;
-		margin-top: 1.5rem;
+		margin-top: 1.25rem;
 	}
 
 	.modal-actions button {
-		min-width: 100px;
+		min-width: 80px;
 	}
 
 	/* Responsive Design */
 	@media (max-width: 768px) {
 		.main-content {
-			padding: 1rem;
+			padding: 1.5rem 1rem;
 		}
 
 		.header-content {
-			padding: 1rem;
+			padding: 0.75rem 1rem;
 		}
 
 		.chats-header {
-			flex-direction: column;
-			gap: 1rem;
-			align-items: stretch;
-		}
-
-		.chats-header h2 {
-			text-align: center;
+			margin-bottom: 1rem;
 		}
 
 		.chat-item {
-			padding: 1rem;
+			padding: 0.875rem 1rem;
 		}
-
-		.chat-name {
-			font-size: 1.1rem;
-		}
-
-		.chat-meta {
-			font-size: 0.8rem;
-		}
-
-
 
 		.header-actions {
-			gap: 0.75rem;
+			gap: 0.375rem;
 		}
 
 		.user-dropdown {
@@ -1020,24 +959,20 @@
 		}
 
 		.app-logo {
-			width: 28px;
-			height: 28px;
+			width: 24px;
+			height: 24px;
 		}
 
 		.header-content h1 {
-			font-size: 1.3rem;
+			font-size: 1.125rem;
 		}
 
 		.empty-state {
-			padding: 2rem 1rem;
-		}
-
-		.empty-icon {
-			font-size: 3rem;
+			padding: 3rem 1rem;
 		}
 
 		.chats-header h2 {
-			font-size: 1.5rem;
+			font-size: 1.125rem;
 		}
 	}
 </style>
