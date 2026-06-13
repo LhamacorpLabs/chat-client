@@ -320,7 +320,7 @@
 				{#if !$chatStore.isLoading && $chatStore.chats.length > 0}
 					<div class="chats-list">
 						{#each $chatStore.chats as chat, index (chat.id)}
-							<div class="chat-item card clickable" class:selected={index === selectedChatIndex} onclick={() => openChat(chat.id)}>
+							<button class="chat-item card clickable" class:selected={index === selectedChatIndex} onclick={() => openChat(chat.id)} type="button">
 								<div class="chat-info">
 									<div class="chat-name-container">
 										<h3 class="chat-name">#{chat.name}</h3>
@@ -338,7 +338,7 @@
 								<div class="chat-chevron">
 									→
 								</div>
-							</div>
+							</button>
 						{/each}
 					</div>
 				{/if}
@@ -366,6 +366,7 @@
 						<p>Enter a name for your new chat:</p>
 						<form onsubmit={(e) => { e.preventDefault(); handleCreateChat(); }}>
 							{#key showCreateModal}
+							<!-- svelte-ignore a11y_autofocus -->
 							<input
 								type="text"
 								bind:value={newChatName}
@@ -411,6 +412,7 @@
 						<p>Enter the invitation code to join a chat:</p>
 						<form onsubmit={(e) => { e.preventDefault(); handleJoinChat(); }}>
 							{#key showJoinModal}
+							<!-- svelte-ignore a11y_autofocus -->
 							<input
 								type="text"
 								bind:value={invitationCode}
@@ -649,10 +651,6 @@
 		flex-shrink: 0;
 		color: var(--text-muted);
 		font-size: 0.7rem;
-	}
-
-	.app-footer p {
-		margin: 0;
 	}
 
 	.version-info {

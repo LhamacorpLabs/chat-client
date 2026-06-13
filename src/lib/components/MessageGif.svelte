@@ -73,7 +73,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="gif-wrapper" onclick={openGifModal}>
+		<button class="gif-wrapper" onclick={openGifModal} type="button">
 			<img
 				src={gif.url}
 				alt="GIF"
@@ -91,7 +91,7 @@
 			<div class="gif-overlay">
 				<div class="gif-indicator">GIF</div>
 			</div>
-		</div>
+		</button>
 	{/if}
 </div>
 
@@ -109,6 +109,9 @@
 		cursor: pointer;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 		transition: transform 0.2s ease;
+		border: none;
+		padding: 0;
+		background: none;
 	}
 
 	.gif-wrapper:hover {

@@ -184,12 +184,6 @@
 		letter-spacing: -0.02em;
 	}
 
-	.login-header p {
-		color: var(--text-secondary);
-		font-size: 0.9rem;
-		margin: 0;
-	}
-
 	.login-form {
 		padding: 1.75rem;
 	}
@@ -281,35 +275,6 @@
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 		border-radius: 3px;
-	}
-
-	.demo-info {
-		background: var(--bg-secondary);
-		border-radius: var(--radius-md);
-		padding: 1.25rem;
-		margin-top: 1.5rem;
-		text-align: center;
-		border: 1px solid var(--border-color);
-	}
-
-	.demo-info p {
-		margin: 0.25rem 0;
-		color: var(--text-secondary);
-		font-size: 0.85rem;
-	}
-
-	.demo-info strong {
-		color: var(--text-primary);
-	}
-
-	.demo-info code {
-		background: var(--bg-tertiary);
-		padding: 0.2rem 0.4rem;
-		border-radius: 4px;
-		font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-		font-size: 0.8rem;
-		color: var(--accent);
-		font-weight: 500;
 	}
 
 	@media (max-width: 768px) {

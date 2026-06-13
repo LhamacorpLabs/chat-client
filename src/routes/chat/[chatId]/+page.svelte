@@ -78,8 +78,8 @@
 	const POLLING_INTERVAL_MS = 1000;
 	let reactionPollingInterval: ReturnType<typeof setInterval> | null = null;
 	const REACTION_POLLING_INTERVAL_MS = 10000; // Poll reactions every 10 seconds
-	let messageInputElement: HTMLTextAreaElement;
-	let chatContent: HTMLElement;
+	let messageInputElement = $state<HTMLTextAreaElement>(undefined!);
+	let chatContent = $state<HTMLElement>(undefined!);
 	let windowFocused = $state(true);
 	let hasUnreadMessages = $state(false);
 
@@ -102,10 +102,10 @@
 	// Track favorited messages locally
 	let favoriteMessageIds = $state(new Set<string>());
 
-	const chatId = data.chatId;
-	const currentChat = data.chat;
-	const chatName = currentChat.name;
-	const isOwner = data.isOwner;
+	const chatId = $derived(data.chatId);
+	const currentChat = $derived(data.chat);
+	const chatName = $derived(currentChat.name);
+	const isOwner = $derived(data.isOwner);
 
 	// Memory management constants
 	const MAX_MESSAGES_IN_MEMORY = 500; // Keep max 500 messages in memory
@@ -1284,7 +1284,6 @@
 												⋮
 											</button>
 											{#if openActionMenuId === message.id}
-												<!-- Mobile backdrop -->
 												<div class="mobile-menu-backdrop" onclick={closeActionMenu}></div>
 												<div class="action-dropdown">
 													<div class="sheet-reactions">
@@ -1794,7 +1793,7 @@
 		border-bottom-left-radius: 4px;
 	}
 
-	[data-theme='dark'] .other-message {
+	:global([data-theme='dark']) .other-message {
 		background: var(--bg-secondary);
 		border-color: var(--border-color);
 	}
@@ -2109,12 +2108,6 @@
 		cursor: not-allowed;
 	}
 
-	.message-images {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin-top: 6px;
-	}
 
 	.message-gifs {
 		display: flex;

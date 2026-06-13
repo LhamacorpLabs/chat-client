@@ -185,35 +185,6 @@
 		color: var(--color-text-secondary, #666);
 	}
 
-	.image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 16px;
-		background: var(--color-error-background, #f8d7da);
-		border-radius: 8px;
-		border: 1px dashed var(--color-error-border, #f5c6cb);
-		min-width: 120px;
-	}
-
-	.error-icon {
-		font-size: 24px;
-		margin-bottom: 8px;
-	}
-
-	.error-text {
-		font-size: 12px;
-		color: var(--color-error-text, #721c24);
-		margin-bottom: 4px;
-	}
-
-	.image-id {
-		font-size: 10px;
-		color: var(--color-text-muted, #999);
-		font-family: monospace;
-		text-align: center;
-		word-break: break-all;
-	}
 
 	@keyframes spin {
 		0% { transform: rotate(0deg); }

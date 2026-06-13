@@ -113,7 +113,7 @@
 			<span class="filename">{attachment.metadata.filename}</span>
 		</div>
 	{:else}
-		<div class="image-wrapper" onclick={openImageModal}>
+		<button class="image-wrapper" onclick={openImageModal} type="button">
 			<img
 				src={getImageSrc()}
 				alt={attachment.metadata.filename}
@@ -122,7 +122,7 @@
 			/>
 			<div class="image-overlay">
 			</div>
-		</div>
+		</button>
 	{/if}
 </div>
 
@@ -140,6 +140,9 @@
 		cursor: pointer;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 		transition: transform 0.2s ease;
+		border: none;
+		padding: 0;
+		background: none;
 	}
 
 	.image-wrapper:hover {

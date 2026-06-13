@@ -235,42 +235,42 @@
 	}
 
 	/* Dark theme adjustments */
-	[data-theme='dark'] .link-preview-card {
+	:global([data-theme='dark']) .link-preview-card {
 		background: rgba(255, 255, 255, 0.05);
 		border-color: rgba(255, 255, 255, 0.1);
 	}
 
-	[data-theme='dark'] .link-preview-card:hover {
+	:global([data-theme='dark']) .link-preview-card:hover {
 		background: rgba(255, 255, 255, 0.08);
 		border-color: rgba(255, 255, 255, 0.2);
 		box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
 	}
 
-	[data-theme='dark'] .platform-logo {
+	:global([data-theme='dark']) .platform-logo {
 		background: rgba(255, 255, 255, 0.08);
 	}
 
-	[data-theme='dark'] .link-preview-card.youtube .platform-logo {
+	:global([data-theme='dark']) .link-preview-card.youtube .platform-logo {
 		background: rgba(255, 0, 0, 0.15);
 	}
 
-	[data-theme='dark'] .link-preview-card.spotify .platform-logo {
+	:global([data-theme='dark']) .link-preview-card.spotify .platform-logo {
 		background: rgba(29, 185, 84, 0.15);
 	}
 
-	[data-theme='dark'] .link-preview-card.twitter .platform-logo {
+	:global([data-theme='dark']) .link-preview-card.twitter .platform-logo {
 		background: rgba(29, 161, 242, 0.15);
 	}
 
-	[data-theme='dark'] .link-preview-card.github .platform-logo {
+	:global([data-theme='dark']) .link-preview-card.github .platform-logo {
 		background: rgba(240, 246, 252, 0.1);
 	}
 
-	[data-theme='dark'] .link-preview-card.amazon .platform-logo {
+	:global([data-theme='dark']) .link-preview-card.amazon .platform-logo {
 		background: rgba(255, 153, 0, 0.15);
 	}
 
-	[data-theme='dark'] .link-preview-card.lhamacorp .platform-logo {
+	:global([data-theme='dark']) .link-preview-card.lhamacorp .platform-logo {
 		background: rgba(0, 102, 204, 0.15);
 	}
 </style>

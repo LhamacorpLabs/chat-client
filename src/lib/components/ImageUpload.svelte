@@ -161,6 +161,9 @@
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
 		onclick={triggerFileSelect}
+		onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && triggerFileSelect()}
+		role="button"
+		tabindex="0"
 	>
 		<div class="upload-content">
 			<div class="upload-icon">+</div>

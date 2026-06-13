@@ -29,7 +29,8 @@
 	}
 </script>
 
-<div class="reply-preview {mode}" class:compact onclick={handleClick} role={mode === 'display' ? 'button' : 'region'} tabindex={mode === 'display' ? 0 : -1}>
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<div class="reply-preview {mode}" class:compact onclick={handleClick} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleClick()} role={mode === 'display' ? 'button' : 'region'} tabindex={mode === 'display' ? 0 : -1}>
 	<div class="reply-indicator"></div>
 	<div class="reply-content">
 		<div class="reply-info">
