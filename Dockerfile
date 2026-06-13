@@ -3,7 +3,8 @@ FROM node:22-alpine AS build
 # Build arguments for environment variables
 ARG PUBLIC_CHAT_API_URL=https://chat-be.lhamacorp.com
 ARG PUBLIC_AUTH_API_URL=https://auth.lhamacorp.com
-ARG PUBLIC_REALTIME_MODE=websocket
+ARG PUBLIC_MQTT_BROKER_URL=wss://mqtt.lhamacorp.com
+ARG PUBLIC_REALTIME_MODE=mqtt
 ARG GIT_COMMIT_ID=unknown
 
 # Set environment variables for the build

@@ -35,7 +35,8 @@ jobs:
         env:
           PUBLIC_CHAT_API_URL: https://chat-be.lhamacorp.com
           PUBLIC_AUTH_API_URL: https://auth.lhamacorp.com
-          PUBLIC_REALTIME_MODE: websocket
+          PUBLIC_MQTT_BROKER_URL: wss://mqtt.lhamacorp.com
+          PUBLIC_REALTIME_MODE: mqtt
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -57,6 +58,8 @@ jobs:
             --platform linux/amd64,linux/arm64 \
             --build-arg PUBLIC_CHAT_API_URL=https://chat-be.lhamacorp.com \
             --build-arg PUBLIC_AUTH_API_URL=https://auth.lhamacorp.com \
+            --build-arg PUBLIC_MQTT_BROKER_URL=wss://mqtt.lhamacorp.com \
+            --build-arg PUBLIC_REALTIME_MODE=mqtt \
             --build-arg GIT_COMMIT_ID=${{ steps.git-info.outputs.commit_id }} \
             -t lhamacorp/chat-client:latest . --push
 

@@ -3,6 +3,7 @@
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
 	import { webSocketService, websocketStore } from '$lib/stores/websocket';
+	import { mqttService } from '$lib/stores/mqtt';
 	import { fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage, toggleMessageFavorite, fetchFavoriteMessages, reactToMessage, fetchMultipleMessageReactions } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import ImageUpload from '$lib/components/ImageUpload.svelte';
@@ -72,6 +73,7 @@
 	let pendingUrl = $state<string | null>(null);
 
 	let websocketUnsubscribe: (() => void) | null = null;
+	let mqttUnsubscribe: (() => void) | null = null;
 	let isConnectingWebSocket = false;
 	let websocketError = $state<string | null>(null);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
@@ -139,9 +141,11 @@
 			loadFavoriteMessages();
 			startReactionPolling(); // Start polling reactions on initial load
 
-			// Use WebSocket or polling based on realtime mode
+			// Use WebSocket, MQTT, or polling based on realtime mode
 			if (realtimeMode === 'websocket') {
 				connectWebSocket();
+			} else if (realtimeMode === 'mqtt') {
+				connectMqtt();
 			} else {
 				startPolling();
 			}
@@ -150,6 +154,8 @@
 		return () => {
 			if (realtimeMode === 'websocket') {
 				disconnectWebSocket();
+			} else if (realtimeMode === 'mqtt') {
+				disconnectMqtt();
 			} else {
 				stopPolling();
 			}
@@ -358,6 +364,23 @@
 			websocketUnsubscribe = null;
 		}
 		webSocketService.disconnect();
+	}
+
+	async function connectMqtt() {
+		try {
+			await mqttService.connect();
+			mqttUnsubscribe = mqttService.subscribeToChat(chatId, handleWebSocketMessage);
+		} catch (error) {
+			console.error('Failed to connect MQTT:', error);
+		}
+	}
+
+	function disconnectMqtt() {
+		if (mqttUnsubscribe) {
+			mqttUnsubscribe();
+			mqttUnsubscribe = null;
+		}
+		mqttService.disconnect();
 	}
 
 	// Polling functions for REST mode

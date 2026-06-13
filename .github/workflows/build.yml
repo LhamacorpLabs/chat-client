@@ -26,4 +26,5 @@ jobs:
         env:
           PUBLIC_CHAT_API_URL: https://chat-be.lhamacorp.com
           PUBLIC_AUTH_API_URL: https://auth.lhamacorp.com
-          PUBLIC_REALTIME_MODE: websocket
+          PUBLIC_MQTT_BROKER_URL: wss://mqtt.lhamacorp.com
+          PUBLIC_REALTIME_MODE: mqtt
