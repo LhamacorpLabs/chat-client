@@ -470,11 +470,12 @@
 
 <style>
 	.chat-app {
-		min-height: 100vh;
-		min-height: 100dvh;
+		height: 100vh;
+		height: 100dvh;
 		background: var(--bg-primary);
 		display: flex;
 		flex-direction: column;
+		overflow: hidden;
 	}
 
 	/* Header */
@@ -640,6 +641,8 @@
 		margin: 0 auto;
 		width: 100%;
 		padding: 2rem 1.5rem;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	/* Footer */

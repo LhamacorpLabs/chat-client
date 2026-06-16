@@ -1091,13 +1091,18 @@
 			const page = document.querySelector('.chat-page') as HTMLElement;
 			if (!page) return;
 			page.style.height = `${viewport!.height}px`;
+			page.style.transform = `translateY(${viewport!.offsetTop}px)`;
 			if (shouldAutoScroll) {
 				scrollToBottom();
 			}
 		}
 
 		viewport.addEventListener('resize', handleViewportResize);
-		return () => viewport.removeEventListener('resize', handleViewportResize);
+		viewport.addEventListener('scroll', handleViewportResize);
+		return () => {
+			viewport.removeEventListener('resize', handleViewportResize);
+			viewport.removeEventListener('scroll', handleViewportResize);
+		};
 	});
 
 	$effect(() => {
@@ -1455,7 +1460,10 @@
 					bind:value={newMessage}
 					bind:this={messageInputElement}
 					onkeydown={handleKeyPress}
-					onfocus={() => { selectedMessageIndex = -1; }}
+					onfocus={() => {
+						selectedMessageIndex = -1;
+						setTimeout(() => scrollToBottom(), 300);
+					}}
 					placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
 					disabled={isSending || isUploadingImages}
 					class="message-input"
@@ -1686,6 +1694,7 @@
 		width: 100%;
 		position: relative;
 		-webkit-overflow-scrolling: touch;
+		overscroll-behavior: contain;
 	}
 
 	.loading-container,

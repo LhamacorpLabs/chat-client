@@ -121,12 +121,14 @@
 
 <style>
 	.login-page {
-		min-height: 100vh;
-		min-height: 100dvh;
+		height: 100vh;
+		height: 100dvh;
 		background: var(--bg-primary);
 		position: relative;
 		display: flex;
 		flex-direction: column;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.theme-toggle-container {
