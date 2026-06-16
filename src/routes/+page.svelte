@@ -526,8 +526,9 @@
 
 	.add-btn {
 		font-size: 1rem;
-		padding: 0.375rem 0.75rem;
-		font-weight: 500;
+		padding: 0.375rem 0.5rem;
+		font-weight: bold;
+		line-height: 1;
 	}
 
 	.actions-dropdown {
