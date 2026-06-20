@@ -16,9 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      commit_message: ${{ steps.version.outputs.commit_message }}
     steps:
       - id: version
-        run: echo "version=$(date -u +%-y).$(date -u +%-m).${{ github.run_number }}" >> $GITHUB_OUTPUT
+        run: |
+          echo "version=$(date -u +%-y).$(date -u +%-m).${{ github.run_number }}" >> $GITHUB_OUTPUT
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "commit_message<<$EOF" >> $GITHUB_OUTPUT
+          echo "${{ github.event.workflow_run.head_commit.message }}" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
 
   create-release:
     needs: version
@@ -33,7 +39,7 @@ jobs:
           gh release create "v${{ needs.version.outputs.version }}" \
             --repo ${{ github.repository }} \
             --title "Chat v${{ needs.version.outputs.version }}" \
-            --notes "Desktop client update" \
+            --notes "${{ needs.version.outputs.commit_message }}" \
             --draft
 
   tauri-release:
@@ -95,8 +101,8 @@ jobs:
         with:
           tagName: v${{ needs.version.outputs.version }}
           releaseName: "Chat v${{ needs.version.outputs.version }}"
-          releaseBody: "Desktop client update"
-          releaseDraft: false
+          releaseBody: "${{ needs.version.outputs.commit_message }}"
+          releaseDraft: true
           prerelease: false
           updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
