@@ -11,8 +11,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  tauri-release:
+  version:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        run: |
+          YEAR=$(date -u +%Y)
+          MONTHDAY=$(date -u +%-m%d)
+          HOUR=$(date -u +%-H)
+          MIN=$(date -u +%-M)
+          PATCH=$((HOUR * 100 + MIN))
+          echo "version=${YEAR}.${MONTHDAY}.${PATCH}" >> $GITHUB_OUTPUT
+
+  tauri-release:
+    needs: version
     permissions:
       contents: write
     strategy:
@@ -54,6 +69,9 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
+      - name: Set version
+        run: node -e "const f=require('fs');const c=JSON.parse(f.readFileSync('src-tauri/tauri.conf.json','utf8'));c.version='${{ needs.version.outputs.version }}';f.writeFileSync('src-tauri/tauri.conf.json',JSON.stringify(c,null,2));"
+
       - name: Build and release Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -65,9 +83,10 @@ jobs:
           PUBLIC_MQTT_BROKER_URL: wss://mqtt.lhamacorp.com
           PUBLIC_REALTIME_MODE: mqtt
         with:
-          tagName: v__VERSION__
-          releaseName: "Chat v__VERSION__"
-          releaseBody: "Desktop client update"
+          tagName: latest
+          releaseName: "Chat (latest)"
+          releaseBody: "Desktop client - always up to date"
           releaseDraft: false
           prerelease: false
+          updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
