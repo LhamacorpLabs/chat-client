@@ -1,4 +1,5 @@
 import { sveltekit } from '@sveltejs/kit/vite';
+import { svelteTesting } from '@testing-library/svelte/vite';
 import { defineConfig } from 'vite';
 import { execSync } from 'child_process';
 
@@ -19,9 +20,14 @@ function getGitCommitId(): string {
 }
 
 export default defineConfig({
-	plugins: [sveltekit()],
+	plugins: [sveltekit(), svelteTesting()],
 	define: {
 		__GIT_COMMIT_ID__: JSON.stringify(getGitCommitId()),
 		global: 'globalThis'
+	},
+	test: {
+		environment: 'jsdom',
+		setupFiles: ['./src/tests/setup.ts'],
+		globals: true
 	}
 });
