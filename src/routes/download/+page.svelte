@@ -102,6 +102,12 @@
 			</div>
 		{/if}
 
+		<details class="macos-note">
+			<summary>macOS: "App is damaged" fix</summary>
+			<p>If macOS says the app is damaged or can't be opened, run this in Terminal:</p>
+			<code>xattr -r -d com.apple.quarantine /Applications/Chat.app</code>
+		</details>
+
 		<a href="/" class="back-link">← Back to Chat</a>
 	</div>
 </div>
@@ -111,10 +117,10 @@
 		min-height: 100vh;
 		min-height: 100dvh;
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: center;
 		background: var(--bg-primary);
-		padding: 2rem;
+		padding: 4rem 2rem 2rem;
 	}
 
 	.download-container {
@@ -209,6 +215,32 @@
 
 	.download-button:hover {
 		opacity: 0.85;
+	}
+
+	.macos-note {
+		margin-top: 2rem;
+		text-align: left;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+
+	.macos-note summary {
+		cursor: pointer;
+		text-align: center;
+	}
+
+	.macos-note p {
+		margin: 0.5rem 0;
+	}
+
+	.macos-note code {
+		display: block;
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-color);
+		border-radius: 0.4rem;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.75rem;
+		word-break: break-all;
 	}
 
 	.back-link {
