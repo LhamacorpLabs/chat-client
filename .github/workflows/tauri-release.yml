@@ -20,8 +20,25 @@ jobs:
       - id: version
         run: echo "version=$(date -u +%-y).$(date -u +%-m).${{ github.run_number }}" >> $GITHUB_OUTPUT
 
-  tauri-release:
+  cleanup:
     needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete existing release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases/tags/latest --jq '.id' 2>/dev/null || echo "")
+          if [ -n "$RELEASE_ID" ]; then
+            gh api repos/${{ github.repository }}/releases/${RELEASE_ID}/assets --jq '.[].id' | while read ASSET_ID; do
+              gh api -X DELETE repos/${{ github.repository }}/releases/assets/${ASSET_ID}
+            done
+          fi
+
+  tauri-release:
+    needs: [version, cleanup]
     permissions:
       contents: write
     strategy:
