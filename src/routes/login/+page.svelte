@@ -31,11 +31,37 @@
 		}
 	}
 
+	let forgotMessage = $state('');
+	let forgotError = $state('');
+
+	async function handleForgotPassword() {
+		if (!username) {
+			forgotError = 'Enter your username first';
+			return;
+		}
+		forgotError = '';
+		forgotMessage = '';
+		try {
+			const res = await fetch(`https://auth.lhamacorp.com/api/forgot-password?username=${encodeURIComponent(username)}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				forgotMessage = 'Password reset instructions sent';
+			} else {
+				forgotError = 'Could not process request';
+			}
+		} catch {
+			forgotError = 'Connection error';
+		}
+	}
+
 	function toggleMode() {
 		isRegisterMode = !isRegisterMode;
 		username = '';
 		password = '';
 		email = '';
+		forgotMessage = '';
+		forgotError = '';
 	}
 </script>
 
@@ -84,6 +110,20 @@
 						autocomplete={isRegisterMode ? 'new-password' : 'current-password'}
 					/>
 				</div>
+
+				{#if !isRegisterMode}
+					<div class="forgot-password">
+						<button type="button" class="link-btn" onclick={handleForgotPassword}>Forgot password?</button>
+					</div>
+				{/if}
+
+				{#if forgotMessage}
+					<div class="login-success">{forgotMessage}</div>
+				{/if}
+
+				{#if forgotError}
+					<div class="login-error">{forgotError}</div>
+				{/if}
 
 				{#if $authStore.error}
 					<div class="login-error">{$authStore.error}</div>
@@ -146,19 +186,6 @@
 		object-fit: contain;
 	}
 
-	h1 {
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: var(--text-primary);
-		margin: 0 0 0.375rem;
-		letter-spacing: -0.03em;
-	}
-
-	.login-subtitle {
-		color: var(--text-muted);
-		font-size: 0.875rem;
-		margin: 0 0 2rem;
-	}
 
 	.login-form {
 		display: flex;
@@ -186,6 +213,21 @@
 
 	.form-group input::placeholder {
 		color: var(--text-muted);
+	}
+
+	.forgot-password {
+		text-align: right;
+		margin-top: -0.25rem;
+	}
+
+	.login-success {
+		font-size: 0.8125rem;
+		color: var(--success);
+		background: rgba(16, 185, 129, 0.06);
+		border: 1px solid rgba(16, 185, 129, 0.15);
+		border-radius: var(--radius-sm);
+		padding: 0.625rem 0.875rem;
+		text-align: left;
 	}
 
 	.login-error {
