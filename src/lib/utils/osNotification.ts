@@ -1,8 +1,8 @@
 /**
- * OS Notification utilities for new message alerts
+ * OS Notification utilities for new message alerts.
+ * Supports both browser Notification API and Tauri native notifications.
  */
 
-// Track active notifications to prevent memory leaks
 const activeNotifications = new Map<string, Notification>();
 
 interface NotificationOptions {
@@ -13,10 +13,21 @@ interface NotificationOptions {
 	chatId: string;
 }
 
-/**
- * Requests notification permission from the user
- */
+function isTauri(): boolean {
+	return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+}
+
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
+	if (isTauri()) {
+		const { isPermissionGranted, requestPermission } = await import('@tauri-apps/plugin-notification');
+		let permitted = await isPermissionGranted();
+		if (!permitted) {
+			const result = await requestPermission();
+			permitted = result === 'granted';
+		}
+		return permitted ? 'granted' : 'denied';
+	}
+
 	if (!('Notification' in window)) {
 		console.warn('This browser does not support notifications');
 		return 'denied';
@@ -29,37 +40,24 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 	return Notification.permission;
 }
 
-/**
- * Properly closes and cleans up a notification
- */
 function cleanupNotification(notificationTag: string) {
 	const notification = activeNotifications.get(notificationTag);
 	if (notification) {
-		// Clear event handlers to prevent memory leaks
 		notification.onclick = null;
 		notification.onclose = null;
 		notification.onerror = null;
-
-		// Close the notification if it's still open
 		notification.close();
-
-		// Remove from tracking
 		activeNotifications.delete(notificationTag);
 	}
 }
 
-/**
- * Shows an OS notification for a new message
- */
 export async function showMessageNotification(options: NotificationOptions): Promise<void> {
-	// Check permission (this will handle browser support check internally)
 	const permission = await requestNotificationPermission();
 	if (permission !== 'granted') {
 		console.warn('Notification permission denied');
 		return;
 	}
 
-	// Don't show notification if window is focused
 	if (!document.hidden && document.hasFocus()) {
 		return;
 	}
@@ -67,7 +65,12 @@ export async function showMessageNotification(options: NotificationOptions): Pro
 	try {
 		const notificationTag = options.tag || `chat-${options.chatId}`;
 
-		// Close any existing notification for this chat to prevent accumulation
+		if (isTauri()) {
+			const { sendNotification } = await import('@tauri-apps/plugin-notification');
+			sendNotification({ title: options.title, body: options.body });
+			return;
+		}
+
 		cleanupNotification(notificationTag);
 
 		const notification = new Notification(options.title, {
@@ -78,20 +81,16 @@ export async function showMessageNotification(options: NotificationOptions): Pro
 			silent: false
 		});
 
-		// Track the notification
 		activeNotifications.set(notificationTag, notification);
 
-		// Auto-close after 5 seconds with proper cleanup
 		const timeoutId = setTimeout(() => {
 			cleanupNotification(notificationTag);
 		}, 5000);
 
-		// Handle click to focus window and navigate to chat
 		notification.onclick = () => {
 			clearTimeout(timeoutId);
 			window.focus();
 
-			// Navigate to chat if not already there
 			const currentPath = window.location.pathname;
 			const chatPath = `/chat/${options.chatId}`;
 
@@ -102,13 +101,11 @@ export async function showMessageNotification(options: NotificationOptions): Pro
 			cleanupNotification(notificationTag);
 		};
 
-		// Handle close with proper cleanup
 		notification.onclose = () => {
 			clearTimeout(timeoutId);
 			activeNotifications.delete(notificationTag);
 		};
 
-		// Handle error with proper cleanup
 		notification.onerror = (error) => {
 			clearTimeout(timeoutId);
 			console.error('Notification error:', error);
@@ -120,35 +117,27 @@ export async function showMessageNotification(options: NotificationOptions): Pro
 	}
 }
 
-/**
- * Cleans up all active notifications (call on app shutdown)
- */
 export function cleanupAllNotifications(): void {
-	for (const [tag, notification] of activeNotifications.entries()) {
-		// Clear event handlers
+	for (const [, notification] of activeNotifications.entries()) {
 		notification.onclick = null;
 		notification.onclose = null;
 		notification.onerror = null;
-
-		// Close notification
 		notification.close();
 	}
-
-	// Clear the map
 	activeNotifications.clear();
 }
 
-/**
- * Checks if OS notifications are supported and permitted
- */
 export function canShowNotifications(): boolean {
+	if (isTauri()) {
+		return true;
+	}
 	return 'Notification' in window && Notification.permission === 'granted';
 }
 
-/**
- * Gets current notification permission status
- */
 export function getNotificationPermission(): NotificationPermission {
+	if (isTauri()) {
+		return 'granted';
+	}
 	if (!('Notification' in window)) {
 		return 'denied';
 	}
