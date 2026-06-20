@@ -4,6 +4,15 @@ import { playNotificationSound, isWindowFocused } from '../utils/notificationSou
 import { showMessageNotification } from '../utils/osNotification.js';
 import { chatMuteStore } from './chatMute.js';
 
+async function updateBadgeCount(unreadMessages: Record<string, boolean>) {
+	if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+	try {
+		const { getCurrentWindow } = await import('@tauri-apps/api/window');
+		const count = Object.values(unreadMessages).filter(Boolean).length;
+		await getCurrentWindow().setBadgeCount(count > 0 ? count : undefined);
+	} catch {}
+}
+
 interface ChatNotificationState {
 	// Map of chatId -> last known lastMessageAt timestamp
 	lastKnownTimestamps: Record<string, string | null>;
@@ -75,6 +84,7 @@ function createChatNotificationStore(): ChatNotificationStore {
 					}
 				};
 				saveToStorage(newState);
+				updateBadgeCount(newState.hasUnreadMessages);
 				return newState;
 			});
 		},
@@ -133,6 +143,7 @@ function createChatNotificationStore(): ChatNotificationStore {
 						hasUnreadMessages: newUnreadMessages
 					};
 					saveToStorage(newState);
+					updateBadgeCount(newState.hasUnreadMessages);
 					return newState;
 				}
 
@@ -157,6 +168,7 @@ function createChatNotificationStore(): ChatNotificationStore {
 					hasUnreadMessages: {}
 				};
 				saveToStorage(clearedState);
+				updateBadgeCount(clearedState.hasUnreadMessages);
 				return clearedState;
 			});
 		},
