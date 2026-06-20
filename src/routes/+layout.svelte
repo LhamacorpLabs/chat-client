@@ -21,7 +21,7 @@
 </script>
 
 <svelte:head>
-	<title>Lhama Chat</title>
+	<title>Chat</title>
 	<link rel="icon" href="/logo.png" />
 </svelte:head>
 
