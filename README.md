@@ -1,49 +1,37 @@
-# Lhama Chat Client
+# Lhama Chat
 
-A modern real-time chat application built with SvelteKit and TypeScript.
+[![Build and Release](https://github.com/LhamacorpLabs/chat-client/actions/workflows/buildAndRelease.yml/badge.svg)](https://github.com/LhamacorpLabs/chat-client/actions/workflows/buildAndRelease.yml)
+[![Tauri Release](https://github.com/LhamacorpLabs/chat-client/actions/workflows/tauri-release.yml/badge.svg)](https://github.com/LhamacorpLabs/chat-client/actions/workflows/tauri-release.yml)
 
-## Configuration
+Real-time chat app built with SvelteKit. Available as web app and native desktop client (macOS, Windows, Linux).
 
-Create a `.env` file in the root directory to configure the chat API endpoint:
+## Setup
 
 ```bash
 cp .env.example .env
-```
-
-Edit `.env` to set your API server URLs:
-
-```bash
-PUBLIC_CHAT_API_URL=http://localhost:8080
-PUBLIC_AUTH_API_URL=http://localhost:8080
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+npm install
 npm run dev
 ```
 
-## Building
+## Desktop Client (Tauri)
 
-To create a production version of your app:
-
-```sh
-npm run build
+```bash
+npm run tauri:dev     # dev with hot reload
+npm run tauri:build   # production build
 ```
 
-## Shortcuts
+## Scripts
 
-#### Main page
-- Arrow Up/Down: navigate between chats
-- Enter: enter selected chat
-- j key: join a chat
-- c key: create a chat
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server |
+| `npm run build` | Production build |
+| `npm test` | Run tests |
+| `npm run tauri:dev` | Desktop dev mode |
+| `npm run tauri:build` | Desktop production build |
 
-#### Chat
-- Ctrl + q: remove focus message input
-- Arrow Up/Down (when no focus): navigate between messages
-- Esc: leave chat
-- i key: focus message input
-- r key: reply to selected message
+## Keyboard Shortcuts
+
+**Main page:** `↑↓` navigate chats, `Enter` open, `c` create, `j` join
+
+**Chat:** `i` focus input, `r` reply, `↑↓` navigate messages, `Esc` leave, `Ctrl+q` unfocus input
