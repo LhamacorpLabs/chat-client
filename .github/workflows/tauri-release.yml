@@ -26,16 +26,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Delete existing release assets
+      - name: Delete existing release and tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases/tags/latest --jq '.id' 2>/dev/null || echo "")
-          if [ -n "$RELEASE_ID" ]; then
-            gh api repos/${{ github.repository }}/releases/${RELEASE_ID}/assets --jq '.[].id' | while read ASSET_ID; do
-              gh api -X DELETE repos/${{ github.repository }}/releases/assets/${ASSET_ID}
-            done
-          fi
+          gh release delete latest --repo ${{ github.repository }} --yes 2>/dev/null || true
+          gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/latest 2>/dev/null || true
 
   tauri-release:
     needs: [version, cleanup]
