@@ -3,7 +3,8 @@
 	import { loadAuth } from '$lib/stores/auth';
 	import { loadTheme } from '$lib/stores/theme';
 	import { checkAndRefreshIfNewDay } from '$lib/utils/dailyRefresh';
-	import { checkAndInstallUpdate } from '$lib/utils/updater';
+	import { startUpdateChecker } from '$lib/utils/updater';
+	import UpdateBanner from '$lib/components/UpdateBanner.svelte';
 
 	let { children } = $props();
 
@@ -14,7 +15,7 @@
 
 		loadTheme();
 		await loadAuth();
-		checkAndInstallUpdate();
+		startUpdateChecker();
 	});
 </script>
 
@@ -23,4 +24,5 @@
 	<link rel="icon" href="/logo.png" />
 </svelte:head>
 
+<UpdateBanner />
 {@render children()}
