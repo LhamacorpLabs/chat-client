@@ -22,6 +22,7 @@
 	let selectedChatIndex = $state(-1);
 	let backendVersion = $state('');
 	let frontendVersion = $state('');
+	let isTauri = $state(typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window);
 
 	$effect(() => {
 		if (!$authStore.token) {
@@ -459,6 +460,9 @@
 					{#if backendVersion} • {backendVersion}{/if}
 				</span>
 			{/if}
+			{#if !isTauri}
+				<a href="/download" class="download-link">• Download Client</a>
+			{/if}
 		</footer>
 	</div>
 {:else}
@@ -660,6 +664,17 @@
 	.version-info {
 		color: var(--text-muted);
 		font-size: 0.7rem;
+	}
+
+	.download-link {
+		color: var(--text-muted);
+		font-size: 0.7rem;
+		text-decoration: none;
+		margin-left: 0.25rem;
+	}
+
+	.download-link:hover {
+		color: var(--text-primary);
 	}
 
 	.chats-container {
