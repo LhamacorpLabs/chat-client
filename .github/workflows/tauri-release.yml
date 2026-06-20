@@ -20,21 +20,8 @@ jobs:
       - id: version
         run: echo "version=$(date -u +%-y).$(date -u +%-m).${{ github.run_number }}" >> $GITHUB_OUTPUT
 
-  cleanup:
-    needs: version
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Delete existing release and tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release delete latest --repo ${{ github.repository }} --yes 2>/dev/null || true
-          gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/latest 2>/dev/null || true
-
   tauri-release:
-    needs: [version, cleanup]
+    needs: version
     permissions:
       contents: write
     strategy:
@@ -90,10 +77,24 @@ jobs:
           PUBLIC_MQTT_BROKER_URL: wss://mqtt.lhamacorp.com
           PUBLIC_REALTIME_MODE: mqtt
         with:
-          tagName: latest
-          releaseName: "Chat (latest)"
-          releaseBody: "Desktop client - always up to date"
+          tagName: v${{ needs.version.outputs.version }}
+          releaseName: "Chat v${{ needs.version.outputs.version }}"
+          releaseBody: "Desktop client update"
           releaseDraft: false
           prerelease: false
           updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
+
+  cleanup:
+    needs: [version, tauri-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete old releases (keep last 3)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --repo ${{ github.repository }} --limit 100 --json tagName --jq '.[].tagName' | tail -n +4 | while read TAG; do
+            gh release delete "$TAG" --repo ${{ github.repository }} --yes --cleanup-tag
+          done

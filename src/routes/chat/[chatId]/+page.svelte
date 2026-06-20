@@ -983,9 +983,13 @@
 		inviteError = null;
 	}
 
+	let inviteCopied = $state(false);
+
 	function copyInviteCode() {
 		if (inviteCode) {
 			navigator.clipboard.writeText(inviteCode);
+			inviteCopied = true;
+			setTimeout(() => { inviteCopied = false; }, 2000);
 		}
 	}
 
@@ -1490,8 +1494,8 @@
 						<p>Share this invitation code with others to join the chat:</p>
 						<div class="invite-code-display">
 							<span class="invite-code">{inviteCode}</span>
-							<button onclick={copyInviteCode} class="btn btn-ghost copy-btn">
-								Copy
+							<button onclick={copyInviteCode} class="btn btn-ghost copy-btn" class:copied={inviteCopied}>
+								{inviteCopied ? 'Copied!' : 'Copy'}
 							</button>
 						</div>
 						<p class="invite-note">This code can be used once to join the chat.</p>
@@ -2598,6 +2602,11 @@
 		padding: 0.375rem 0.75rem;
 		font-size: 0.8125rem;
 		flex-shrink: 0;
+		transition: color 0.15s, background 0.15s;
+	}
+
+	.copy-btn.copied {
+		color: var(--success, #10b981);
 	}
 
 	.invite-note {
