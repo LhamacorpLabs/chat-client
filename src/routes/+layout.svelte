@@ -3,20 +3,18 @@
 	import { loadAuth } from '$lib/stores/auth';
 	import { loadTheme } from '$lib/stores/theme';
 	import { checkAndRefreshIfNewDay } from '$lib/utils/dailyRefresh';
+	import { checkAndInstallUpdate } from '$lib/utils/updater';
 
 	let { children } = $props();
 
 	onMount(async () => {
-		// Check if it's a new day and refresh if needed
-		// This must happen first, before any other initialization
 		if (checkAndRefreshIfNewDay()) {
-			return; // Refresh triggered, code won't execute after reload
+			return;
 		}
 
-		// Load theme first (for immediate visual feedback)
 		loadTheme();
-		// Then load auth data and check token
 		await loadAuth();
+		checkAndInstallUpdate();
 	});
 </script>
 
