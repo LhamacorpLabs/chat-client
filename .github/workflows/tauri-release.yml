@@ -20,8 +20,24 @@ jobs:
       - id: version
         run: echo "version=$(date -u +%-y).$(date -u +%-m).${{ github.run_number }}" >> $GITHUB_OUTPUT
 
-  tauri-release:
+  create-release:
     needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ needs.version.outputs.version }}" \
+            --repo ${{ github.repository }} \
+            --title "Chat v${{ needs.version.outputs.version }}" \
+            --notes "Desktop client update" \
+            --latest
+
+  tauri-release:
+    needs: [version, create-release]
     permissions:
       contents: write
     strategy:
