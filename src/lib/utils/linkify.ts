@@ -68,6 +68,8 @@ export function linkify(text: string, includePreviews = false): string | Linkify
         .replace(/(?<!\S):darkmoon:(?!\S)/g, '🌚')
         .replace(/(?<!\S):lightmoon:(?!\S)/g, '🌝')
         .replace(/(?<!\S):love:(?!\S)/g, '🧡')
+        .replace(/(?<!\S):sos:(?!\S)/g, '🆘')
+        .replace(/(?<!\S):alert:(?!\S)/g, '🚨')
     ;
 
     const previews: LinkPreview[] = [];
