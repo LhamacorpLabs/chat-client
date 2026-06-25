@@ -70,6 +70,7 @@ export function linkify(text: string, includePreviews = false): string | Linkify
         .replace(/(?<!\S):love:(?!\S)/g, '🧡')
         .replace(/(?<!\S):sos:(?!\S)/g, '🆘')
         .replace(/(?<!\S):alert:(?!\S)/g, '🚨')
+        .replace(/(?<!\S):party:(?!\S)/g, '🎉')
     ;
 
     const previews: LinkPreview[] = [];
