@@ -489,6 +489,13 @@
 		flex-shrink: 0;
 	}
 
+	:global([data-theme='dark']) .app-header {
+		background: var(--bg-glass);
+		backdrop-filter: blur(var(--glass-blur));
+		-webkit-backdrop-filter: blur(var(--glass-blur));
+		border-bottom-color: var(--glass-border);
+	}
+
 	.header-content {
 		max-width: 720px;
 		margin: 0 auto;
@@ -549,6 +556,13 @@
 		padding: 0.25rem;
 	}
 
+	:global([data-theme='dark']) .actions-dropdown {
+		background: var(--bg-secondary);
+		border-color: var(--glass-border);
+		backdrop-filter: blur(var(--glass-blur));
+		-webkit-backdrop-filter: blur(var(--glass-blur));
+	}
+
 	.actions-dropdown .dropdown-item {
 		display: block;
 		width: 100%;
@@ -594,6 +608,13 @@
 		z-index: 1000;
 		min-width: 180px;
 		padding: 0.25rem;
+	}
+
+	:global([data-theme='dark']) .user-dropdown {
+		background: var(--bg-secondary);
+		border-color: var(--glass-border);
+		backdrop-filter: blur(var(--glass-blur));
+		-webkit-backdrop-filter: blur(var(--glass-blur));
 	}
 
 	.user-dropdown .dropdown-item {
@@ -659,6 +680,11 @@
 		flex-shrink: 0;
 		color: var(--text-muted);
 		font-size: 0.7rem;
+	}
+
+	:global([data-theme='dark']) .app-footer {
+		background: transparent;
+		border-top-color: var(--glass-border);
 	}
 
 	.version-info {
@@ -736,8 +762,27 @@
 		align-items: center;
 		border: 1px solid var(--border-color);
 		border-radius: var(--radius-lg);
-		transition: all 0.15s ease;
+		transition: all 0.2s ease;
 		background: var(--bg-primary);
+	}
+
+	:global([data-theme='dark']) .chat-item {
+		background: var(--bg-glass);
+		border-color: var(--glass-border);
+		backdrop-filter: blur(var(--glass-blur));
+		-webkit-backdrop-filter: blur(var(--glass-blur));
+	}
+
+	:global([data-theme='dark']) .chat-item:hover {
+		background: var(--bg-glass-hover);
+		border-color: var(--accent);
+		box-shadow: 0 0 16px var(--accent-subtle), 0 4px 16px rgba(0, 0, 0, 0.3);
+	}
+
+	:global([data-theme='dark']) .chat-item.selected {
+		border-color: var(--accent);
+		background: var(--accent-subtle);
+		box-shadow: 0 0 20px var(--accent-subtle);
 	}
 
 	.chat-item.clickable {
@@ -778,6 +823,10 @@
 		background: var(--accent);
 		border-radius: 50%;
 		flex-shrink: 0;
+	}
+
+	:global([data-theme='dark']) .unread-indicator {
+		box-shadow: 0 0 8px rgba(129, 140, 248, 0.4);
 	}
 
 	.chat-meta {

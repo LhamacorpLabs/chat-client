@@ -1837,8 +1837,26 @@
 	}
 
 	:global([data-theme='dark']) .other-message {
-		background: var(--bg-secondary);
-		border-color: var(--border-color);
+		background: var(--bg-glass);
+		border-color: var(--glass-border);
+	}
+
+	:global([data-theme='dark']) .own-message {
+		background: rgba(99, 102, 241, 0.08);
+		color: var(--text-primary);
+		border: 1px solid rgba(99, 102, 241, 0.15);
+	}
+
+	:global([data-theme='dark']) .own-message .message-user {
+		color: #818cf8;
+	}
+
+	:global([data-theme='dark']) .own-message .message-time {
+		color: var(--text-muted);
+	}
+
+	:global([data-theme='dark']) .own-message .message-content {
+		color: var(--text-primary);
 	}
 
 	.message-header {
