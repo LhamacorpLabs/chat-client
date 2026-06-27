@@ -3,6 +3,7 @@ import { Client, type StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import type { Message } from '$lib/types/chat';
 import { PUBLIC_CHAT_API_URL } from '$env/static/public';
+import { getValidToken } from '$lib/stores/auth';
 
 const WS_BASE_URL = PUBLIC_CHAT_API_URL || 'http://localhost:8080';
 
@@ -51,7 +52,18 @@ class WebSocketService {
             const wsUrl = `${WS_BASE_URL}/ws?token=${encodeURIComponent(token)}`;
 
             this.client = new Client({
-                webSocketFactory: () => new SockJS(wsUrl),
+                webSocketFactory: () => {
+                    const currentWsUrl = `${WS_BASE_URL}/ws?token=${encodeURIComponent(this.currentToken!)}`;
+                    return new SockJS(currentWsUrl);
+                },
+                beforeConnect: async () => {
+                    const freshToken = await getValidToken();
+                    if (freshToken) {
+                        this.currentToken = freshToken;
+                    } else {
+                        this.client?.deactivate();
+                    }
+                },
                 reconnectDelay: 5000,
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,

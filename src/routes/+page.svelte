@@ -40,16 +40,22 @@
 		schedulePeriodicCleanup();
 	});
 
+	let chatsLoaded = $state(false);
+
 	$effect(() => {
 		const hasAuth = !!$authStore.token && !!$authStore.user;
 		if (hasAuth) {
-			untrack(async () => {
-				const token = await getValidToken();
-				if (token) {
-					await fetchChats(token, false);
-				}
-			});
+			if (!chatsLoaded) {
+				chatsLoaded = true;
+				untrack(async () => {
+					const token = await getValidToken();
+					if (token) {
+						await fetchChats(token, false);
+					}
+				});
+			}
 		} else {
+			chatsLoaded = false;
 			metadataPollingService.stop();
 			chatNotifications.clear();
 		}

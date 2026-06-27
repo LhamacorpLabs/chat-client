@@ -437,6 +437,11 @@
 				}
 			}
 		} catch (error) {
+			const errMsg = error instanceof Error ? error.message : '';
+			if (errMsg.includes('401') || errMsg.includes('403')) {
+				stopPolling();
+				return;
+			}
 			console.error('Failed to poll for new messages:', error);
 		}
 	}
@@ -670,6 +675,11 @@
 
 			messages = mergeMessagesWithPerMessageReactions(messages, reactionsByMessage, memberMapping);
 		} catch (error) {
+			const errMsg = error instanceof Error ? error.message : '';
+			if (errMsg.includes('401') || errMsg.includes('403')) {
+				stopReactionPolling();
+				return;
+			}
 			console.warn('Failed to refresh reactions:', error);
 		}
 	}

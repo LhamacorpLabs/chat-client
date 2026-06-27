@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { get } from 'svelte/store';
-import { authStore } from '$lib/stores/auth';
+import { authStore, checkAndRefreshToken } from '$lib/stores/auth';
 import { chatStore } from '$lib/stores/chat';
 import { fetchChats } from '$lib/api/chat';
 import type { PageLoad } from './$types';
@@ -37,11 +37,17 @@ export const load: PageLoad = async ({ params }) => {
 		throw redirect(302, '/login');
 	}
 
+	const tokenValid = await checkAndRefreshToken();
+	if (!tokenValid) {
+		throw redirect(302, '/login');
+	}
+	auth = get(authStore);
+
 	let chats = get(chatStore).chats;
 
 	if (chats.length === 0) {
 		try {
-			const chatsResponse = await fetchChats(auth.token);
+			const chatsResponse = await fetchChats(auth.token!);
 			chats = chatsResponse;
 
 			chatStore.update(state => ({

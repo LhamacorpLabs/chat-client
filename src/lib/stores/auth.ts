@@ -157,8 +157,24 @@ function getStoredAuthData(): AuthResponse | null {
 	}
 }
 
+// Prevent concurrent refresh attempts
+let refreshInProgress: Promise<boolean> | null = null;
+
 // Refresh token function
 export async function refreshToken(): Promise<boolean> {
+	if (refreshInProgress) {
+		return refreshInProgress;
+	}
+
+	refreshInProgress = doRefreshToken();
+	try {
+		return await refreshInProgress;
+	} finally {
+		refreshInProgress = null;
+	}
+}
+
+async function doRefreshToken(): Promise<boolean> {
 	const storedAuth = getStoredAuthData();
 	if (!storedAuth || !storedAuth.token) {
 		return false;
@@ -198,7 +214,14 @@ export async function checkAndRefreshToken(): Promise<boolean> {
 		return false;
 	}
 
-	if (isTokenExpiringSoon(storedAuth.expirationDate, 1440)) {
+	const now = new Date().getTime();
+	const expiry = new Date(storedAuth.expirationDate).getTime();
+	if (expiry <= now) {
+		logout();
+		return false;
+	}
+
+	if (isTokenExpiringSoon(storedAuth.expirationDate, 2880)) {
 		return await refreshToken();
 	}
 

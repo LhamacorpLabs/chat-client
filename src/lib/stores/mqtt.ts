@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import mqtt, { type MqttClient } from 'mqtt';
 import type { Message } from '$lib/types/chat';
 import { PUBLIC_MQTT_BROKER_URL } from '$env/static/public';
+import { getValidToken } from '$lib/stores/auth';
 
 const MQTT_BROKER_URL = PUBLIC_MQTT_BROKER_URL || 'ws://localhost:9001';
 
@@ -52,8 +53,15 @@ class MqttService {
                 mqttStore.update(state => ({ ...state, connected: false }));
             });
 
-            this.client.on('reconnect', () => {
+            this.client.on('reconnect', async () => {
                 mqttStore.update(state => ({ ...state, connecting: true }));
+                const freshToken = await getValidToken();
+                if (freshToken && this.client) {
+                    this.client.options.username = freshToken;
+                    this.client.options.password = freshToken;
+                } else {
+                    this.disconnect();
+                }
             });
 
             this.client.on('message', (topic, payload) => {
