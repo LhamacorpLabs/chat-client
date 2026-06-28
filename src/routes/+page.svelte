@@ -463,7 +463,6 @@
 			{#if appVersion || backendVersion}
 				<span class="version-info">
 					{#if appVersion} • v{appVersion}{/if}
-					{#if backendVersion} • {backendVersion}{/if}
 				</span>
 			{/if}
 			{#if !isTauri}
