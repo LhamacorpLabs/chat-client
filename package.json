@@ -35,7 +35,7 @@
 		"@typescript-eslint/eslint-plugin": "^8.62.0",
 		"@typescript-eslint/parser": "^8.53.0",
 		"eslint": "^10.6.0",
-		"jsdom": "^28.1.0",
+		"jsdom": "^29.1.1",
 		"prettier": "^3.8.5",
 		"svelte": "^5.56.4",
 		"svelte-check": "^4.7.1",
