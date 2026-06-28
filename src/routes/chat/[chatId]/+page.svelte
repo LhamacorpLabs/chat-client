@@ -27,6 +27,9 @@
 	import { chatMuteStore } from '$lib/stores/chatMute';
 	import { hasReply, formatReplyMessage } from '$lib/utils/replyMessages';
 	import ReplyPreview from '$lib/components/ReplyPreview.svelte';
+	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
+	import EmojiAutocomplete from '$lib/components/EmojiAutocomplete.svelte';
+	import { searchEmojis } from '$lib/utils/emojis';
 	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
 	import { mergeMessagesWithPerMessageReactions, getUserReactionForMessage } from '$lib/utils/reactionUtils';
 	import type { ReactionSummary } from '$lib/types/chat';
@@ -71,6 +74,11 @@
 
 	let showLinkConfirmation = $state(false);
 	let pendingUrl = $state<string | null>(null);
+
+	let showEmojiPicker = $state(false);
+	let emojiQuery = $state('');
+	let emojiAutocompleteIndex = $state(0);
+	let showEmojiAutocomplete = $state(false);
 
 	let websocketUnsubscribe: (() => void) | null = null;
 	let mqttUnsubscribe: (() => void) | null = null;
@@ -887,6 +895,32 @@
 	}
 
 	function handleKeyPress(e: KeyboardEvent) {
+		if (showEmojiAutocomplete) {
+			const results = searchEmojis(emojiQuery);
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				emojiAutocompleteIndex = Math.min(emojiAutocompleteIndex + 1, results.length - 1);
+				return;
+			}
+			if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				emojiAutocompleteIndex = Math.max(emojiAutocompleteIndex - 1, 0);
+				return;
+			}
+			if (e.key === 'Enter' || e.key === 'Tab') {
+				if (results.length > 0) {
+					e.preventDefault();
+					insertEmojiFromAutocomplete(results[emojiAutocompleteIndex].code);
+					return;
+				}
+			}
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				showEmojiAutocomplete = false;
+				return;
+			}
+		}
+
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			handleSendMessage();
@@ -900,6 +934,82 @@
 			messageInputElement?.blur();
 		}
 	}
+
+	function handleMessageInput() {
+		if (!messageInputElement) return;
+		const value = messageInputElement.value;
+		const cursorPos = messageInputElement.selectionStart || 0;
+		const textBeforeCursor = value.slice(0, cursorPos);
+
+		const colonMatch = textBeforeCursor.match(/:([a-zA-Z]{1,})$/);
+		if (colonMatch) {
+			emojiQuery = colonMatch[0];
+			const results = searchEmojis(emojiQuery);
+			showEmojiAutocomplete = results.length > 0;
+			emojiAutocompleteIndex = 0;
+		} else {
+			showEmojiAutocomplete = false;
+		}
+	}
+
+	function insertEmojiFromAutocomplete(code: string) {
+		if (!messageInputElement) return;
+		const value = messageInputElement.value;
+		const cursorPos = messageInputElement.selectionStart || 0;
+		const textBeforeCursor = value.slice(0, cursorPos);
+
+		const colonMatch = textBeforeCursor.match(/:([a-zA-Z]*)$/);
+		if (colonMatch) {
+			const start = cursorPos - colonMatch[0].length;
+			const after = value.slice(cursorPos);
+			newMessage = value.slice(0, start) + code + ' ' + after;
+			showEmojiAutocomplete = false;
+
+			setTimeout(() => {
+				if (messageInputElement) {
+					const newPos = start + code.length + 1;
+					messageInputElement.selectionStart = newPos;
+					messageInputElement.selectionEnd = newPos;
+					messageInputElement.focus();
+				}
+			}, 0);
+		}
+	}
+
+	function insertEmojiFromPicker(code: string) {
+		if (!messageInputElement) {
+			newMessage += code;
+			return;
+		}
+		const cursorPos = messageInputElement.selectionStart || newMessage.length;
+		const before = newMessage.slice(0, cursorPos);
+		const after = newMessage.slice(cursorPos);
+		newMessage = before + code + ' ' + after;
+		showEmojiPicker = false;
+
+		setTimeout(() => {
+			if (messageInputElement) {
+				const newPos = cursorPos + code.length + 1;
+				messageInputElement.selectionStart = newPos;
+				messageInputElement.selectionEnd = newPos;
+				messageInputElement.focus();
+			}
+		}, 0);
+	}
+
+	$effect(() => {
+		if (!showEmojiPicker) return;
+
+		function handleEmojiPickerOutsideClick(event: MouseEvent) {
+			const target = event.target as Element;
+			if (!target.closest('.emoji-picker') && !target.closest('.emoji-btn')) {
+				showEmojiPicker = false;
+			}
+		}
+
+		document.addEventListener('click', handleEmojiPickerOutsideClick);
+		return () => document.removeEventListener('click', handleEmojiPickerOutsideClick);
+	});
 
 	async function handleDeleteMessage(messageId: string) {
 		const token = $authStore.token;
@@ -1474,19 +1584,44 @@
 				>
 					+
 				</button>
-				<textarea
-					rows="1"
-					bind:value={newMessage}
-					bind:this={messageInputElement}
-					onkeydown={handleKeyPress}
-					onfocus={() => {
-						selectedMessageIndex = -1;
-						setTimeout(() => scrollToBottom(), 300);
-					}}
-					placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
+				<div class="textarea-wrapper">
+					{#if showEmojiAutocomplete}
+						<EmojiAutocomplete
+							query={emojiQuery}
+							onSelect={insertEmojiFromAutocomplete}
+							selectedIndex={emojiAutocompleteIndex}
+						/>
+					{/if}
+					{#if showEmojiPicker}
+						<EmojiPicker
+							onSelect={insertEmojiFromPicker}
+							onClose={() => showEmojiPicker = false}
+						/>
+					{/if}
+					<textarea
+						rows="1"
+						bind:value={newMessage}
+						bind:this={messageInputElement}
+						onkeydown={handleKeyPress}
+						oninput={handleMessageInput}
+						onfocus={() => {
+							selectedMessageIndex = -1;
+							setTimeout(() => scrollToBottom(), 300);
+						}}
+						placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
+						disabled={isSending || isUploadingImages}
+						class="message-input"
+					></textarea>
+				</div>
+				<button
+					type="button"
+					class="btn btn-secondary emoji-btn"
+					onclick={() => showEmojiPicker = !showEmojiPicker}
 					disabled={isSending || isUploadingImages}
-					class="message-input"
-				></textarea>
+					title="Emojis"
+				>
+					☺
+				</button>
 				<button
 					type="submit"
 					class="btn btn-primary"
@@ -2185,6 +2320,37 @@
 		cursor: not-allowed;
 	}
 
+	.emoji-btn {
+		flex-shrink: 0;
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 16px;
+		padding: 0;
+		background: var(--bg-secondary);
+		border: 1.5px solid var(--border-color);
+		color: var(--text-secondary);
+		transition: all 0.15s ease;
+		box-sizing: border-box;
+	}
+
+	.emoji-btn:hover:not(:disabled) {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.emoji-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.textarea-wrapper {
+		position: relative;
+		flex: 1;
+	}
 
 	.message-gifs {
 		display: flex;
@@ -2194,7 +2360,7 @@
 	}
 
 	.message-input {
-		flex: 1;
+		width: 100%;
 		padding: 0.5rem 0.875rem;
 		border-radius: var(--radius-md);
 		border: 1.5px solid var(--border-color);
@@ -2426,7 +2592,8 @@
 			padding: 0.625rem;
 		}
 
-		.image-btn {
+		.image-btn,
+		.emoji-btn {
 			width: 36px;
 			height: 36px;
 			font-size: 13px;
