@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { authStore } from '$lib/stores/auth';
+	import { authStore, refreshToken } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import type { AuthResponse, User } from '$lib/types/auth';
 
-	onMount(() => {
+	onMount(async () => {
 		const hash = new URLSearchParams(window.location.hash.slice(1));
 		const token = hash.get('token');
 		const username = hash.get('username');
@@ -37,6 +37,10 @@
 			});
 
 			window.location.hash = '';
+
+			// Refresh to get full profile (id, email, roles)
+			await refreshToken();
+
 			goto('/');
 		} else {
 			goto('/login');

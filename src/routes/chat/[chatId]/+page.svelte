@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/stores/auth';
+	import { authStore, getValidToken } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
 	import { webSocketService, websocketStore } from '$lib/stores/websocket';
 	import { mqttService } from '$lib/stores/mqtt';
@@ -1054,7 +1054,7 @@
 	}
 
 	async function handleLeaveChat() {
-		const token = $authStore.token;
+		const token = await getValidToken();
 		const userId = $authStore.user?.id;
 		if (!token || !userId) return;
 
@@ -1076,9 +1076,14 @@
 		showLinkConfirmation = true;
 	}
 
-	function confirmAndOpenLink() {
+	async function confirmAndOpenLink() {
 		if (pendingUrl) {
-			window.open(pendingUrl, '_blank', 'noopener,noreferrer');
+			if ('__TAURI_INTERNALS__' in window) {
+				const { openUrl } = await import('@tauri-apps/plugin-opener');
+				await openUrl(pendingUrl);
+			} else {
+				window.open(pendingUrl, '_blank', 'noopener,noreferrer');
+			}
 		}
 		closeLinkConfirmation();
 	}
