@@ -1,10 +1,3 @@
-// Simple authentication types
-export interface AuthRequest {
-	username: string;
-	password: string;
-	email?: string; // Optional for registration
-}
-
 export interface AuthResponse {
 	email: string;
 	expirationDate: string;

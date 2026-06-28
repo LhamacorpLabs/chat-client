@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/svelte';
+import { render } from '@testing-library/svelte';
+
+const mockGoto = vi.fn();
+
+vi.mock('$app/navigation', () => ({
+	goto: (...args: any[]) => mockGoto(...args)
+}));
+
+vi.mock('$lib/utils/authRedirect', () => ({
+	redirectToLogin: vi.fn()
+}));
 
 const subscribers = new Set<(value: any) => void>();
 let authState = { token: null, user: null, isLoading: false, error: null };
@@ -15,86 +25,29 @@ function setAuth(value: any) {
 	subscribers.forEach(fn => fn(authState));
 }
 
-vi.mock('$app/navigation', () => ({
-	goto: vi.fn()
-}));
-
 vi.mock('$lib/stores/auth', () => ({
-	authStore: { subscribe },
-	login: vi.fn(),
-	register: vi.fn()
+	authStore: { subscribe }
 }));
 
 import LoginPage from '../routes/login/+page.svelte';
+import { redirectToLogin } from '$lib/utils/authRedirect';
 
 beforeEach(() => {
+	vi.clearAllMocks();
 	setAuth({ token: null, user: null, isLoading: false, error: null });
+	localStorage.clear();
 });
 
 describe('Login Page', () => {
-	it('renders login form by default', () => {
+	it('redirects to auth-ui when not authenticated', () => {
 		render(LoginPage);
-		expect(screen.getByPlaceholderText('Username')).toBeInTheDocument();
-		expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
-		expect(screen.getByText('Sign In')).toBeInTheDocument();
+		expect(redirectToLogin).toHaveBeenCalled();
 	});
 
-	it('does not show email field in login mode', () => {
+	it('redirects to home when already authenticated', () => {
+		localStorage.setItem('auth_data', JSON.stringify({ token: 'test' }));
+		setAuth({ token: 'test-token', user: { username: 'test' }, isLoading: false, error: null });
 		render(LoginPage);
-		expect(screen.queryByPlaceholderText('Email (optional)')).not.toBeInTheDocument();
-	});
-
-	it('switches to register mode', async () => {
-		render(LoginPage);
-		const signUpBtn = screen.getByText('Sign up');
-		await fireEvent.click(signUpBtn);
-
-		expect(screen.getByText('Create Account')).toBeInTheDocument();
-		expect(screen.getByPlaceholderText('Email (optional)')).toBeInTheDocument();
-	});
-
-	it('switches back to login mode', async () => {
-		render(LoginPage);
-		await fireEvent.click(screen.getByText('Sign up'));
-		await fireEvent.click(screen.getByText('Sign in'));
-
-		expect(screen.getByText('Sign In')).toBeInTheDocument();
-		expect(screen.queryByPlaceholderText('Email (optional)')).not.toBeInTheDocument();
-	});
-
-	it('shows forgot password button in login mode', () => {
-		render(LoginPage);
-		expect(screen.getByText('Forgot password?')).toBeInTheDocument();
-	});
-
-	it('hides forgot password in register mode', async () => {
-		render(LoginPage);
-		await fireEvent.click(screen.getByText('Sign up'));
-		expect(screen.queryByText('Forgot password?')).not.toBeInTheDocument();
-	});
-
-	it('shows error when forgot password clicked without username', async () => {
-		render(LoginPage);
-		await fireEvent.click(screen.getByText('Forgot password?'));
-		expect(screen.getByText('Enter your username first')).toBeInTheDocument();
-	});
-
-	it('clears fields when toggling modes', async () => {
-		render(LoginPage);
-		const usernameInput = screen.getByPlaceholderText('Username') as HTMLInputElement;
-		const passwordInput = screen.getByPlaceholderText('Password') as HTMLInputElement;
-
-		await fireEvent.input(usernameInput, { target: { value: 'testuser' } });
-		await fireEvent.input(passwordInput, { target: { value: 'testpass' } });
-		await fireEvent.click(screen.getByText('Sign up'));
-
-		expect((screen.getByPlaceholderText('Username') as HTMLInputElement).value).toBe('');
-		expect((screen.getByPlaceholderText('Password') as HTMLInputElement).value).toBe('');
-	});
-
-	it('renders logo', () => {
-		render(LoginPage);
-		const logo = screen.getByAltText('Logo');
-		expect(logo).toHaveAttribute('src', '/logo.png');
+		expect(mockGoto).toHaveBeenCalledWith('/');
 	});
 });
