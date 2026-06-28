@@ -185,6 +185,7 @@ jobs:
           PUBLIC_AUTH_UI_URL: https://login.lhamacorp.com
           PUBLIC_MQTT_BROKER_URL: wss://mqtt.lhamacorp.com
           PUBLIC_REALTIME_MODE: mqtt
+          APP_VERSION: ${{ needs.version.outputs.version }}
         with:
           tagName: v${{ needs.version.outputs.version }}
           releaseName: "Chat v${{ needs.version.outputs.version }}"
