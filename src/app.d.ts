@@ -10,7 +10,7 @@ declare global {
 	}
 
 	// Vite injected variables
-	const __GIT_COMMIT_ID__: string;
+	const __APP_VERSION__: string;
 }
 
 export {};

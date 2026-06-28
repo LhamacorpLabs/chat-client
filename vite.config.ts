@@ -3,14 +3,11 @@ import { svelteTesting } from '@testing-library/svelte/vite';
 import { defineConfig } from 'vite';
 import { execSync } from 'child_process';
 
-// Get git commit ID at build time
-function getGitCommitId(): string {
-	// First, try to use environment variable (set in Docker build)
-	if (process.env.GIT_COMMIT_ID && process.env.GIT_COMMIT_ID !== 'unknown') {
-		return process.env.GIT_COMMIT_ID;
+function getAppVersion(): string {
+	if (process.env.APP_VERSION) {
+		return process.env.APP_VERSION;
 	}
 
-	// Fallback to git command (for local development)
 	try {
 		return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
 	} catch (error) {
@@ -22,7 +19,7 @@ function getGitCommitId(): string {
 export default defineConfig({
 	plugins: [sveltekit(), svelteTesting()],
 	define: {
-		__GIT_COMMIT_ID__: JSON.stringify(getGitCommitId()),
+		__APP_VERSION__: JSON.stringify(getAppVersion()),
 		global: 'globalThis'
 	},
 	test: {

@@ -88,9 +88,11 @@
 					<span class="loading-text">Loading GIF...</span>
 				</div>
 			{/if}
-			<div class="gif-overlay">
-				<div class="gif-indicator">GIF</div>
-			</div>
+			{#if gif.isGif}
+				<div class="gif-overlay">
+					<div class="gif-indicator">GIF</div>
+				</div>
+			{/if}
 		</button>
 	{/if}
 </div>

@@ -20,6 +20,7 @@ function cleanupCache() {
 export interface GifLink {
 	url: string;
 	id: string;
+	isGif: boolean;
 }
 
 export interface LinkifyResult {
@@ -80,16 +81,18 @@ export function linkify(text: string, includePreviews = false): string | Linkify
         try {
             new URL(url);
 
-            // Check if this is a GIF URL (create new regex instances to avoid global flag issues)
-            const gifUrlTest = /https:\/\/[^\s<>"'`]*\.(gif)(\?[^\s<>"'`]*)?/i.test(url);
+            // Check if this is a GIF/image URL (create new regex instances to avoid global flag issues)
+            const gifUrlTest = /https:\/\/[^\s<>"'`]*\.gif(\?[^\s<>"'`]*)?/i.test(url);
             const gifDomainTest = /https:\/\/(media[0-9]*\.)?(giphy\.com|tenor\.com|gfycat\.com|imgur\.com)/i.test(url);
-            const isGifUrl = gifUrlTest || gifDomainTest;
+            const lhamaImageTest = /https:\/\/(img|i)\.(lhama\.io|lhamacorp\.com)\//i.test(url);
+            const isGifUrl = gifUrlTest || gifDomainTest || lhamaImageTest;
 
             if (includePreviews && isGifUrl) {
-                // Add to GIF collection
+                const contentUrl = lhamaImageTest ? url.replace(/\/?$/, '/content') : url;
                 gifs.push({
-                    url: url,
-                    id: `gif_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`
+                    url: contentUrl,
+                    id: `gif_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`,
+                    isGif: gifUrlTest || gifDomainTest
                 });
 
                 // Hide the URL text - the GIF will be displayed by the MessageGif component

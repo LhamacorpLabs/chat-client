@@ -21,7 +21,7 @@
 	let joinError = $state<string | null>(null);
 	let selectedChatIndex = $state(-1);
 	let backendVersion = $state('');
-	let frontendVersion = $state('');
+	let appVersion = $state('');
 	let isTauri = $state(typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window);
 
 	$effect(() => {
@@ -34,7 +34,7 @@
 	$effect(() => {
 		chatNotifications.initialize();
 		fetchBackendVersion();
-		initializeFrontendVersion();
+		initializeAppVersion();
 
 		// Schedule periodic localStorage cleanup
 		schedulePeriodicCleanup();
@@ -177,11 +177,11 @@
 		}
 	}
 
-	function initializeFrontendVersion() {
+	function initializeAppVersion() {
 		try {
-			frontendVersion = `fe:${__GIT_COMMIT_ID__}`;
+			appVersion = __APP_VERSION__;
 		} catch (error) {
-			console.error('Failed to get frontend version:', error);
+			console.error('Failed to get app version:', error);
 		}
 	}
 
@@ -460,9 +460,9 @@
 
 		<footer class="app-footer">
 			©<span id="year"></span> Lhamacorp <script> document.getElementById('year').textContent = new Date().getFullYear(); </script>
-			{#if frontendVersion || backendVersion}
+			{#if appVersion || backendVersion}
 				<span class="version-info">
-					{#if frontendVersion} • {frontendVersion}{/if}
+					{#if appVersion} • v{appVersion}{/if}
 					{#if backendVersion} • {backendVersion}{/if}
 				</span>
 			{/if}
