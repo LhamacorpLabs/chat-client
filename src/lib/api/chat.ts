@@ -1,8 +1,17 @@
 import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment, FavoriteMessagesResponse, MessageReaction } from '../types/chat';
 import { PUBLIC_CHAT_API_URL } from '$env/static/public';
+import { logout } from '../stores/auth';
+import { redirectToLogin } from '../utils/authRedirect';
 
 const CHAT_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/chats`;
 const IMAGE_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/images`;
+
+function handleUnauthorized(response: Response): void {
+	if (response.status === 401) {
+		logout();
+		redirectToLogin();
+	}
+}
 
 export async function fetchChats(token: string): Promise<ChatsResponse> {
 	const response = await fetch(CHAT_API_URL, {
@@ -13,6 +22,7 @@ export async function fetchChats(token: string): Promise<ChatsResponse> {
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to fetch chats: ${response.status}`);
 	}
 
@@ -28,6 +38,7 @@ export async function fetchChatMetadata(token: string, chatId: string): Promise<
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to fetch chat metadata: ${response.status}`);
 	}
 
@@ -45,6 +56,7 @@ export async function createChat(token: string, chatData: CreateChatRequest): Pr
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to create chat: ${response.status}`);
 	}
 
@@ -85,6 +97,7 @@ export async function fetchMessagesPaginated(
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to fetch paginated messages: ${response.status}`);
 	}
 
@@ -102,6 +115,7 @@ export async function sendMessage(token: string, chatId: string, messageData: Se
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to send message: ${response.status}`);
 	}
 
@@ -117,6 +131,7 @@ export async function createInvitation(token: string, chatId: string): Promise<I
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to create invitation: ${response.status}`);
 	}
 
@@ -132,6 +147,7 @@ export async function fetchInvitations(token: string, chatId: string): Promise<I
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to fetch invitations: ${response.status}`);
 	}
 
@@ -149,6 +165,7 @@ export async function redeemInvitation(token: string, invitationData: RedeemInvi
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to redeem invitation: ${response.status}`);
 	}
 
@@ -164,6 +181,7 @@ export async function deleteMessage(token: string, chatId: string, messageId: st
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to delete message: ${response.status}`);
 	}
 }
@@ -177,6 +195,7 @@ export async function toggleMessageFavorite(token: string, chatId: string, messa
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to toggle message favorite: ${response.status}`);
 	}
 }
@@ -194,6 +213,7 @@ export async function reactToMessage(token: string, chatId: string, messageId: s
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to react to message: ${response.status}`);
 	}
 }
@@ -207,6 +227,7 @@ export async function fetchMessageReactions(token: string, chatId: string, messa
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to fetch message reactions: ${response.status}`);
 	}
 
@@ -245,6 +266,7 @@ export async function fetchFavoriteMessages(token: string, chatId: string): Prom
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to fetch favorite messages: ${response.status}`);
 	}
 
@@ -260,6 +282,7 @@ export async function deleteChat(token: string, chatId: string): Promise<void> {
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to delete chat: ${response.status}`);
 	}
 }
@@ -273,6 +296,7 @@ export async function leaveChat(token: string, chatId: string, userId: string): 
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to leave chat: ${response.status}`);
 	}
 }
@@ -298,6 +322,7 @@ export async function uploadImage(token: string, file: File): Promise<ImageAttac
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		if (response.status === 413) {
 			throw new Error(`Failed to upload image: 413`);
 		}
@@ -322,6 +347,7 @@ export async function getImage(token: string, imageId: string): Promise<ImageAtt
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to get image: ${response.status}`);
 	}
 
@@ -359,6 +385,7 @@ export async function sendMessageWithImages(
 	});
 
 	if (!response.ok) {
+		handleUnauthorized(response);
 		throw new Error(`Failed to send message with images: ${response.status}`);
 	}
 
