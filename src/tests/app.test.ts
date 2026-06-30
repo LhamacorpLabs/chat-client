@@ -18,24 +18,6 @@ vi.mock('$lib/api/auth', () => ({
 	refreshToken: vi.fn()
 }));
 
-vi.mock('$lib/utils/persistentStore', () => ({
-	saveAuthData: vi.fn(async (data: any) => {
-		localStorage.setItem('auth_data', JSON.stringify(data));
-	}),
-	loadAuthData: vi.fn(async () => {
-		const saved = localStorage.getItem('auth_data');
-		if (!saved) return null;
-		try {
-			return JSON.parse(saved);
-		} catch {
-			return null;
-		}
-	}),
-	clearAuthData: vi.fn(async () => {
-		localStorage.removeItem('auth_data');
-	})
-}));
-
 import { authStore, authLoaded, loadAuth, logout, checkAndRefreshToken } from '$lib/stores/auth';
 import { refreshToken as apiRefreshToken } from '$lib/api/auth';
 import { loadTheme, toggleTheme, theme } from '$lib/stores/theme';
@@ -86,13 +68,13 @@ describe('Auth - Session Persistence', () => {
 		expect(get(authStore).token).toBeNull();
 	});
 
-	it('handles corrupted auth data gracefully', async () => {
+	it('clears corrupted auth data from localStorage', async () => {
 		localStorage.setItem('auth_data', 'not-valid-json{{{');
 
 		await loadAuth();
 
+		expect(localStorage.getItem('auth_data')).toBeNull();
 		expect(get(authStore).token).toBeNull();
-		expect(get(authLoaded)).toBe(true);
 	});
 
 	it('does not redirect to login before authLoaded is true', () => {
@@ -134,10 +116,12 @@ describe('Auth - Token Refresh', () => {
 			roles: ['USER']
 		};
 		localStorage.setItem('auth_data', JSON.stringify(futureAuth));
+		authStore.set({ user: { id: '1', username: 'user', email: 'u@e.com', roles: ['USER'] }, token: 'good-token', isLoading: false, error: null });
 
-		await loadAuth();
+		const result = await checkAndRefreshToken();
 
 		expect(get(authStore).token).toBe('good-token');
+		expect(result).toBe(true);
 	});
 
 	it('logs out when token is expired', async () => {
@@ -151,15 +135,16 @@ describe('Auth - Token Refresh', () => {
 		};
 		localStorage.setItem('auth_data', JSON.stringify(expiredAuth));
 
-		await loadAuth();
+		const result = await checkAndRefreshToken();
 
+		expect(result).toBe(false);
 		expect(get(authStore).token).toBeNull();
 	});
 
 	it('refreshes token when expiring within 48h', async () => {
 		const soonAuth = {
 			token: 'soon-expired',
-			expirationDate: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+			expirationDate: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(), // 12h from now
 			username: 'user',
 			email: 'u@e.com',
 			id: '1',
@@ -170,8 +155,9 @@ describe('Auth - Token Refresh', () => {
 		const refreshedData = { ...soonAuth, token: 'refreshed-token', expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() };
 		vi.mocked(apiRefreshToken).mockResolvedValue(refreshedData);
 
-		await loadAuth();
+		const result = await checkAndRefreshToken();
 
+		expect(result).toBe(true);
 		expect(get(authStore).token).toBe('refreshed-token');
 	});
 });

@@ -1,7 +1,6 @@
-import { writable, derived, get } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import type { AuthResponse, User } from '../types/auth';
 import { refreshToken as apiRefreshToken } from '../api/auth';
-import { saveAuthData, loadAuthData, clearAuthData } from '../utils/persistentStore';
 
 interface AuthState {
 	user: User | null;
@@ -23,42 +22,60 @@ export const authLoaded = writable(false);
 
 export const isAuthenticated = derived(authStore, $auth => !!$auth.token);
 
-function userFromAuthResponse(data: AuthResponse): User {
-	return {
-		id: data.id,
-		username: data.username,
-		email: data.email,
-		roles: data.roles
-	};
-}
-
-let currentAuthData: AuthResponse | null = null;
-
 export async function loadAuth() {
-	try {
-		const authData = await loadAuthData();
-		if (authData) {
-			currentAuthData = authData;
-			authStore.set({
-				user: userFromAuthResponse(authData),
-				token: authData.token,
-				isLoading: false,
-				error: null
-			});
+	if (typeof localStorage !== 'undefined') {
+		const saved = localStorage.getItem('auth_data');
+		if (saved) {
+			try {
+				const authData: AuthResponse = JSON.parse(saved);
+				const user: User = {
+					id: authData.id,
+					username: authData.username,
+					email: authData.email,
+					roles: authData.roles
+				};
+				authStore.set({
+					user,
+					token: authData.token,
+					isLoading: false,
+					error: null
+				});
 
-			await checkAndRefreshToken();
+				await checkAndRefreshToken();
+			} catch (e) {
+				localStorage.removeItem('auth_data');
+			}
 		}
-	} catch (e) {
-		await clearAuthData();
-		currentAuthData = null;
 	}
 	authLoaded.set(true);
 }
 
 export function logout() {
-	clearAuthData();
-	currentAuthData = null;
+	if (typeof localStorage !== 'undefined') {
+		localStorage.removeItem('auth_data');
+	}
 	authStore.set(initialState);
+}
+
+function isTokenExpiringSoon(expirationDate: string, minutes: number = 30): boolean {
+	const now = new Date().getTime();
+	const expiry = new Date(expirationDate).getTime();
+	const timeUntilExpiry = expiry - now;
+	const minutesUntilExpiry = timeUntilExpiry / (1000 * 60);
+	return minutesUntilExpiry <= minutes;
+}
+
+function getStoredAuthData(): AuthResponse | null {
+	if (typeof localStorage === 'undefined') return null;
+
+	const saved = localStorage.getItem('auth_data');
+	if (!saved) return null;
+
+	try {
+		return JSON.parse(saved) as AuthResponse;
+	} catch {
+		return null;
+	}
 }
 
 let refreshInProgress: Promise<boolean> | null = null;
@@ -77,20 +94,28 @@ export async function refreshToken(): Promise<boolean> {
 }
 
 async function doRefreshToken(): Promise<boolean> {
-	const token = get(authStore).token;
-	if (!token) {
+	const storedAuth = getStoredAuthData();
+	if (!storedAuth || !storedAuth.token) {
 		return false;
 	}
 
 	try {
-		const refreshedData = await apiRefreshToken(token);
+		const refreshedData = await apiRefreshToken(storedAuth.token);
 
-		currentAuthData = refreshedData;
-		await saveAuthData(refreshedData);
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('auth_data', JSON.stringify(refreshedData));
+		}
+
+		const user: User = {
+			id: refreshedData.id,
+			username: refreshedData.username,
+			email: refreshedData.email,
+			roles: refreshedData.roles
+		};
 
 		authStore.update(state => ({
 			...state,
-			user: userFromAuthResponse(refreshedData),
+			user,
 			token: refreshedData.token
 		}));
 
@@ -102,20 +127,19 @@ async function doRefreshToken(): Promise<boolean> {
 }
 
 export async function checkAndRefreshToken(): Promise<boolean> {
-	if (!currentAuthData || !currentAuthData.expirationDate) {
+	const storedAuth = getStoredAuthData();
+	if (!storedAuth || !storedAuth.expirationDate) {
 		return false;
 	}
 
-	const now = Date.now();
-	const expiry = new Date(currentAuthData.expirationDate).getTime();
-
+	const now = new Date().getTime();
+	const expiry = new Date(storedAuth.expirationDate).getTime();
 	if (expiry <= now) {
 		logout();
 		return false;
 	}
 
-	const minutesUntilExpiry = (expiry - now) / (1000 * 60);
-	if (minutesUntilExpiry <= 2880) {
+	if (isTokenExpiringSoon(storedAuth.expirationDate, 2880)) {
 		return await refreshToken();
 	}
 
@@ -123,9 +147,11 @@ export async function checkAndRefreshToken(): Promise<boolean> {
 }
 
 export async function getValidToken(): Promise<string | null> {
-	const valid = await checkAndRefreshToken();
-	if (!valid) {
+	const refreshed = await checkAndRefreshToken();
+	if (!refreshed) {
 		return null;
 	}
-	return get(authStore).token;
+
+	const authState = getStoredAuthData();
+	return authState?.token || null;
 }
