@@ -277,6 +277,12 @@
 			startReactionPolling();
 			const token = $authStore.token;
 			if (!token) return;
+
+			if (realtimeMode === 'mqtt') {
+				mqttService.ensureConnected();
+				await refreshLatestMessages();
+			}
+
 			try {
 				const chats = await apiFetchChats(token);
 				const updatedChat = chats.find(c => c.id === chatId);
@@ -300,6 +306,12 @@
 				hasUnreadMessages = false;
 				const token = $authStore.token;
 				if (!token) return;
+
+				if (realtimeMode === 'mqtt') {
+					mqttService.ensureConnected();
+					await refreshLatestMessages();
+				}
+
 				try {
 					const chats = await apiFetchChats(token);
 					const updatedChat = chats.find(c => c.id === chatId);
@@ -574,6 +586,44 @@
 			error = err instanceof Error ? err.message : 'Failed to load messages';
 		} finally {
 			isLoading = false;
+		}
+	}
+
+	async function refreshLatestMessages() {
+		const token = $authStore.token;
+		if (!token || !$authStore.user) return;
+
+		try {
+			const messagesResponse = await fetchMessagesPaginated(token, chatId, 50);
+			const reversedMessages = messagesResponse.messages.reverse();
+
+			const messageIds = reversedMessages.map(m => m.id);
+			const reactionsByMessage = await fetchMultipleMessageReactions(token, chatId, messageIds);
+
+			const memberMapping: { [userId: string]: string } = {};
+			for (const member of data.chat.members) {
+				memberMapping[member.id] = member.name;
+			}
+
+			const messagesWithReactions = mergeMessagesWithPerMessageReactions(
+				reversedMessages,
+				reactionsByMessage,
+				memberMapping
+			);
+
+			const existingIds = new Set(messages.map(m => m.id));
+			const newMessages = messagesWithReactions.filter(m => !existingIds.has(m.id));
+
+			if (newMessages.length > 0) {
+				messages = [...messages, ...newMessages];
+				prevCursor = messagesResponse.prevCursor;
+				cleanupMessages();
+				if (shouldAutoScroll) {
+					scrollToBottom();
+				}
+			}
+		} catch (err) {
+			console.warn('Failed to refresh messages on focus:', err);
 		}
 	}
 

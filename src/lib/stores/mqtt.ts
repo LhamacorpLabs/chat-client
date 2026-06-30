@@ -117,6 +117,19 @@ class MqttService {
         }
     }
 
+    ensureConnected(): boolean {
+        if (this.client?.connected) return true;
+
+        if (this.client) {
+            this.client.reconnect();
+        }
+        return false;
+    }
+
+    isConnected(): boolean {
+        return this.client?.connected ?? false;
+    }
+
     private extractChatIdFromTopic(topic: string): string | null {
         const match = topic.match(/^chat\/(.+)\/messages$/);
         return match?.[1] ?? null;
