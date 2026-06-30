@@ -18,6 +18,8 @@ const initialState: AuthState = {
 
 export const authStore = writable<AuthState>(initialState);
 
+export const authLoaded = writable(false);
+
 export const isAuthenticated = derived(authStore, $auth => !!$auth.token);
 
 export async function loadAuth() {
@@ -45,6 +47,7 @@ export async function loadAuth() {
 			}
 		}
 	}
+	authLoaded.set(true);
 }
 
 export function logout() {

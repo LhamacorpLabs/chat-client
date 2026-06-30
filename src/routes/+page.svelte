@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { authStore, logout, getValidToken } from '$lib/stores/auth';
+	import { authStore, authLoaded, logout, getValidToken } from '$lib/stores/auth';
 	import { chatStore, fetchChats, createChat, clearChats } from '$lib/stores/chat';
 	import { redeemInvitation } from '$lib/api/chat';
 	import type { Chat } from '$lib/types/chat';
@@ -25,7 +25,7 @@
 	let isTauri = $state(typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window);
 
 	$effect(() => {
-		if (!$authStore.token) {
+		if ($authLoaded && !$authStore.token) {
 			clearChats();
 			goto('/login');
 		}
