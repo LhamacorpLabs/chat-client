@@ -25,8 +25,18 @@ function setAuth(value: any) {
 	subscribers.forEach(fn => fn(authState));
 }
 
+const authLoadedSubscribers = new Set<(value: any) => void>();
+let authLoadedState = true;
+
+function authLoadedSubscribe(fn: (value: any) => void) {
+	fn(authLoadedState);
+	authLoadedSubscribers.add(fn);
+	return () => authLoadedSubscribers.delete(fn);
+}
+
 vi.mock('$lib/stores/auth', () => ({
-	authStore: { subscribe }
+	authStore: { subscribe },
+	authLoaded: { subscribe: authLoadedSubscribe }
 }));
 
 import LoginPage from '../routes/login/+page.svelte';

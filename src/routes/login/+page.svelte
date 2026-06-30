@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { authStore } from '$lib/stores/auth';
+	import { authStore, authLoaded } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import { redirectToLogin } from '$lib/utils/authRedirect';
 
 	onMount(() => {
-		const saved = localStorage.getItem('auth_data');
-		if (saved && $authStore.token) {
+		if ($authLoaded && $authStore.token) {
 			goto('/');
 		} else {
 			redirectToLogin();

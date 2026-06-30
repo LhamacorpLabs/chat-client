@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { get } from 'svelte/store';
-import { authStore, checkAndRefreshToken } from '$lib/stores/auth';
+import { authStore, authLoaded, loadAuth, checkAndRefreshToken } from '$lib/stores/auth';
 import { chatStore } from '$lib/stores/chat';
 import { fetchChats } from '$lib/api/chat';
 import type { PageLoad } from './$types';
@@ -8,30 +8,11 @@ import type { PageLoad } from './$types';
 export const load: PageLoad = async ({ params }) => {
 	const { chatId } = params;
 
-	let auth = get(authStore);
-
-	if (!auth.token && typeof localStorage !== 'undefined') {
-		const saved = localStorage.getItem('auth_data');
-		if (saved) {
-			try {
-				const authData = JSON.parse(saved);
-				auth = {
-					user: {
-						id: authData.id,
-						username: authData.username,
-						email: authData.email,
-						roles: authData.roles
-					},
-					token: authData.token,
-					isLoading: false,
-					error: null
-				};
-				authStore.set(auth);
-			} catch (e) {
-				localStorage.removeItem('auth_data');
-			}
-		}
+	if (!get(authLoaded)) {
+		await loadAuth();
 	}
+
+	const auth = get(authStore);
 
 	if (!auth.token) {
 		throw redirect(302, '/login');
@@ -41,7 +22,6 @@ export const load: PageLoad = async ({ params }) => {
 	if (!tokenValid) {
 		throw redirect(302, '/login');
 	}
-	auth = get(authStore);
 
 	let chats = get(chatStore).chats;
 

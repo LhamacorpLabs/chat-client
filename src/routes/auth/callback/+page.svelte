@@ -2,7 +2,8 @@
 	import { onMount } from 'svelte';
 	import { authStore, refreshToken } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
-	import type { AuthResponse, User } from '$lib/types/auth';
+	import type { AuthResponse } from '$lib/types/auth';
+	import { saveAuthData } from '$lib/utils/persistentStore';
 
 	onMount(async () => {
 		const hash = new URLSearchParams(window.location.hash.slice(1));
@@ -20,17 +21,10 @@
 				expirationDate: expires || ''
 			};
 
-			localStorage.setItem('auth_data', JSON.stringify(authData));
-
-			const user: User = {
-				id: '',
-				username,
-				email: '',
-				roles: []
-			};
+			await saveAuthData(authData);
 
 			authStore.set({
-				user,
+				user: { id: '', username, email: '', roles: [] },
 				token,
 				isLoading: false,
 				error: null
@@ -38,7 +32,6 @@
 
 			window.location.hash = '';
 
-			// Refresh to get full profile (id, email, roles)
 			await refreshToken();
 
 			goto('/');
