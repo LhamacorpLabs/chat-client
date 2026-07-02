@@ -25,7 +25,7 @@ jobs:
     steps:
       - id: version
         run: |
-          echo "version=$(date -u +%-y).$(date -u +%-m).$(( ${{ github.run_number }} + 100 ))" >> $GITHUB_OUTPUT
+          echo "version=$(date -u +%-y).$(date -u +%-m).$(( ${{ github.run_number }} ))" >> $GITHUB_OUTPUT
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "commit_message<<$EOF" >> $GITHUB_OUTPUT
           echo "${{ github.event.head_commit.message }}" >> $GITHUB_OUTPUT
