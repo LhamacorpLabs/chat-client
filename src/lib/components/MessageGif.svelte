@@ -18,6 +18,16 @@
 		imageError = true;
 	}
 
+	async function openLink(event: MouseEvent) {
+		// window.open()/target=_blank don't reliably open the OS browser inside
+		// the Tauri webview, so route through the opener plugin there.
+		if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+			event.preventDefault();
+			const { openUrl } = await import('@tauri-apps/plugin-opener');
+			await openUrl(gif.url);
+		}
+	}
+
 	function openGifModal() {
 		// Create modal to display full-size GIF
 		const modal = document.createElement('div');
@@ -67,7 +77,7 @@
 			<div class="error-content">
 				<span class="error-icon">🎞️</span>
 				<span class="error-text">Failed to load GIF</span>
-				<a href={gif.url} target="_blank" class="gif-link">
+				<a href={gif.url} target="_blank" rel="noopener noreferrer" class="gif-link" onclick={openLink}>
 					{gif.url}
 				</a>
 			</div>

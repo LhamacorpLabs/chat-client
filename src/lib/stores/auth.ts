@@ -1,6 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import type { AuthResponse, User } from '../types/auth';
-import { refreshToken as apiRefreshToken } from '../api/auth';
+import { refreshToken as apiRefreshToken, TokenRefreshError } from '../api/auth';
 
 interface AuthState {
 	user: User | null;
@@ -121,7 +121,24 @@ async function doRefreshToken(): Promise<boolean> {
 
 		return true;
 	} catch (error) {
-		logout();
+		// Only clear the session when the server explicitly rejected the
+		// token (401/403) - that means the token really is invalid. Any
+		// other failure (offline, DNS not ready yet on a Tauri cold start,
+		// CORS misconfiguration, server hiccup, etc.) is transient: keep
+		// the existing, still-unexpired token so the user isn't forced to
+		// log in again just because a background refresh couldn't reach
+		// the server. checkAndRefreshToken() will still catch genuinely
+		// expired tokens on the next check.
+		const isInvalidToken =
+			error instanceof TokenRefreshError &&
+			(error.status === 401 || error.status === 403);
+
+		if (isInvalidToken) {
+			logout();
+		} else {
+			console.warn('Token refresh failed, keeping existing session and will retry later:', error);
+		}
+
 		return false;
 	}
 }
@@ -140,7 +157,16 @@ export async function checkAndRefreshToken(): Promise<boolean> {
 	}
 
 	if (isTokenExpiringSoon(storedAuth.expirationDate, 2880)) {
-		return await refreshToken();
+		const refreshed = await refreshToken();
+		if (refreshed) {
+			return true;
+		}
+
+		// Refresh didn't succeed. If it failed for a transient reason
+		// (see doRefreshToken), logout() was NOT called and the session is
+		// still on disk with a token that hasn't actually expired yet -
+		// keep treating it as valid rather than signing the user out.
+		return getStoredAuthData() !== null;
 	}
 
 	return true;

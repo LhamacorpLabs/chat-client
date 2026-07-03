@@ -14,8 +14,21 @@ vi.mock('$app/navigation', () => ({
 	goto: (...args: any[]) => mockGoto(...args)
 }));
 
+const { MockTokenRefreshError } = vi.hoisted(() => {
+	class MockTokenRefreshError extends Error {
+		status?: number;
+		constructor(message: string, status?: number) {
+			super(message);
+			this.name = 'TokenRefreshError';
+			this.status = status;
+		}
+	}
+	return { MockTokenRefreshError };
+});
+
 vi.mock('$lib/api/auth', () => ({
-	refreshToken: vi.fn()
+	refreshToken: vi.fn(),
+	TokenRefreshError: MockTokenRefreshError
 }));
 
 import { authStore, authLoaded, loadAuth, logout, checkAndRefreshToken } from '$lib/stores/auth';
@@ -159,6 +172,66 @@ describe('Auth - Token Refresh', () => {
 
 		expect(result).toBe(true);
 		expect(get(authStore).token).toBe('refreshed-token');
+	});
+
+	it('does NOT log out when a refresh attempt fails for a transient/network reason (e.g. Tauri cold start)', async () => {
+		// Regression test: previously, ANY refresh failure (including a
+		// network error with no server response, which is common right
+		// after a Tauri app cold start) called logout() and wiped the
+		// session, forcing the user to log in again every time they
+		// reopened the app.
+		const soonAuth = {
+			token: 'soon-expired',
+			expirationDate: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(), // 12h from now
+			username: 'user',
+			email: 'u@e.com',
+			id: '1',
+			roles: ['USER']
+		};
+		localStorage.setItem('auth_data', JSON.stringify(soonAuth));
+		authStore.set({
+			user: { id: '1', username: 'user', email: 'u@e.com', roles: ['USER'] },
+			token: 'soon-expired',
+			isLoading: false,
+			error: null
+		});
+
+		vi.mocked(apiRefreshToken).mockRejectedValue(new Error('Failed to fetch'));
+
+		const result = await checkAndRefreshToken();
+
+		// The refresh itself didn't succeed, but the pre-existing,
+		// not-yet-expired session must remain intact.
+		expect(result).toBe(true);
+		expect(get(authStore).token).toBe('soon-expired');
+		expect(localStorage.getItem('auth_data')).not.toBeNull();
+	});
+
+	it('DOES log out when the server explicitly rejects the token (401)', async () => {
+		const { TokenRefreshError } = await import('$lib/api/auth');
+		const soonAuth = {
+			token: 'rejected-token',
+			expirationDate: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+			username: 'user',
+			email: 'u@e.com',
+			id: '1',
+			roles: ['USER']
+		};
+		localStorage.setItem('auth_data', JSON.stringify(soonAuth));
+		authStore.set({
+			user: { id: '1', username: 'user', email: 'u@e.com', roles: ['USER'] },
+			token: 'rejected-token',
+			isLoading: false,
+			error: null
+		});
+
+		vi.mocked(apiRefreshToken).mockRejectedValue(new TokenRefreshError('Token refresh failed', 401));
+
+		const result = await checkAndRefreshToken();
+
+		expect(result).toBe(false);
+		expect(get(authStore).token).toBeNull();
+		expect(localStorage.getItem('auth_data')).toBeNull();
 	});
 });
 

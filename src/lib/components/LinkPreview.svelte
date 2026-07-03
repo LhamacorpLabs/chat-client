@@ -11,10 +11,22 @@
 	// List of trusted platforms that don't need confirmation
 	const trustedPlatforms = ['youtube', 'instagram', 'spotify', 'twitter', 'github', 'amazon', 'lhamacorp'];
 
+	async function openExternalLink(url: string) {
+		// window.open() doesn't open the OS browser inside the Tauri webview -
+		// it's a no-op (or opens an unusable in-app window). Desktop builds
+		// must go through the opener plugin instead.
+		if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+			const { openUrl } = await import('@tauri-apps/plugin-opener');
+			await openUrl(url);
+		} else {
+			window.open(url, '_blank', 'noopener,noreferrer');
+		}
+	}
+
 	function handleClick() {
 		// Skip confirmation for trusted platforms and open directly
 		if (trustedPlatforms.includes(preview.platform)) {
-			window.open(preview.url, '_blank', 'noopener,noreferrer');
+			openExternalLink(preview.url);
 		} else if (onLinkClick) {
 			onLinkClick(preview.url);
 		}
