@@ -1237,7 +1237,16 @@
 				// handler - the promise rejection is unhandled, so the
 				// modal never closes and nothing visibly happens.
 				console.error('Failed to open link:', error);
-				linkOpenError = 'Could not open this link. Please try again.';
+				// Surface the actual error text - packaged Tauri builds don't
+				// give users easy access to devtools, so a generic message
+				// here means we can never find out *why* it failed.
+				const detail =
+					error instanceof Error
+						? error.message
+						: typeof error === 'string'
+							? error
+							: JSON.stringify(error);
+				linkOpenError = `Could not open this link: ${detail}`;
 				closeLinkConfirmation();
 				return;
 			}
