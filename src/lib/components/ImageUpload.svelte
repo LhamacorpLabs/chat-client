@@ -198,23 +198,23 @@
 	}
 
 	.upload-zone {
-		border: 2px dashed var(--color-border, #ccc);
+		border: 2px dashed var(--border-color);
 		border-radius: 8px;
 		padding: 16px;
 		text-align: center;
 		cursor: pointer;
 		transition: all 0.2s ease;
-		background: var(--color-background-secondary, #f8f9fa);
+		background: var(--bg-secondary);
 	}
 
 	.upload-zone:hover:not(.disabled) {
-		border-color: var(--color-primary, #007bff);
-		background: var(--color-background-hover, #e9ecef);
+		border-color: var(--accent);
+		background: var(--bg-tertiary);
 	}
 
 	.upload-zone.drag-over {
-		border-color: var(--color-primary, #007bff);
-		background: var(--color-primary-light, #e3f2fd);
+		border-color: var(--accent);
+		background: var(--accent-subtle);
 	}
 
 	.upload-zone.disabled {
@@ -229,20 +229,20 @@
 	.upload-icon {
 		font-size: 32px;
 		font-weight: 300;
-		color: var(--color-text-secondary, #666);
+		color: var(--text-secondary);
 		margin-bottom: 8px;
 	}
 
 	.upload-text {
 		font-size: 14px;
 		font-weight: 500;
-		color: var(--color-text, #333);
+		color: var(--text-primary);
 		margin-bottom: 4px;
 	}
 
 	.upload-subtext {
 		font-size: 12px;
-		color: var(--color-text-secondary, #666);
+		color: var(--text-secondary);
 	}
 
 	.file-previews {
@@ -257,8 +257,8 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		background: var(--color-background, white);
-		border: 1px solid var(--color-border, #ddd);
+		background: var(--bg-primary);
+		border: 1px solid var(--border-color);
 		border-radius: 8px;
 		padding: 8px;
 		width: 120px;
@@ -287,7 +287,7 @@
 		height: 20px;
 		border: none;
 		border-radius: 50%;
-		background: var(--color-error, #dc3545);
+		background: var(--danger);
 		color: white;
 		font-size: 14px;
 		font-weight: bold;
@@ -299,7 +299,7 @@
 	}
 
 	.remove-file-btn:hover {
-		background: var(--color-error-dark, #c82333);
+		background: var(--danger-hover);
 	}
 
 	.file-info {
@@ -310,7 +310,7 @@
 	.file-name {
 		font-size: 11px;
 		font-weight: 500;
-		color: var(--color-text, #333);
+		color: var(--text-primary);
 		margin-bottom: 2px;
 		word-break: break-all;
 		line-height: 1.2;
@@ -320,16 +320,16 @@
 
 	.file-size {
 		font-size: 10px;
-		color: var(--color-text-secondary, #666);
+		color: var(--text-secondary);
 	}
 
 	.validation-errors {
 		margin-top: 8px;
 		padding: 8px;
-		background: var(--color-error-background, #f8d7da);
-		border: 1px solid var(--color-error-border, #f5c6cb);
+		background: var(--danger-subtle);
+		border: 1px solid rgba(239, 68, 68, 0.2);
 		border-radius: 4px;
-		color: var(--color-error-text, #721c24);
+		color: var(--danger);
 	}
 
 	.error-item {

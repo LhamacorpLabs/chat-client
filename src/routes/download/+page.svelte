@@ -165,8 +165,8 @@
 	}
 
 	.platform-card:hover {
-		border-color: var(--accent-color, #5b8def);
-		background: var(--bg-hover, var(--bg-secondary));
+		border-color: var(--accent);
+		background: var(--bg-tertiary);
 	}
 
 	.platform-icon {
@@ -204,7 +204,7 @@
 		display: inline-block;
 		margin-top: 1.5rem;
 		padding: 0.85rem 2rem;
-		background: var(--accent-color, #5b8def);
+		background: var(--accent);
 		color: #fff;
 		border-radius: 0.6rem;
 		text-decoration: none;

@@ -10,13 +10,15 @@
 	import { metadataPollingService } from '$lib/services/metadataPolling';
 	import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 	import { cleanupAllChatData, schedulePeriodicCleanup } from '$lib/utils/localStorageCleanup';
+	import Modal from '$lib/components/ui/Modal.svelte';
+	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
+	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
+	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 
 	let showCreateModal = $state(false);
 	let showJoinModal = $state(false);
-	let showActionsMenu = $state(false);
 	let newChatName = $state('');
 	let invitationCode = $state('');
-	let showUserMenu = $state(false);
 	let isJoining = $state(false);
 	let joinError = $state<string | null>(null);
 	let selectedChatIndex = $state(-1);
@@ -93,7 +95,6 @@
 
 	function openCreateModal() {
 		showCreateModal = true;
-		showActionsMenu = false;
 		newChatName = '';
 	}
 
@@ -105,28 +106,6 @@
 	function openChat(chatId: string) {
 		goto(`/chat/${chatId}`);
 	}
-
-	$effect(() => {
-		function handleClickOutside(event: MouseEvent) {
-			const target = event.target as Element;
-
-			if (showUserMenu && !target.closest('.user-menu')) {
-				showUserMenu = false;
-			}
-
-			if (showActionsMenu && !target.closest('.actions-menu')) {
-				showActionsMenu = false;
-			}
-		}
-
-		if (showUserMenu || showActionsMenu) {
-			document.addEventListener('click', handleClickOutside);
-		}
-
-		return () => {
-			document.removeEventListener('click', handleClickOutside);
-		};
-	});
 
 	async function handleJoinChat() {
 		if (!$authStore.token || !invitationCode.trim()) return;
@@ -151,7 +130,6 @@
 
 	function openJoinModal() {
 		showJoinModal = true;
-		showActionsMenu = false;
 		invitationCode = '';
 		joinError = null;
 	}
@@ -250,53 +228,58 @@
 
 				<div class="header-actions">
 					<ThemeToggle />
-					<div class="actions-menu">
-						<button
-							onclick={() => showActionsMenu = !showActionsMenu}
-							class="btn btn-ghost add-btn"
-							title="Create or join a chat"
-						>+</button>
-						{#if showActionsMenu}
-							<div class="actions-dropdown">
-								<button
-									onclick={openCreateModal}
-									class="dropdown-item"
-								>
-									<span>Create</span>
-								</button>
-								<button
-									onclick={openJoinModal}
-									class="dropdown-item"
-								>
-									<span>Join</span>
-								</button>
+					<DropdownMenu width="120px">
+						{#snippet trigger({ toggle })}
+							<button
+								onclick={toggle}
+								class="btn btn-ghost add-btn"
+								title="Create or join a chat"
+								type="button"
+							>+</button>
+						{/snippet}
+						{#snippet children({ close })}
+							<button
+								onclick={() => { openCreateModal(); close(); }}
+								class="dropdown-item"
+								type="button"
+							>
+								<span>Create</span>
+							</button>
+							<button
+								onclick={() => { openJoinModal(); close(); }}
+								class="dropdown-item"
+								type="button"
+							>
+								<span>Join</span>
+							</button>
+						{/snippet}
+					</DropdownMenu>
+					<DropdownMenu width="180px">
+						{#snippet trigger({ toggle })}
+							<button
+								onclick={toggle}
+								class="btn btn-ghost user-toggle"
+								type="button"
+							>
+								⋮
+							</button>
+						{/snippet}
+						{#snippet children({ close })}
+							<div class="dropdown-item user-info">
+								<span>Logged as @{$authStore.user?.username}</span>
 							</div>
-						{/if}
-					</div>
-					<div class="user-menu">
-						<button
-							onclick={() => showUserMenu = !showUserMenu}
-							class="btn btn-ghost user-toggle"
-						>
-							⋮
-						</button>
-						{#if showUserMenu}
-							<div class="user-dropdown">
-								<div class="dropdown-item user-info">
-									<span>Logged as @{$authStore.user.username}</span>
-								</div>
-								<button
-									onclick={() => {
-										logout();
-										showUserMenu = false;
-									}}
-									class="dropdown-item logout-item"
-								>
-									<span>Logout</span>
-								</button>
-							</div>
-						{/if}
-					</div>
+							<button
+								onclick={() => {
+									logout();
+									close();
+								}}
+								class="dropdown-item danger"
+								type="button"
+							>
+								<span>Logout</span>
+							</button>
+						{/snippet}
+					</DropdownMenu>
 				</div>
 			</div>
 		</header>
@@ -318,8 +301,7 @@
 				<!-- Loading State -->
 				{#if $chatStore.isLoading}
 					<div class="loading-container">
-						<div class="loading-spinner"></div>
-						<p>Loading your chats...</p>
+						<LoadingSpinner label="Loading your chats..." />
 					</div>
 				{/if}
 
@@ -352,110 +334,94 @@
 
 				<!-- Empty State -->
 				{#if !$chatStore.isLoading && $chatStore.chats.length === 0 && !$chatStore.error}
-					<div class="empty-state">
-						<div class="empty-icon">💬</div>
-						<h3>No chats yet</h3>
-						<p>Create your first chat or join one with an invitation code using the "+" button above!</p>
-					</div>
+					<EmptyState
+						icon="💬"
+						title="No chats yet"
+						description={'Create your first chat or join one with an invitation code using the "+" button above!'}
+					/>
 				{/if}
 			</div>
 		</main>
 
 		<!-- Create Chat Modal -->
 		{#if showCreateModal}
-			<div class="modal-overlay" onclick={closeCreateModal}>
-				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
-					<div class="modal-header">
-						<h3>Create New Chat</h3>
-						<button onclick={closeCreateModal} class="close-btn">&times;</button>
+			<Modal title="Create New Chat" onClose={closeCreateModal}>
+				<p class="modal-description">Enter a name for your new chat:</p>
+				<form onsubmit={(e) => { e.preventDefault(); handleCreateChat(); }}>
+					{#key showCreateModal}
+					<!-- svelte-ignore a11y_autofocus -->
+					<input
+						type="text"
+						bind:value={newChatName}
+						placeholder="Enter chat name..."
+						required
+						disabled={$chatStore.isCreating}
+						class="modal-input"
+						autofocus
+					/>
+					{/key}
+					<div class="modal-actions">
+						<button
+							type="button"
+							onclick={closeCreateModal}
+							class="btn btn-ghost"
+							disabled={$chatStore.isCreating}
+						>
+							Cancel
+						</button>
+						<button
+							type="submit"
+							class="btn btn-primary"
+							disabled={$chatStore.isCreating || !newChatName.trim()}
+						>
+							{$chatStore.isCreating ? 'Creating...' : 'Create Chat'}
+						</button>
 					</div>
-					<div class="modal-body">
-						<p>Enter a name for your new chat:</p>
-						<form onsubmit={(e) => { e.preventDefault(); handleCreateChat(); }}>
-							{#key showCreateModal}
-							<!-- svelte-ignore a11y_autofocus -->
-							<input
-								type="text"
-								bind:value={newChatName}
-								placeholder="Enter chat name..."
-								required
-								disabled={$chatStore.isCreating}
-								class="modal-input"
-								autofocus
-							/>
-							{/key}
-							<div class="modal-actions">
-								<button
-									type="button"
-									onclick={closeCreateModal}
-									class="btn btn-ghost"
-									disabled={$chatStore.isCreating}
-								>
-									Cancel
-								</button>
-								<button
-									type="submit"
-									class="btn btn-primary"
-									disabled={$chatStore.isCreating || !newChatName.trim()}
-								>
-									{$chatStore.isCreating ? 'Creating...' : 'Create Chat'}
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			</div>
+				</form>
+			</Modal>
 		{/if}
 
 		<!-- Join Chat Modal -->
 		{#if showJoinModal}
-			<div class="modal-overlay" onclick={closeJoinModal}>
-				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
-					<div class="modal-header">
-						<h3>Join Chat</h3>
-						<button onclick={closeJoinModal} class="close-btn">&times;</button>
+			<Modal title="Join Chat" onClose={closeJoinModal}>
+				<p class="modal-description">Enter the invitation code to join a chat:</p>
+				<form onsubmit={(e) => { e.preventDefault(); handleJoinChat(); }}>
+					{#key showJoinModal}
+					<!-- svelte-ignore a11y_autofocus -->
+					<input
+						type="text"
+						bind:value={invitationCode}
+						placeholder="Enter invitation code..."
+						required
+						disabled={isJoining}
+						class="modal-input"
+						autofocus
+					/>
+					{/key}
+					{#if joinError}
+						<div class="alert alert-error modal-error">
+							{joinError}
+						</div>
+					{/if}
+					<div class="modal-actions">
+						<button
+							type="button"
+							onclick={closeJoinModal}
+							class="btn btn-ghost"
+							disabled={isJoining}
+						>
+							Cancel
+						</button>
+						<button
+							type="submit"
+							class="btn btn-primary"
+							disabled={isJoining || !invitationCode.trim()}
+						>
+							{isJoining ? 'Joining...' : 'Join Chat'}
+						</button>
 					</div>
-					<div class="modal-body">
-						<p>Enter the invitation code to join a chat:</p>
-						<form onsubmit={(e) => { e.preventDefault(); handleJoinChat(); }}>
-							{#key showJoinModal}
-							<!-- svelte-ignore a11y_autofocus -->
-							<input
-								type="text"
-								bind:value={invitationCode}
-								placeholder="Enter invitation code..."
-								required
-								disabled={isJoining}
-								class="modal-input"
-								autofocus
-							/>
-							{/key}
-							{#if joinError}
-								<div class="alert alert-error modal-error">
-									{joinError}
-								</div>
-							{/if}
-							<div class="modal-actions">
-								<button
-									type="button"
-									onclick={closeJoinModal}
-									class="btn btn-ghost"
-									disabled={isJoining}
-								>
-									Cancel
-								</button>
-								<button
-									type="submit"
-									class="btn btn-primary"
-									disabled={isJoining || !invitationCode.trim()}
-								>
-									{isJoining ? 'Joining...' : 'Join Chat'}
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			</div>
+				</form>
+			</Modal>
 		{/if}
 
 		<footer class="app-footer">
@@ -472,8 +438,7 @@
 	</div>
 {:else}
 	<div class="loading-screen">
-		<div class="loading-spinner"></div>
-		<p>Loading...</p>
+		<LoadingSpinner size="lg" label="Loading..." />
 	</div>
 {/if}
 
@@ -536,63 +501,13 @@
 		gap: 0.5rem;
 	}
 
-	/* Actions Menu (+ Button) */
-	.actions-menu {
-		position: relative;
-	}
-
+	/* Actions Menu (+ Button) and User Menu are now handled by the shared
+	   DropdownMenu component (src/lib/components/ui/DropdownMenu.svelte). */
 	.add-btn {
 		font-size: 1rem;
 		padding: 0.375rem 0.5rem;
 		font-weight: bold;
 		line-height: 1;
-	}
-
-	.actions-dropdown {
-		position: absolute;
-		top: calc(100% + 4px);
-		right: 0;
-		background: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		box-shadow: 0 4px 16px var(--shadow-elevated);
-		z-index: 1000;
-		min-width: 120px;
-		padding: 0.25rem;
-	}
-
-	:global([data-theme='dark']) .actions-dropdown {
-		background: var(--bg-secondary);
-		border-color: var(--glass-border);
-		backdrop-filter: blur(var(--glass-blur));
-		-webkit-backdrop-filter: blur(var(--glass-blur));
-	}
-
-	.actions-dropdown .dropdown-item {
-		display: block;
-		width: 100%;
-		padding: 0.5rem 0.75rem;
-		background: none;
-		border: none;
-		text-align: left;
-		color: var(--text-primary);
-		cursor: pointer;
-		transition: background-color 0.1s ease;
-		font-size: 0.8125rem;
-		border-radius: var(--radius-sm);
-	}
-
-	.actions-dropdown .dropdown-item:hover {
-		background: var(--bg-secondary);
-	}
-
-	.actions-dropdown .dropdown-item span {
-		display: block;
-	}
-
-	/* User Menu */
-	.user-menu {
-		position: relative;
 	}
 
 	.user-toggle {
@@ -602,66 +517,18 @@
 		line-height: 1;
 	}
 
-	.user-dropdown {
-		position: absolute;
-		top: calc(100% + 4px);
-		right: 0;
-		background: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		box-shadow: 0 4px 16px var(--shadow-elevated);
-		z-index: 1000;
-		min-width: 180px;
-		padding: 0.25rem;
-	}
-
-	:global([data-theme='dark']) .user-dropdown {
-		background: var(--bg-secondary);
-		border-color: var(--glass-border);
-		backdrop-filter: blur(var(--glass-blur));
-		-webkit-backdrop-filter: blur(var(--glass-blur));
-	}
-
-	.user-dropdown .dropdown-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		width: 100%;
-		padding: 0.5rem 0.75rem;
-		background: none;
-		border: none;
-		text-align: left;
-		color: var(--text-primary);
-		cursor: pointer;
-		transition: background-color 0.1s ease;
-		font-size: 0.8125rem;
-		border-radius: var(--radius-sm);
-	}
-
-	.user-dropdown .dropdown-item:hover {
-		background: var(--bg-secondary);
-	}
-
-	.user-info {
+	:global(.user-info) {
 		cursor: default !important;
 		color: var(--text-muted) !important;
-		font-size: 0.75rem !important;
-		padding-bottom: 0.5rem !important;
-		margin-bottom: 0.25rem;
+		font-size: var(--font-xs) !important;
+		padding-bottom: var(--space-2) !important;
+		margin-bottom: var(--space-1);
 		border-bottom: 1px solid var(--border-color);
 		border-radius: 0 !important;
 	}
 
-	.user-info:hover {
+	:global(.user-info:hover) {
 		background: none !important;
-	}
-
-	.logout-item {
-		color: var(--danger) !important;
-	}
-
-	.logout-item:hover {
-		background: rgba(239, 68, 68, 0.08) !important;
 	}
 
 	/* Main Content */
@@ -736,21 +603,6 @@
 		justify-content: center;
 		padding: 3rem;
 		color: var(--text-muted);
-	}
-
-	.loading-spinner {
-		display: inline-block;
-		width: 24px;
-		height: 24px;
-		border: 2px solid var(--border-color);
-		border-radius: 50%;
-		border-top-color: var(--accent);
-		animation: spin 0.8s linear infinite;
-		margin-bottom: 0.75rem;
-	}
-
-	@keyframes spin {
-		to { transform: rotate(360deg); }
 	}
 
 	/* Chat List */
@@ -864,32 +716,6 @@
 		opacity: 1;
 	}
 
-	/* Empty State */
-	.empty-state {
-		text-align: center;
-		padding: 4rem 2rem;
-		color: var(--text-muted);
-	}
-
-	.empty-icon {
-		font-size: 2.5rem;
-		margin-bottom: 1rem;
-		opacity: 0.6;
-	}
-
-	.empty-state h3 {
-		margin: 0 0 0.5rem 0;
-		color: var(--text-primary);
-		font-size: 1.125rem;
-		font-weight: 600;
-	}
-
-	.empty-state p {
-		margin: 0;
-		font-size: 0.875rem;
-		color: var(--text-muted);
-	}
-
 	/* Loading Screen */
 	.loading-screen {
 		display: flex;
@@ -901,77 +727,10 @@
 		color: var(--text-muted);
 	}
 
-	.loading-screen .loading-spinner {
-		width: 28px;
-		height: 28px;
-		margin-bottom: 0.75rem;
-	}
-
-	/* Modal Styles */
-	.modal-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(15, 23, 42, 0.4);
-		backdrop-filter: blur(4px);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-	}
-
-	.modal-content {
-		background: var(--bg-primary);
-		border-radius: var(--radius-xl);
-		box-shadow: 0 16px 48px var(--shadow-elevated);
-		max-width: 380px;
-		width: 90%;
-		border: 1px solid var(--border-color);
-	}
-
-	.modal-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 1.25rem 1.5rem;
-		border-bottom: 1px solid var(--border-color);
-	}
-
-	.modal-header h3 {
-		margin: 0;
-		color: var(--text-primary);
-		font-size: 1rem;
-		font-weight: 600;
-	}
-
-	.close-btn {
-		background: none;
-		border: none;
-		font-size: 1.25rem;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: 0;
-		width: 24px;
-		height: 24px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: var(--radius-sm);
-		transition: all 0.1s ease;
-	}
-
-	.close-btn:hover {
-		background: var(--bg-secondary);
-		color: var(--text-primary);
-	}
-
-	.modal-body {
-		padding: 1.5rem;
-	}
-
-	.modal-body p {
+	/* Modal chrome (overlay/content/header/close button) now lives in the
+	   shared Modal component - the rules below only style the form content
+	   this page passes into the modal's body. */
+	.modal-description {
 		margin: 0 0 1rem 0;
 		color: var(--text-secondary);
 		font-size: 0.875rem;
@@ -1018,10 +777,6 @@
 		.header-actions {
 			gap: 0.375rem;
 		}
-
-		.user-dropdown {
-			min-width: 160px;
-		}
 	}
 
 	@media (max-width: 480px) {
@@ -1036,10 +791,6 @@
 
 		.header-content h1 {
 			font-size: 1.125rem;
-		}
-
-		.empty-state {
-			padding: 3rem 1rem;
 		}
 
 		.chats-header h2 {

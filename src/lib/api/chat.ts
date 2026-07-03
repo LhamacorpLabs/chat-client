@@ -1,14 +1,29 @@
 import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment, FavoriteMessagesResponse, MessageReaction } from '../types/chat';
 import { PUBLIC_CHAT_API_URL } from '$env/static/public';
-import { logout } from '../stores/auth';
+import { authStore, refreshToken } from '../stores/auth';
 import { redirectToLogin } from '../utils/authRedirect';
+import { get } from 'svelte/store';
 
 const CHAT_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/chats`;
 const IMAGE_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/images`;
 
-function handleUnauthorized(response: Response): void {
-	if (response.status === 401) {
-		logout();
+/**
+ * A single 401 from the chat backend isn't reliable proof the session is
+ * dead - it can happen from backend cold-start lag, clock skew, or a
+ * transient auth hiccup on this specific request, especially right after
+ * a Tauri app cold start. Before wiping the session and bouncing the user
+ * to the external login page, confirm with the auth server via
+ * refreshToken() - which already distinguishes a genuinely rejected token
+ * (401/403 -> logs out) from a transient failure (keeps the session), and
+ * already de-duplicates concurrent calls. Only redirect if the session
+ * actually ends up cleared.
+ */
+async function handleUnauthorized(response: Response): Promise<void> {
+	if (response.status !== 401) return;
+
+	await refreshToken();
+
+	if (!get(authStore).token) {
 		redirectToLogin();
 	}
 }
@@ -22,7 +37,7 @@ export async function fetchChats(token: string): Promise<ChatsResponse> {
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to fetch chats: ${response.status}`);
 	}
 
@@ -38,7 +53,7 @@ export async function fetchChatMetadata(token: string, chatId: string): Promise<
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to fetch chat metadata: ${response.status}`);
 	}
 
@@ -56,7 +71,7 @@ export async function createChat(token: string, chatData: CreateChatRequest): Pr
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to create chat: ${response.status}`);
 	}
 
@@ -97,7 +112,7 @@ export async function fetchMessagesPaginated(
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to fetch paginated messages: ${response.status}`);
 	}
 
@@ -115,7 +130,7 @@ export async function sendMessage(token: string, chatId: string, messageData: Se
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to send message: ${response.status}`);
 	}
 
@@ -131,7 +146,7 @@ export async function createInvitation(token: string, chatId: string): Promise<I
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to create invitation: ${response.status}`);
 	}
 
@@ -147,7 +162,7 @@ export async function fetchInvitations(token: string, chatId: string): Promise<I
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to fetch invitations: ${response.status}`);
 	}
 
@@ -165,7 +180,7 @@ export async function redeemInvitation(token: string, invitationData: RedeemInvi
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to redeem invitation: ${response.status}`);
 	}
 
@@ -181,7 +196,7 @@ export async function deleteMessage(token: string, chatId: string, messageId: st
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to delete message: ${response.status}`);
 	}
 }
@@ -195,7 +210,7 @@ export async function toggleMessageFavorite(token: string, chatId: string, messa
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to toggle message favorite: ${response.status}`);
 	}
 }
@@ -213,7 +228,7 @@ export async function reactToMessage(token: string, chatId: string, messageId: s
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to react to message: ${response.status}`);
 	}
 }
@@ -227,7 +242,7 @@ export async function fetchMessageReactions(token: string, chatId: string, messa
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to fetch message reactions: ${response.status}`);
 	}
 
@@ -266,7 +281,7 @@ export async function fetchFavoriteMessages(token: string, chatId: string): Prom
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to fetch favorite messages: ${response.status}`);
 	}
 
@@ -282,7 +297,7 @@ export async function deleteChat(token: string, chatId: string): Promise<void> {
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to delete chat: ${response.status}`);
 	}
 }
@@ -296,7 +311,7 @@ export async function leaveChat(token: string, chatId: string, userId: string): 
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to leave chat: ${response.status}`);
 	}
 }
@@ -322,7 +337,7 @@ export async function uploadImage(token: string, file: File): Promise<ImageAttac
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		if (response.status === 413) {
 			throw new Error(`Failed to upload image: 413`);
 		}
@@ -347,7 +362,7 @@ export async function getImage(token: string, imageId: string): Promise<ImageAtt
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to get image: ${response.status}`);
 	}
 
@@ -385,7 +400,7 @@ export async function sendMessageWithImages(
 	});
 
 	if (!response.ok) {
-		handleUnauthorized(response);
+		await handleUnauthorized(response);
 		throw new Error(`Failed to send message with images: ${response.status}`);
 	}
 

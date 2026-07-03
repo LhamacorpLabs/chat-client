@@ -2,6 +2,8 @@
 	import type { ImageAttachment } from '../types/chat';
 	import { getImage } from '../api/chat';
 	import { authStore } from '../stores/auth';
+	import MediaLightbox from './ui/MediaLightbox.svelte';
+	import LoadingSpinner from './ui/LoadingSpinner.svelte';
 
 	interface Props {
 		attachment: ImageAttachment;
@@ -13,6 +15,7 @@
 	let imageLoaded = $state(false);
 	let imageError = $state(false);
 	let fullImageData = $state<ImageAttachment | null>(null);
+	let showLightbox = $state(false);
 
 	// Load full image data if not already present
 	async function loadFullImage() {
@@ -56,46 +59,8 @@
 		return `data:${mimeType};base64,${content}`;
 	}
 
-	function openImageModal() {
-		// Create modal to display full-size image
-		const modal = document.createElement('div');
-		modal.className = 'image-modal-overlay';
-		modal.tabIndex = -1; // Make focusable for keyboard events
-
-		const img = document.createElement('img');
-		img.src = getImageSrc();
-		img.className = 'image-modal-content';
-		img.onclick = (e) => e.stopPropagation();
-
-		// Function to close modal and cleanup
-		function closeModal() {
-			modal.remove();
-			document.removeEventListener('keydown', handleKeyDown);
-		}
-
-		// Handle keydown events (ESC to close)
-		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === 'Escape') {
-				event.preventDefault();
-				closeModal();
-			}
-		}
-
-		// Set up event listeners
-		modal.onclick = closeModal;
-		document.addEventListener('keydown', handleKeyDown);
-
-		// Add close hint
-		const closeHint = document.createElement('div');
-		closeHint.className = 'esc-hint';
-		closeHint.textContent = 'ESC or click to close';
-
-		modal.appendChild(img);
-		modal.appendChild(closeHint);
-		document.body.appendChild(modal);
-
-		// Focus the modal for better accessibility
-		modal.focus();
+	function openLightbox() {
+		showLightbox = true;
 	}
 </script>
 
@@ -108,12 +73,12 @@
 		</div>
 	{:else if isLoading || !imageLoaded}
 		<div class="image-loading">
-			<div class="loading-spinner"></div>
+			<LoadingSpinner size="sm" />
 			<span class="loading-text">Loading image...</span>
 			<span class="filename">{attachment.metadata.filename}</span>
 		</div>
 	{:else}
-		<button class="image-wrapper" onclick={openImageModal} type="button">
+		<button class="image-wrapper" onclick={openLightbox} type="button">
 			<img
 				src={getImageSrc()}
 				alt={attachment.metadata.filename}
@@ -125,6 +90,10 @@
 		</button>
 	{/if}
 </div>
+
+{#if showLightbox}
+	<MediaLightbox src={getImageSrc()} alt={attachment.metadata.filename} onClose={() => showLightbox = false} />
+{/if}
 
 <style>
 	.message-image-container {
@@ -180,20 +149,10 @@
 		flex-direction: column;
 		align-items: center;
 		padding: 16px;
-		background: var(--color-background-secondary, #f5f5f5);
+		background: var(--bg-secondary);
 		border-radius: 8px;
-		border: 1px dashed var(--color-border, #ccc);
+		border: 1px dashed var(--border-color);
 		max-width: 200px;
-	}
-
-	.loading-spinner {
-		width: 24px;
-		height: 24px;
-		border: 2px solid var(--color-border, #ccc);
-		border-top: 2px solid var(--color-primary, #007bff);
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin-bottom: 8px;
 	}
 
 	.error-icon {
@@ -203,63 +162,15 @@
 
 	.loading-text, .error-text {
 		font-size: 12px;
-		color: var(--color-text-secondary, #666);
+		color: var(--text-secondary);
 		margin-bottom: 4px;
 	}
 
 	.filename {
 		font-size: 11px;
-		color: var(--color-text-muted, #999);
+		color: var(--text-muted);
 		text-align: center;
 		word-break: break-all;
-	}
-
-	@keyframes spin {
-		0% { transform: rotate(0deg); }
-		100% { transform: rotate(360deg); }
-	}
-
-	/* Modal styles */
-	:global(.image-modal-overlay) {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.9);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 9999;
-		cursor: pointer;
-		outline: none;
-	}
-
-	:global(.image-modal-content) {
-		max-width: 90vw;
-		max-height: 90vh;
-		object-fit: contain;
-		border-radius: 8px;
-		cursor: default;
-	}
-
-	:global(.esc-hint) {
-		position: absolute;
-		top: 20px;
-		right: 20px;
-		background: rgba(0, 0, 0, 0.7);
-		color: white;
-		padding: 8px 12px;
-		border-radius: 4px;
-		font-size: 12px;
-		font-weight: 500;
-		pointer-events: none;
-		opacity: 0.8;
-		transition: opacity 0.3s ease;
-	}
-
-	:global(.image-modal-overlay:hover .esc-hint) {
-		opacity: 1;
 	}
 
 	/* Mobile adjustments */
@@ -280,13 +191,6 @@
 
 		.message-image {
 			max-height: 150px;
-		}
-
-		:global(.esc-hint) {
-			top: 10px;
-			right: 10px;
-			font-size: 11px;
-			padding: 6px 10px;
 		}
 	}
 </style>

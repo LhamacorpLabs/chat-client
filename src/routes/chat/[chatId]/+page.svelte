@@ -33,6 +33,11 @@
 	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
 	import { mergeMessagesWithPerMessageReactions, getUserReactionForMessage } from '$lib/utils/reactionUtils';
 	import type { ReactionSummary } from '$lib/types/chat';
+	import Modal from '$lib/components/ui/Modal.svelte';
+	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
+	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
+	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import Toast from '$lib/components/ui/Toast.svelte';
 
 	// Realtime mode: 'websocket' or 'polling'
 	const realtimeMode = PUBLIC_REALTIME_MODE || 'websocket';
@@ -69,10 +74,10 @@
 	let showDeleteModal = $state(false);
 	let showLeaveModal = $state(false);
 	let isLeaving = $state(false);
-	let showActionsMenu = $state(false);
 	let openActionMenuId = $state<string | null>(null);
 
 	let showLinkConfirmation = $state(false);
+	let linkOpenError = $state<string | null>(null);
 	let pendingUrl = $state<string | null>(null);
 
 	let showEmojiPicker = $state(false);
@@ -1163,25 +1168,6 @@
 		}
 	}
 
-	$effect(() => {
-		function handleClickOutside(event: MouseEvent) {
-			if (showActionsMenu) {
-				const target = event.target as Element;
-				if (!target.closest('.actions-menu')) {
-					showActionsMenu = false;
-				}
-			}
-		}
-
-		if (showActionsMenu) {
-			document.addEventListener('click', handleClickOutside);
-		}
-
-		return () => {
-			document.removeEventListener('click', handleClickOutside);
-		};
-	});
-
 	async function jumpToNewest() {
 		shouldAutoScroll = true;
 		showJumpToNewest = false;
@@ -1238,11 +1224,22 @@
 
 	async function confirmAndOpenLink() {
 		if (pendingUrl) {
-			if ('__TAURI_INTERNALS__' in window) {
-				const { openUrl } = await import('@tauri-apps/plugin-opener');
-				await openUrl(pendingUrl);
-			} else {
-				window.open(pendingUrl, '_blank', 'noopener,noreferrer');
+			try {
+				if ('__TAURI_INTERNALS__' in window) {
+					const { openUrl } = await import('@tauri-apps/plugin-opener');
+					await openUrl(pendingUrl);
+				} else {
+					window.open(pendingUrl, '_blank', 'noopener,noreferrer');
+				}
+			} catch (error) {
+				// Without this, a failure here (e.g. a permission/scope
+				// issue in the packaged app) throws inside an async click
+				// handler - the promise rejection is unhandled, so the
+				// modal never closes and nothing visibly happens.
+				console.error('Failed to open link:', error);
+				linkOpenError = 'Could not open this link. Please try again.';
+				closeLinkConfirmation();
+				return;
 			}
 		}
 		closeLinkConfirmation();
@@ -1374,56 +1371,60 @@
 					{/if}
 
 					<!-- Actions menu - available to all users -->
-					<div class="actions-menu">
-						<button
-							onclick={() => showActionsMenu = !showActionsMenu}
-							class="btn btn-ghost actions-toggle"
-							disabled={$chatStore.isDeleting}
-						>
-							⋮
-						</button>
-						{#if showActionsMenu}
-							<div class="actions-dropdown">
+					<DropdownMenu width="180px">
+						{#snippet trigger({ toggle })}
+							<button
+								onclick={toggle}
+								class="btn btn-ghost actions-toggle"
+								disabled={$chatStore.isDeleting}
+								type="button"
+							>
+								⋮
+							</button>
+						{/snippet}
+						{#snippet children({ close })}
+							<button
+								onclick={() => {
+									chatMuteStore.toggleMute(data.chatId);
+									close();
+								}}
+								class="dropdown-item"
+								type="button"
+							>
+								{#if $chatMuteStore.mutedChats[data.chatId]}
+									Unmute
+								{:else}
+									Mute
+								{/if}
+							</button>
+							{#if !isOwner}
 								<button
 									onclick={() => {
-										chatMuteStore.toggleMute(data.chatId);
-										showActionsMenu = false;
+										showLeaveModal = true;
+										close();
 									}}
-									class="dropdown-item"
+									class="dropdown-item danger"
+									disabled={isLeaving}
+									type="button"
 								>
-									{#if $chatMuteStore.mutedChats[data.chatId]}
-										Unmute
-									{:else}
-										Mute
-									{/if}
+									{isLeaving ? 'Leaving...' : 'Leave Chat'}
 								</button>
-								{#if !isOwner}
-									<button
-										onclick={() => {
-											showLeaveModal = true;
-											showActionsMenu = false;
-										}}
-										class="dropdown-item danger"
-										disabled={isLeaving}
-									>
-										{isLeaving ? 'Leaving...' : 'Leave Chat'}
-									</button>
-								{/if}
-								{#if isOwner}
-									<button
-										onclick={() => {
-											showDeleteModal = true;
-											showActionsMenu = false;
-										}}
-										class="dropdown-item danger"
-										disabled={$chatStore.isDeleting}
-									>
-										{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
-									</button>
-								{/if}
-							</div>
-						{/if}
-					</div>
+							{/if}
+							{#if isOwner}
+								<button
+									onclick={() => {
+										showDeleteModal = true;
+										close();
+									}}
+									class="dropdown-item danger"
+									disabled={$chatStore.isDeleting}
+									type="button"
+								>
+									{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
+								</button>
+							{/if}
+						{/snippet}
+					</DropdownMenu>
 				</div>
 			</div>
 		</header>
@@ -1451,22 +1452,18 @@
 				</div>
 			{:else if isLoading}
 				<div class="loading-container">
-					<div class="loading-spinner"></div>
-					<p>Loading messages...</p>
+					<LoadingSpinner label="Loading messages..." />
 				</div>
 			{:else if messages.length === 0}
 				<div class="empty-messages">
-					<div class="empty-icon">💬</div>
-					<h3>No messages yet</h3>
-					<p>Be the first to start the conversation!</p>
+					<EmptyState icon="💬" title="No messages yet" description="Be the first to start the conversation!" />
 				</div>
 			{:else}
 				<div class="messages-container">
 					<!-- Auto-loading indicator -->
 					{#if hasMoreMessages && isLoadingMore}
 						<div class="loading-more-container">
-							<div class="loading-spinner small"></div>
-							<p>Loading older messages...</p>
+							<LoadingSpinner size="sm" inline label="Loading older messages..." />
 						</div>
 					{/if}
 
@@ -1684,143 +1681,109 @@
 
 		<!-- Invitation Modal -->
 		{#if showInviteModal && inviteCode}
-			<div class="modal-overlay" onclick={closeInviteModal}>
-				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
-					<div class="modal-header">
-						<h3>Invitation Created!</h3>
-						<button onclick={closeInviteModal} class="close-btn">&times;</button>
-					</div>
-					<div class="modal-body">
-						<p>Share this invitation code with others to join the chat:</p>
-						<div class="invite-code-display">
-							<span class="invite-code">{inviteCode}</span>
-							<button onclick={copyInviteCode} class="btn btn-ghost copy-btn" class:copied={inviteCopied}>
-								{inviteCopied ? 'Copied!' : 'Copy'}
-							</button>
-						</div>
-						<p class="invite-note">This code can be used once to join the chat.</p>
-					</div>
+			<Modal title="Invitation Created!" onClose={closeInviteModal}>
+				<p class="modal-description">Share this invitation code with others to join the chat:</p>
+				<div class="invite-code-display">
+					<span class="invite-code">{inviteCode}</span>
+					<button onclick={copyInviteCode} class="btn btn-ghost copy-btn" class:copied={inviteCopied}>
+						{inviteCopied ? 'Copied!' : 'Copy'}
+					</button>
 				</div>
-			</div>
+				<p class="invite-note">This code can be used once to join the chat.</p>
+			</Modal>
 		{/if}
 
 		<!-- Delete Confirmation Modal -->
 		{#if showDeleteModal}
-			<div class="modal-overlay" onclick={() => showDeleteModal = false}>
-				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
-					<div class="modal-header">
-						<h3>Delete Chat</h3>
-						<button onclick={() => showDeleteModal = false} class="close-btn">&times;</button>
-					</div>
-					<div class="modal-body">
-						<p><strong>Are you sure you want to delete this chat?</strong></p>
-						<p>This action cannot be undone. The chat "#{chatName}" and all its messages will be permanently deleted.</p>
-						<div class="modal-actions">
-							<button
-								onclick={() => showDeleteModal = false}
-								class="btn btn-ghost"
-								disabled={$chatStore.isDeleting}
-							>
-								Cancel
-							</button>
-							<button
-								onclick={handleDeleteChat}
-								class="btn btn-danger"
-								disabled={$chatStore.isDeleting}
-							>
-								{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
-							</button>
-						</div>
-					</div>
+			<Modal title="Delete Chat" onClose={() => showDeleteModal = false}>
+				<p class="modal-description"><strong>Are you sure you want to delete this chat?</strong></p>
+				<p class="modal-description">This action cannot be undone. The chat "#{chatName}" and all its messages will be permanently deleted.</p>
+				<div class="modal-actions">
+					<button
+						onclick={() => showDeleteModal = false}
+						class="btn btn-ghost"
+						disabled={$chatStore.isDeleting}
+					>
+						Cancel
+					</button>
+					<button
+						onclick={handleDeleteChat}
+						class="btn btn-danger"
+						disabled={$chatStore.isDeleting}
+					>
+						{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
+					</button>
 				</div>
-			</div>
+			</Modal>
 		{/if}
 
 		<!-- Leave Confirmation Modal -->
 		{#if showLeaveModal}
-			<div class="modal-overlay" onclick={() => showLeaveModal = false}>
-				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
-					<div class="modal-header">
-						<h3>Leave Chat</h3>
-						<button onclick={() => showLeaveModal = false} class="close-btn">&times;</button>
-					</div>
-					<div class="modal-body">
-						<p><strong>Are you sure you want to leave this chat?</strong></p>
-						<p>You will no longer receive messages from "#{chatName}" and will need to be re-invited to join again.</p>
-						<div class="modal-actions">
-							<button
-								onclick={() => showLeaveModal = false}
-								class="btn btn-ghost"
-								disabled={isLeaving}
-							>
-								Cancel
-							</button>
-							<button
-								onclick={handleLeaveChat}
-								class="btn btn-danger"
-								disabled={isLeaving}
-							>
-								{isLeaving ? 'Leaving...' : 'Leave Chat'}
-							</button>
-						</div>
-					</div>
+			<Modal title="Leave Chat" onClose={() => showLeaveModal = false}>
+				<p class="modal-description"><strong>Are you sure you want to leave this chat?</strong></p>
+				<p class="modal-description">You will no longer receive messages from "#{chatName}" and will need to be re-invited to join again.</p>
+				<div class="modal-actions">
+					<button
+						onclick={() => showLeaveModal = false}
+						class="btn btn-ghost"
+						disabled={isLeaving}
+					>
+						Cancel
+					</button>
+					<button
+						onclick={handleLeaveChat}
+						class="btn btn-danger"
+						disabled={isLeaving}
+					>
+						{isLeaving ? 'Leaving...' : 'Leave Chat'}
+					</button>
 				</div>
-			</div>
+			</Modal>
 		{/if}
 
 		<!-- Invitation Error -->
 		{#if inviteError}
-			<div class="error-toast alert alert-error">
-				{inviteError}
-				<button onclick={() => inviteError = null} class="close-btn">&times;</button>
-			</div>
+			<Toast message={inviteError} onDismiss={() => inviteError = null} />
 		{/if}
 
 		<!-- Link Confirmation Modal -->
 		{#if showLinkConfirmation && pendingUrl}
-			<div class="modal-overlay" onclick={closeLinkConfirmation}>
-				<div class="modal-content" onclick={(e) => e.stopPropagation()}>
-					<div class="modal-header">
-						<h3>Open Link</h3>
-						<button onclick={closeLinkConfirmation} class="close-btn">&times;</button>
-					</div>
-					<div class="modal-body">
-						<p>Do you want to open this link in a new tab?</p>
-						<div class="link-display">
-							<span class="link-url">{pendingUrl}</span>
-						</div>
-						<p class="link-warning">Only open links from trusted sources.</p>
-						<div class="modal-actions">
-							<button
-								onclick={closeLinkConfirmation}
-								class="btn btn-ghost"
-							>
-								Cancel
-							</button>
-							<button
-								onclick={confirmAndOpenLink}
-								class="btn btn-primary"
-							>
-								Open Link
-							</button>
-						</div>
-					</div>
+			<Modal title="Open Link" onClose={closeLinkConfirmation}>
+				<p class="modal-description">Do you want to open this link in a new tab?</p>
+				<div class="link-display">
+					<span class="link-url">{pendingUrl}</span>
 				</div>
-			</div>
+				<p class="link-warning">Only open links from trusted sources.</p>
+				<div class="modal-actions">
+					<button
+						onclick={closeLinkConfirmation}
+						class="btn btn-ghost"
+					>
+						Cancel
+					</button>
+					<button
+						onclick={confirmAndOpenLink}
+						class="btn btn-primary"
+					>
+						Open Link
+					</button>
+				</div>
+			</Modal>
 		{/if}
 
 		<!-- Chat Error (for delete operations) -->
 		{#if $chatStore.error}
-			<div class="error-toast alert alert-error">
-				{$chatStore.error}
-				<button onclick={() => chatStore.update(state => ({ ...state, error: null }))} class="close-btn">&times;</button>
-			</div>
+			<Toast message={$chatStore.error} onDismiss={() => chatStore.update(state => ({ ...state, error: null }))} />
+		{/if}
+
+		<!-- Link Open Error -->
+		{#if linkOpenError}
+			<Toast message={linkOpenError} onDismiss={() => linkOpenError = null} />
 		{/if}
 	</div>
 {:else}
 	<div class="loading-screen">
-		<div class="loading-spinner"></div>
-		<p>Loading...</p>
+		<LoadingSpinner size="lg" label="Loading..." />
 	</div>
 {/if}
 
@@ -1911,21 +1874,6 @@
 		color: var(--text-muted);
 	}
 
-	.loading-spinner {
-		display: inline-block;
-		width: 24px;
-		height: 24px;
-		border: 2px solid var(--border-color);
-		border-radius: 50%;
-		border-top-color: var(--accent);
-		animation: spin 0.8s linear infinite;
-		margin-bottom: 0.75rem;
-	}
-
-	@keyframes spin {
-		to { transform: rotate(360deg); }
-	}
-
 	.empty-messages {
 		display: flex;
 		flex-direction: column;
@@ -1934,24 +1882,6 @@
 		height: 100%;
 		text-align: center;
 		color: var(--text-muted);
-	}
-
-	.empty-icon {
-		font-size: 2.5rem;
-		margin-bottom: 0.75rem;
-		opacity: 0.6;
-	}
-
-	.empty-messages h3 {
-		margin: 0 0 0.25rem 0;
-		color: var(--text-primary);
-		font-size: 1.125rem;
-		font-weight: 600;
-	}
-
-	.empty-messages p {
-		margin: 0;
-		font-size: 0.875rem;
 	}
 
 	/* Messages */
@@ -1972,15 +1902,6 @@
 		padding: 0.5rem;
 		color: var(--text-muted);
 		font-size: 0.8rem;
-	}
-
-	.loading-spinner.small {
-		width: 14px;
-		height: 14px;
-		border: 2px solid var(--border-color);
-		border-top: 2px solid var(--accent);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
 	}
 
 	.message-item {
@@ -2456,12 +2377,6 @@
 		color: var(--text-muted);
 	}
 
-	.loading-screen .loading-spinner {
-		width: 28px;
-		height: 28px;
-		margin-bottom: 0.75rem;
-	}
-
 	/* Responsive Design */
 	@media (max-width: 768px) {
 		.header-content {
@@ -2701,11 +2616,10 @@
 		line-height: 1;
 	}
 
-	/* Actions Menu */
-	.actions-menu {
-		position: relative;
-	}
-
+	/* Chat header's "..." actions menu is now the shared DropdownMenu
+	   component; the delete/leave/link-confirm modals are now the shared
+	   Modal component. The rules below only style content this page
+	   passes into those components. */
 	.actions-toggle {
 		font-size: 1rem;
 		padding: 0.375rem 0.5rem;
@@ -2713,115 +2627,7 @@
 		line-height: 1;
 	}
 
-	.actions-dropdown {
-		position: absolute;
-		top: calc(100% + 4px);
-		right: 0;
-		background: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		box-shadow: 0 4px 16px var(--shadow-elevated);
-		z-index: 1000;
-		min-width: 120px;
-		padding: 0.25rem;
-	}
-
-	.dropdown-item {
-		display: block;
-		width: 100%;
-		padding: 0.5rem 0.75rem;
-		background: none;
-		border: none;
-		text-align: left;
-		color: var(--text-primary);
-		cursor: pointer;
-		transition: background-color 0.1s ease;
-		font-size: 0.8125rem;
-		border-radius: var(--radius-sm);
-	}
-
-	.dropdown-item:hover {
-		background: var(--bg-secondary);
-	}
-
-	.dropdown-item.danger {
-		color: var(--danger);
-	}
-
-	.dropdown-item.danger:hover {
-		background: rgba(239, 68, 68, 0.08);
-	}
-
-	.dropdown-item:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	/* Modal Styles */
-	.modal-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(15, 23, 42, 0.4);
-		backdrop-filter: blur(4px);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-	}
-
-	.modal-content {
-		background: var(--bg-primary);
-		border-radius: var(--radius-xl);
-		box-shadow: 0 16px 48px var(--shadow-elevated);
-		max-width: 380px;
-		width: 90%;
-		border: 1px solid var(--border-color);
-	}
-
-	.modal-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 1.25rem 1.5rem;
-		border-bottom: 1px solid var(--border-color);
-	}
-
-	.modal-header h3 {
-		margin: 0;
-		color: var(--text-primary);
-		font-size: 1rem;
-		font-weight: 600;
-	}
-
-	.close-btn {
-		background: none;
-		border: none;
-		font-size: 1.25rem;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: 0;
-		width: 24px;
-		height: 24px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: var(--radius-sm);
-		transition: all 0.1s ease;
-	}
-
-	.close-btn:hover {
-		background: var(--bg-secondary);
-		color: var(--text-primary);
-	}
-
-	.modal-body {
-		padding: 1.5rem;
-	}
-
-	.modal-body p {
+	.modal-description {
 		margin: 0 0 0.75rem 0;
 		color: var(--text-secondary);
 		font-size: 0.875rem;
@@ -2903,22 +2709,6 @@
 	}
 
 	/* Error Toast */
-	.error-toast {
-		position: fixed;
-		top: 1.5rem;
-		right: 1.5rem;
-		z-index: 1001;
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		min-width: 280px;
-		box-shadow: 0 4px 16px var(--shadow-elevated);
-	}
-
-	.error-toast .close-btn {
-		margin-left: auto;
-	}
-
 	/* Jump to Newest Button */
 	.jump-to-newest-btn {
 		position: sticky;

@@ -4,6 +4,7 @@
 	import { linkify } from '../utils/linkify';
 	import MessageImage from './MessageImage.svelte';
 	import ReplyPreview from './ReplyPreview.svelte';
+	import LoadingSpinner from './ui/LoadingSpinner.svelte';
 	import { getImage } from '../api/chat';
 	import { authStore } from '../stores/auth';
 	import type { ImageAttachment, Message } from '../types/chat';
@@ -129,8 +130,7 @@
 			{#if loadState.loadingImages}
 				{#each parsedReply.imageIds as imageId}
 					<div class="image-loading">
-						<div class="loading-spinner"></div>
-						<span class="loading-text">Loading image...</span>
+						<LoadingSpinner size="sm" label="Loading image..." />
 					</div>
 				{/each}
 			{:else}
@@ -164,30 +164,9 @@
 		flex-direction: column;
 		align-items: center;
 		padding: 16px;
-		background: var(--color-background-secondary, #f5f5f5);
+		background: var(--bg-secondary);
 		border-radius: 8px;
-		border: 1px dashed var(--color-border, #ccc);
+		border: 1px dashed var(--border-color);
 		min-width: 120px;
-	}
-
-	.loading-spinner {
-		width: 20px;
-		height: 20px;
-		border: 2px solid var(--color-border, #ccc);
-		border-top: 2px solid var(--color-primary, #007bff);
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin-bottom: 8px;
-	}
-
-	.loading-text {
-		font-size: 12px;
-		color: var(--color-text-secondary, #666);
-	}
-
-
-	@keyframes spin {
-		0% { transform: rotate(0deg); }
-		100% { transform: rotate(360deg); }
 	}
 </style>

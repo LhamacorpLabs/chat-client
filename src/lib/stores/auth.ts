@@ -1,6 +1,11 @@
 import { writable, derived } from 'svelte/store';
 import type { AuthResponse, User } from '../types/auth';
 import { refreshToken as apiRefreshToken, TokenRefreshError } from '../api/auth';
+import {
+	hydrateAuthFromPersistentStore,
+	persistAuthData,
+	clearPersistedAuthData
+} from '../utils/persistentStore';
 
 interface AuthState {
 	user: User | null;
@@ -23,6 +28,13 @@ export const authLoaded = writable(false);
 export const isAuthenticated = derived(authStore, $auth => !!$auth.token);
 
 export async function loadAuth() {
+	// On Tauri, localStorage inside the webview isn't always reliably
+	// persisted across full app restarts. Before reading localStorage,
+	// restore it from the durable on-disk Tauri store if localStorage came
+	// up empty - a no-op everywhere else (web, or when localStorage still
+	// has the session).
+	await hydrateAuthFromPersistentStore();
+
 	if (typeof localStorage !== 'undefined') {
 		const saved = localStorage.getItem('auth_data');
 		if (saved) {
@@ -54,6 +66,10 @@ export function logout() {
 	if (typeof localStorage !== 'undefined') {
 		localStorage.removeItem('auth_data');
 	}
+	// Fire-and-forget: clears the on-disk Tauri store too, so a stale
+	// session can't get rehydrated back into localStorage on next launch.
+	// Errors are already caught/logged inside clearPersistedAuthData().
+	void clearPersistedAuthData();
 	authStore.set(initialState);
 }
 
@@ -105,6 +121,7 @@ async function doRefreshToken(): Promise<boolean> {
 		if (typeof localStorage !== 'undefined') {
 			localStorage.setItem('auth_data', JSON.stringify(refreshedData));
 		}
+		await persistAuthData(refreshedData);
 
 		const user: User = {
 			id: refreshedData.id,

@@ -17,13 +17,63 @@
 	--accent-hover: #4f46e5;
 	--accent-subtle: rgba(99, 102, 241, 0.08);
 	--success: #10b981;
+	--success-subtle: rgba(16, 185, 129, 0.08);
 	--danger: #ef4444;
 	--danger-hover: #dc2626;
+	--danger-subtle: rgba(239, 68, 68, 0.08);
 	--warning: #f59e0b;
+	--warning-subtle: rgba(245, 158, 11, 0.1);
 	--radius-sm: 6px;
 	--radius-md: 10px;
 	--radius-lg: 14px;
 	--radius-xl: 20px;
+
+	/* Light theme has no glass/blur surface by default - these fall back to
+	   plain solid surfaces so components can reference --bg-glass etc.
+	   unconditionally instead of branching on [data-theme='dark']. */
+	--bg-glass: var(--bg-primary);
+	--bg-glass-hover: var(--bg-secondary);
+	--glass-blur: 0px;
+	--glass-border: var(--border-color);
+	--accent-glow: var(--accent-subtle);
+
+	/* Semantic state colors - unread/mention/muted indicators used across
+	   the chat list and message thread. */
+	--state-unread: var(--accent);
+	--state-mention: var(--warning);
+	--state-mention-subtle: var(--warning-subtle);
+	--state-muted: var(--text-muted);
+	--state-online: var(--success);
+
+	/* Spacing scale (4px base unit) */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.25rem;
+	--space-6: 1.5rem;
+	--space-8: 2rem;
+	--space-10: 2.5rem;
+	--space-12: 3rem;
+
+	/* Font-size scale */
+	--font-xs: 0.75rem;
+	--font-sm: 0.8125rem;
+	--font-base: 0.875rem;
+	--font-md: 0.9375rem;
+	--font-lg: 1rem;
+	--font-xl: 1.125rem;
+	--font-2xl: 1.25rem;
+	--font-3xl: 1.5rem;
+	--font-4xl: 1.75rem;
+
+	/* Motion scale */
+	--duration-fast: 0.1s;
+	--duration-base: 0.15s;
+	--duration-slow: 0.2s;
+	--duration-slower: 0.3s;
+	--ease-standard: ease;
+	--ease-out: ease-out;
 }
 
 /* Dark theme — inspired by EigenExplorer dark UI */
@@ -46,9 +96,12 @@
 	--accent-subtle: rgba(129, 140, 248, 0.08);
 	--accent-glow: rgba(129, 140, 248, 0.25);
 	--success: #34d399;
+	--success-subtle: rgba(52, 211, 153, 0.12);
 	--danger: #f87171;
 	--danger-hover: #ef4444;
+	--danger-subtle: rgba(248, 113, 113, 0.12);
 	--warning: #fbbf24;
+	--warning-subtle: rgba(251, 191, 36, 0.14);
 	--glass-blur: 12px;
 	--glass-border: rgba(255, 255, 255, 0.06);
 }
@@ -209,15 +262,21 @@ input::placeholder {
 }
 
 .alert-error {
-	background: rgba(239, 68, 68, 0.08);
+	background: var(--danger-subtle);
 	color: var(--danger);
 	border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .alert-success {
-	background: rgba(16, 185, 129, 0.08);
+	background: var(--success-subtle);
 	color: var(--success);
 	border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.alert-warning {
+	background: var(--warning-subtle);
+	color: var(--warning);
+	border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 /* Theme toggle button styles */

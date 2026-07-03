@@ -12,14 +12,22 @@
 	const trustedPlatforms = ['youtube', 'instagram', 'spotify', 'twitter', 'github', 'amazon', 'lhamacorp'];
 
 	async function openExternalLink(url: string) {
-		// window.open() doesn't open the OS browser inside the Tauri webview -
-		// it's a no-op (or opens an unusable in-app window). Desktop builds
-		// must go through the opener plugin instead.
-		if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
-			const { openUrl } = await import('@tauri-apps/plugin-opener');
-			await openUrl(url);
-		} else {
-			window.open(url, '_blank', 'noopener,noreferrer');
+		try {
+			// window.open() doesn't open the OS browser inside the Tauri webview -
+			// it's a no-op (or opens an unusable in-app window). Desktop builds
+			// must go through the opener plugin instead.
+			if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+				const { openUrl } = await import('@tauri-apps/plugin-opener');
+				await openUrl(url);
+			} else {
+				window.open(url, '_blank', 'noopener,noreferrer');
+			}
+		} catch (error) {
+			// Don't let this fail silently - fall back to the confirmation
+			// flow (which surfaces an error toast) so the user gets some
+			// feedback instead of the click appearing to do nothing.
+			console.error('Failed to open link:', error);
+			onLinkClick?.(url);
 		}
 	}
 
@@ -150,7 +158,7 @@
 		justify-content: center;
 		width: 32px;
 		height: 32px;
-		background: rgba(255, 255, 255, 0.1);
+		background: var(--bg-tertiary);
 		border-radius: 8px;
 		flex-shrink: 0;
 		transition: transform 0.2s ease;
@@ -248,18 +256,18 @@
 
 	/* Dark theme adjustments */
 	:global([data-theme='dark']) .link-preview-card {
-		background: rgba(255, 255, 255, 0.05);
-		border-color: rgba(255, 255, 255, 0.1);
+		background: var(--bg-glass);
+		border-color: var(--glass-border);
 	}
 
 	:global([data-theme='dark']) .link-preview-card:hover {
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--bg-glass-hover);
 		border-color: rgba(255, 255, 255, 0.2);
 		box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
 	}
 
 	:global([data-theme='dark']) .platform-logo {
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--bg-glass-hover);
 	}
 
 	:global([data-theme='dark']) .link-preview-card.youtube .platform-logo {

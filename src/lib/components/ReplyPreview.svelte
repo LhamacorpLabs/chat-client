@@ -71,26 +71,26 @@
 	}
 
 	.reply-preview.composition {
-		background: var(--bg-tertiary, #f5f5f5);
-		border: 1px solid var(--border-light, #e0e0e0);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border-light);
 		margin-bottom: 0.5rem;
 	}
 
 	.reply-preview.display {
-		background: rgba(0, 0, 0, 0.05);
+		background: var(--bg-secondary);
 		cursor: pointer;
-		transition: background 0.2s ease;
+		transition: background var(--duration-slow) var(--ease-standard);
 	}
 
 	.reply-preview.display:hover {
-		background: rgba(0, 0, 0, 0.1);
+		background: var(--bg-tertiary);
 	}
 
 	.reply-indicator {
 		width: 3px;
 		height: 100%;
 		border-radius: 2px;
-		background: var(--accent, #0078ff);
+		background: var(--accent);
 		flex-shrink: 0;
 		min-height: 2rem;
 	}
@@ -115,12 +115,12 @@
 	.reply-username {
 		font-weight: 600;
 		font-size: 0.85rem;
-		color: var(--text-primary, #000);
+		color: var(--text-primary);
 	}
 
 	.reply-text {
 		font-size: 0.8rem;
-		color: var(--text-secondary, #666);
+		color: var(--text-secondary);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -128,19 +128,19 @@
 	}
 
 	.reply-text.deleted {
-		color: #999;
+		color: var(--text-muted);
 		font-style: italic;
 	}
 
 	.reply-text.not-found {
-		color: #999;
+		color: var(--text-muted);
 		font-style: italic;
 	}
 
 	.reply-cancel {
 		background: none;
 		border: none;
-		color: var(--text-secondary, #666);
+		color: var(--text-secondary);
 		cursor: pointer;
 		font-size: 1rem;
 		padding: 0.25rem;
@@ -148,23 +148,18 @@
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
-		transition: color 0.2s ease;
+		transition: color var(--duration-slow) var(--ease-standard);
 	}
 
 	.reply-cancel:hover {
-		color: var(--text-primary, #000);
-	}
-
-	:global([data-theme='dark']) .reply-preview.composition {
-		background: var(--bg-tertiary, #2a2a2a);
-		border-color: var(--border-light, #444);
+		color: var(--text-primary);
 	}
 
 	:global([data-theme='dark']) .reply-preview.display {
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--bg-glass);
 	}
 
 	:global([data-theme='dark']) .reply-preview.display:hover {
-		background: rgba(255, 255, 255, 0.1);
+		background: var(--bg-glass-hover);
 	}
 </style>

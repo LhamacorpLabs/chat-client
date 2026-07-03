@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { GifLink } from '../utils/linkify';
+	import MediaLightbox from './ui/MediaLightbox.svelte';
+	import LoadingSpinner from './ui/LoadingSpinner.svelte';
 
 	interface Props {
 		gif: GifLink;
@@ -9,6 +11,7 @@
 
 	let imageLoaded = $state(false);
 	let imageError = $state(false);
+	let showLightbox = $state(false);
 
 	function handleImageLoad() {
 		imageLoaded = true;
@@ -23,51 +26,17 @@
 		// the Tauri webview, so route through the opener plugin there.
 		if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
 			event.preventDefault();
-			const { openUrl } = await import('@tauri-apps/plugin-opener');
-			await openUrl(gif.url);
+			try {
+				const { openUrl } = await import('@tauri-apps/plugin-opener');
+				await openUrl(gif.url);
+			} catch (error) {
+				console.error('Failed to open link:', error);
+			}
 		}
 	}
 
-	function openGifModal() {
-		// Create modal to display full-size GIF
-		const modal = document.createElement('div');
-		modal.className = 'gif-modal-overlay';
-		modal.tabIndex = -1;
-
-		const img = document.createElement('img');
-		img.src = gif.url;
-		img.className = 'gif-modal-content';
-		img.onclick = (e) => e.stopPropagation();
-
-		// Function to close modal and cleanup
-		function closeModal() {
-			modal.remove();
-			document.removeEventListener('keydown', handleKeyDown);
-		}
-
-		// Handle keydown events (ESC to close)
-		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === 'Escape') {
-				event.preventDefault();
-				closeModal();
-			}
-		}
-
-		// Add close hint
-		const closeHint = document.createElement('div');
-		closeHint.className = 'gif-close-hint';
-		closeHint.textContent = 'ESC or click to close';
-
-		// Set up event listeners
-		modal.onclick = closeModal;
-		document.addEventListener('keydown', handleKeyDown);
-
-		modal.appendChild(img);
-		modal.appendChild(closeHint);
-		document.body.appendChild(modal);
-
-		// Focus the modal for better accessibility
-		modal.focus();
+	function openLightbox() {
+		showLightbox = true;
 	}
 </script>
 
@@ -83,7 +52,7 @@
 			</div>
 		</div>
 	{:else}
-		<button class="gif-wrapper" onclick={openGifModal} type="button">
+		<button class="gif-wrapper" onclick={openLightbox} type="button">
 			<img
 				src={gif.url}
 				alt="GIF"
@@ -94,8 +63,7 @@
 			/>
 			{#if !imageLoaded}
 				<div class="gif-loading-overlay">
-					<div class="loading-spinner"></div>
-					<span class="loading-text">Loading GIF...</span>
+					<LoadingSpinner size="sm" label="Loading GIF..." />
 				</div>
 			{/if}
 			{#if gif.isGif}
@@ -106,6 +74,10 @@
 		</button>
 	{/if}
 </div>
+
+{#if showLightbox}
+	<MediaLightbox src={gif.url} alt="GIF" onClose={() => showLightbox = false} />
+{/if}
 
 <style>
 	.message-gif-container {
@@ -153,27 +125,12 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: var(--color-background-secondary, #f5f5f5);
+		background: var(--bg-secondary);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		min-height: 150px;
-	}
-
-	.loading-spinner {
-		width: 24px;
-		height: 24px;
-		border: 2px solid var(--color-border, #ccc);
-		border-top: 2px solid var(--color-primary, #007bff);
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin-bottom: 8px;
-	}
-
-	.loading-text {
-		font-size: 12px;
-		color: var(--color-text-secondary, #666);
 	}
 
 	.gif-overlay {
@@ -199,8 +156,8 @@
 	}
 
 	.gif-error {
-		background: var(--color-error-background, #f8d7da);
-		border: 1px solid var(--color-error-border, #f5c6cb);
+		background: var(--danger-subtle);
+		border: 1px solid rgba(239, 68, 68, 0.2);
 		border-radius: 8px;
 		padding: 16px;
 		max-width: 300px;
@@ -220,69 +177,21 @@
 
 	.error-text {
 		font-size: 12px;
-		color: var(--color-error-text, #721c24);
+		color: var(--danger);
 		margin-bottom: 8px;
 		font-weight: 500;
 	}
 
 	.gif-link {
 		font-size: 11px;
-		color: var(--color-primary, #007bff);
+		color: var(--accent);
 		text-decoration: underline;
 		word-break: break-all;
 		line-height: 1.3;
 	}
 
 	.gif-link:hover {
-		color: var(--color-primary-dark, #0056b3);
-	}
-
-	@keyframes spin {
-		0% { transform: rotate(0deg); }
-		100% { transform: rotate(360deg); }
-	}
-
-	/* Modal styles */
-	:global(.gif-modal-overlay) {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.9);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 9999;
-		cursor: pointer;
-		outline: none;
-	}
-
-	:global(.gif-modal-content) {
-		max-width: 95vw;
-		max-height: 95vh;
-		object-fit: contain;
-		border-radius: 8px;
-		cursor: default;
-	}
-
-	:global(.gif-close-hint) {
-		position: absolute;
-		top: 20px;
-		right: 20px;
-		background: rgba(0, 0, 0, 0.7);
-		color: white;
-		padding: 8px 12px;
-		border-radius: 4px;
-		font-size: 12px;
-		font-weight: 500;
-		pointer-events: none;
-		opacity: 0.8;
-		transition: opacity 0.3s ease;
-	}
-
-	:global(.gif-modal-overlay:hover .gif-close-hint) {
-		opacity: 1;
+		color: var(--accent-hover);
 	}
 
 	/* Mobile adjustments */
@@ -293,13 +202,6 @@
 
 		.message-gif {
 			max-height: 250px;
-		}
-
-		:global(.gif-close-hint) {
-			top: 10px;
-			right: 10px;
-			font-size: 11px;
-			padding: 6px 10px;
 		}
 	}
 
