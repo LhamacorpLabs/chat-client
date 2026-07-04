@@ -175,7 +175,7 @@ jobs:
         run: node -e "const f=require('fs');const c=JSON.parse(f.readFileSync('src-tauri/tauri.conf.json','utf8'));c.version='${{ needs.version.outputs.version }}';f.writeFileSync('src-tauri/tauri.conf.json',JSON.stringify(c,null,2));"
 
       - name: Build and release Tauri app
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
