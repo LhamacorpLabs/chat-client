@@ -1,0 +1,142 @@
+const { app, BrowserWindow, shell, ipcMain, nativeImage } = require('electron');
+const path = require('node:path');
+const fs = require('node:fs');
+const { autoUpdater } = require('electron-updater');
+
+const isDev = !app.isPackaged;
+const devServerUrl = process.env.ELECTRON_DEV_SERVER_URL || 'http://localhost:5173';
+
+let mainWindow = null;
+
+// Small on-disk JSON store (mirrors the durable file-backed store the
+// Tauri build used) - keeps auth data available across restarts even if
+// localStorage inside the renderer doesn't persist reliably.
+const storeFile = path.join(app.getPath('userData'), 'auth.json');
+
+function readStore() {
+	try {
+		return JSON.parse(fs.readFileSync(storeFile, 'utf8'));
+	} catch {
+		return {};
+	}
+}
+
+function writeStore(data) {
+	fs.mkdirSync(path.dirname(storeFile), { recursive: true });
+	fs.writeFileSync(storeFile, JSON.stringify(data), 'utf8');
+}
+
+function createWindow() {
+	mainWindow = new BrowserWindow({
+		title: 'Chat',
+		width: 800,
+		height: 600,
+		resizable: true,
+		fullscreen: false,
+		icon: path.join(__dirname, '../build-resources/icon.png'),
+		webPreferences: {
+			preload: path.join(__dirname, 'preload.cjs'),
+			contextIsolation: true,
+			nodeIntegration: false,
+			sandbox: true
+		}
+	});
+
+	// window.open()/target=_blank must open in the OS browser, not a second
+	// app window - deny in-app window creation and hand the URL to shell.
+	mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+		shell.openExternal(url);
+		return { action: 'deny' };
+	});
+
+	mainWindow.webContents.on('will-navigate', (event, url) => {
+		if (isDev && url.startsWith(devServerUrl)) return;
+		if (!isDev && url.startsWith('file://')) return;
+		event.preventDefault();
+		shell.openExternal(url);
+	});
+
+	if (isDev) {
+		mainWindow.loadURL(devServerUrl);
+	} else {
+		mainWindow.loadFile(path.join(__dirname, '../build/index.html'));
+	}
+
+	mainWindow.on('closed', () => {
+		mainWindow = null;
+	});
+}
+
+ipcMain.handle('store:get', (_event, key) => readStore()[key]);
+ipcMain.handle('store:set', (_event, key, value) => {
+	const data = readStore();
+	data[key] = value;
+	writeStore(data);
+});
+ipcMain.handle('store:delete', (_event, key) => {
+	const data = readStore();
+	delete data[key];
+	writeStore(data);
+});
+
+ipcMain.handle('shell:open-external', (_event, url) => shell.openExternal(url));
+
+ipcMain.handle('badge:set', (_event, count) => {
+	const unread = typeof count === 'number' && count > 0 ? count : 0;
+
+	if (process.platform === 'darwin' || process.platform === 'linux') {
+		app.setBadgeCount(unread);
+		return;
+	}
+
+	if (process.platform === 'win32' && mainWindow) {
+		if (unread > 0) {
+			const dot = nativeImage.createFromPath(path.join(__dirname, '../build-resources/overlay-dot.png'));
+			mainWindow.setOverlayIcon(dot, `${unread} unread message${unread === 1 ? '' : 's'}`);
+		} else {
+			mainWindow.setOverlayIcon(null, '');
+		}
+	}
+});
+
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = false;
+
+autoUpdater.on('update-downloaded', () => {
+	mainWindow?.webContents.send('updater:ready');
+});
+
+autoUpdater.on('error', (error) => {
+	console.error('Auto updater error:', error);
+});
+
+ipcMain.handle('updater:check', async () => {
+	if (isDev) return false;
+	try {
+		const result = await autoUpdater.checkForUpdates();
+		return !!result;
+	} catch (error) {
+		console.error('Update check failed:', error);
+		return false;
+	}
+});
+
+ipcMain.handle('updater:quit-and-install', () => {
+	autoUpdater.quitAndInstall();
+});
+
+app.whenReady().then(() => {
+	createWindow();
+
+	app.on('activate', () => {
+		if (BrowserWindow.getAllWindows().length === 0) {
+			createWindow();
+		}
+	});
+});
+
+app.on('window-all-closed', () => {
+	if (process.platform !== 'darwin') {
+		app.quit();
+	}
+});

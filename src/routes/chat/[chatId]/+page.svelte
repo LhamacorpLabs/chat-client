@@ -1225,21 +1225,16 @@
 	async function confirmAndOpenLink() {
 		if (pendingUrl) {
 			try {
-				if ('__TAURI_INTERNALS__' in window) {
-					const { openUrl } = await import('@tauri-apps/plugin-opener');
-					await openUrl(pendingUrl);
-				} else {
-					window.open(pendingUrl, '_blank', 'noopener,noreferrer');
-				}
+				window.open(pendingUrl, '_blank', 'noopener,noreferrer');
 			} catch (error) {
 				// Without this, a failure here (e.g. a permission/scope
 				// issue in the packaged app) throws inside an async click
 				// handler - the promise rejection is unhandled, so the
 				// modal never closes and nothing visibly happens.
 				console.error('Failed to open link:', error);
-				// Surface the actual error text - packaged Tauri builds don't
-				// give users easy access to devtools, so a generic message
-				// here means we can never find out *why* it failed.
+				// Surface the actual error text - packaged Electron builds
+				// don't give users easy access to devtools, so a generic
+				// message here means we can never find out *why* it failed.
 				const detail =
 					error instanceof Error
 						? error.message

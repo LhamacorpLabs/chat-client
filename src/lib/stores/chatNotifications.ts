@@ -5,11 +5,10 @@ import { showMessageNotification } from '../utils/osNotification.js';
 import { chatMuteStore } from './chatMute.js';
 
 async function updateBadgeCount(unreadMessages: Record<string, boolean>) {
-	if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+	if (typeof window === 'undefined' || !window.electronAPI) return;
 	try {
-		const { getCurrentWindow } = await import('@tauri-apps/api/window');
 		const count = Object.values(unreadMessages).filter(Boolean).length;
-		await getCurrentWindow().setBadgeCount(count > 0 ? count : undefined);
+		await window.electronAPI.badge.set(count);
 	} catch {}
 }
 

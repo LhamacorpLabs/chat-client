@@ -32,7 +32,7 @@ beforeEach(() => {
 	authLoaded.set(false);
 });
 
-describe('Auth refresh regression (Tauri cold-start logout bug)', () => {
+describe('Auth refresh regression (Electron cold-start logout bug)', () => {
 	it('does NOT log out when refresh fails for a transient/network reason', async () => {
 		const soonAuth = {
 			token: 'soon-expired',

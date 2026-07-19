@@ -11,7 +11,7 @@ const IMAGE_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/ima
  * A single 401 from the chat backend isn't reliable proof the session is
  * dead - it can happen from backend cold-start lag, clock skew, or a
  * transient auth hiccup on this specific request, especially right after
- * a Tauri app cold start. Before wiping the session and bouncing the user
+ * an Electron app cold start. Before wiping the session and bouncing the user
  * to the external login page, confirm with the auth server via
  * refreshToken() - which already distinguishes a genuinely rejected token
  * (401/403 -> logs out) from a transient failure (keeps the session), and

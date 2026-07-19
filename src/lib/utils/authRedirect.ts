@@ -1,7 +1,7 @@
 import { PUBLIC_AUTH_UI_URL } from '$env/static/public';
 
 function getOrigin(): string {
-	if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+	if (typeof window !== 'undefined' && window.electronAPI) {
 		return 'https://chat.lhamacorp.com';
 	}
 	return window.location.origin;

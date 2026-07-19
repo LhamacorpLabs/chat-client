@@ -1,6 +1,9 @@
 /**
  * OS Notification utilities for new message alerts.
- * Supports both browser Notification API and Tauri native notifications.
+ *
+ * Uses the standard browser Notification API - this works natively in both
+ * the web app and the Electron desktop build, since Electron's renderer is
+ * Chromium and implements the same API without any extra plugin.
  */
 
 const activeNotifications = new Map<string, Notification>();
@@ -13,21 +16,7 @@ interface NotificationOptions {
 	chatId: string;
 }
 
-function isTauri(): boolean {
-	return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
-
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-	if (isTauri()) {
-		const { isPermissionGranted, requestPermission } = await import('@tauri-apps/plugin-notification');
-		let permitted = await isPermissionGranted();
-		if (!permitted) {
-			const result = await requestPermission();
-			permitted = result === 'granted';
-		}
-		return permitted ? 'granted' : 'denied';
-	}
-
 	if (!('Notification' in window)) {
 		console.warn('This browser does not support notifications');
 		return 'denied';
@@ -64,12 +53,6 @@ export async function showMessageNotification(options: NotificationOptions): Pro
 
 	try {
 		const notificationTag = options.tag || `chat-${options.chatId}`;
-
-		if (isTauri()) {
-			const { sendNotification } = await import('@tauri-apps/plugin-notification');
-			sendNotification({ title: options.title, body: options.body });
-			return;
-		}
 
 		cleanupNotification(notificationTag);
 
@@ -128,16 +111,10 @@ export function cleanupAllNotifications(): void {
 }
 
 export function canShowNotifications(): boolean {
-	if (isTauri()) {
-		return true;
-	}
 	return 'Notification' in window && Notification.permission === 'granted';
 }
 
 export function getNotificationPermission(): NotificationPermission {
-	if (isTauri()) {
-		return 'granted';
-	}
 	if (!('Notification' in window)) {
 		return 'denied';
 	}

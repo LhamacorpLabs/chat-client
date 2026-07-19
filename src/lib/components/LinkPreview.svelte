@@ -13,15 +13,10 @@
 
 	async function openExternalLink(url: string) {
 		try {
-			// window.open() doesn't open the OS browser inside the Tauri webview -
-			// it's a no-op (or opens an unusable in-app window). Desktop builds
-			// must go through the opener plugin instead.
-			if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
-				const { openUrl } = await import('@tauri-apps/plugin-opener');
-				await openUrl(url);
-			} else {
-				window.open(url, '_blank', 'noopener,noreferrer');
-			}
+			// The Electron main process intercepts window.open() and routes it
+			// to the OS browser, so this works the same in the desktop build
+			// and on the web.
+			window.open(url, '_blank', 'noopener,noreferrer');
 		} catch (error) {
 			// Don't let this fail silently - fall back to the confirmation
 			// flow (which surfaces an error toast) so the user gets some

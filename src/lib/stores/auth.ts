@@ -28,9 +28,9 @@ export const authLoaded = writable(false);
 export const isAuthenticated = derived(authStore, $auth => !!$auth.token);
 
 export async function loadAuth() {
-	// On Tauri, localStorage inside the webview isn't always reliably
+	// On Electron, localStorage inside the renderer isn't always reliably
 	// persisted across full app restarts. Before reading localStorage,
-	// restore it from the durable on-disk Tauri store if localStorage came
+	// restore it from the durable on-disk Electron store if localStorage came
 	// up empty - a no-op everywhere else (web, or when localStorage still
 	// has the session).
 	await hydrateAuthFromPersistentStore();
@@ -66,7 +66,7 @@ export function logout() {
 	if (typeof localStorage !== 'undefined') {
 		localStorage.removeItem('auth_data');
 	}
-	// Fire-and-forget: clears the on-disk Tauri store too, so a stale
+	// Fire-and-forget: clears the on-disk Electron store too, so a stale
 	// session can't get rehydrated back into localStorage on next launch.
 	// Errors are already caught/logged inside clearPersistedAuthData().
 	void clearPersistedAuthData();
@@ -140,7 +140,7 @@ async function doRefreshToken(): Promise<boolean> {
 	} catch (error) {
 		// Only clear the session when the server explicitly rejected the
 		// token (401/403) - that means the token really is invalid. Any
-		// other failure (offline, DNS not ready yet on a Tauri cold start,
+		// other failure (offline, DNS not ready yet on an Electron cold start,
 		// CORS misconfiguration, server hiccup, etc.) is transient: keep
 		// the existing, still-unexpired token so the user isn't forced to
 		// log in again just because a background refresh couldn't reach

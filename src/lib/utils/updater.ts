@@ -5,29 +5,38 @@ export const updateReady = writable(false);
 const CHECK_INTERVAL = 30 * 60 * 1000;
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
+function getElectronAPI() {
+	if (typeof window === 'undefined') return undefined;
+	return window.electronAPI;
+}
+
 async function checkForUpdate() {
+	const electronAPI = getElectronAPI();
+	if (!electronAPI) return;
+
 	try {
-		const { check } = await import('@tauri-apps/plugin-updater');
-		const update = await check();
-		if (!update) return;
-		await update.downloadAndInstall();
-		updateReady.set(true);
+		await electronAPI.updater.check();
 	} catch (e) {
 		console.error('Update check failed:', e);
 	}
 }
 
 export async function restartApp() {
+	const electronAPI = getElectronAPI();
+	if (!electronAPI) return;
+
 	try {
-		const { relaunch } = await import('@tauri-apps/plugin-process');
-		await relaunch();
+		await electronAPI.updater.quitAndInstall();
 	} catch (e) {
 		console.error('Relaunch failed:', e);
 	}
 }
 
 export function startUpdateChecker() {
-	if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+	const electronAPI = getElectronAPI();
+	if (!electronAPI) return;
+
+	electronAPI.updater.onReady(() => updateReady.set(true));
 
 	checkForUpdate();
 	intervalId = setInterval(checkForUpdate, CHECK_INTERVAL);
