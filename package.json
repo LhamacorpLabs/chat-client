@@ -60,10 +60,12 @@
 		"mac": {
 			"target": [
 				{ "target": "dmg", "arch": ["arm64"] },
-				{ "target": "dmg", "arch": ["x64"] }
+				{ "target": "dmg", "arch": ["x64"] },
+				{ "target": "zip", "arch": ["arm64"] },
+				{ "target": "zip", "arch": ["x64"] }
 			],
 			"icon": "build-resources/icon.icns",
-			"artifactName": "${productName}_${version}_${arch}.dmg"
+			"artifactName": "${productName}_${version}_${arch}.${ext}"
 		},
 		"win": {
 			"target": [{ "target": "nsis", "arch": ["x64"] }],
