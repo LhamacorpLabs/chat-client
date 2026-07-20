@@ -9,6 +9,17 @@ const devServerUrl = process.env.ELECTRON_DEV_SERVER_URL || 'http://localhost:51
 const buildDir = path.join(__dirname, '../build');
 const appUrl = 'app://local/';
 
+// redirectToLogin() (authRedirect.ts) navigates this window straight to the
+// login UI, which redirects back to https://chat.lhamacorp.com/auth/callback
+// on success - both legs must stay inside this window (same as the previous
+// Tauri build, which had no navigation guard) or the OAuth round trip
+// finishes in the system browser instead of coming back to the app.
+const authNavigationOrigins = ['https://login.lhamacorp.com', 'https://chat.lhamacorp.com'];
+
+function isAuthNavigation(url) {
+	return authNavigationOrigins.some((origin) => url === origin || url.startsWith(`${origin}/`));
+}
+
 // SvelteKit's static fallback page (build/index.html) uses root-absolute
 // asset paths ("/_app/...") since it must work at any URL depth on a real
 // server. Those paths resolve against the filesystem root under file://,
@@ -68,6 +79,7 @@ function createWindow() {
 	mainWindow.webContents.on('will-navigate', (event, url) => {
 		if (isDev && url.startsWith(devServerUrl)) return;
 		if (!isDev && url.startsWith('app://')) return;
+		if (isAuthNavigation(url)) return;
 		event.preventDefault();
 		shell.openExternal(url);
 	});
