@@ -127,8 +127,8 @@ jobs:
             --notes "${{ needs.version.outputs.commit_message }}" \
             --draft
 
-  tauri-release:
-    name: Tauri Release
+  electron-release:
+    name: Electron Release
     needs: [version, create-release]
     permissions:
       contents: write
@@ -137,13 +137,11 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            args: --target aarch64-apple-darwin
-          - platform: macos-latest
-            args: --target x86_64-apple-darwin
+            build-args: --mac --arm64 --x64
           - platform: ubuntu-22.04
-            args: ""
+            build-args: --linux --x64
           - platform: windows-latest
-            args: ""
+            build-args: --win --x64
 
     runs-on: ${{ matrix.platform }}
 
@@ -157,47 +155,31 @@ jobs:
           node-version: "22"
           cache: "npm"
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: Install dependencies (Ubuntu)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
       - name: Install npm dependencies
         run: npm install
 
       - name: Set version
-        run: node -e "const f=require('fs');const c=JSON.parse(f.readFileSync('src-tauri/tauri.conf.json','utf8'));c.version='${{ needs.version.outputs.version }}';f.writeFileSync('src-tauri/tauri.conf.json',JSON.stringify(c,null,2));"
+        run: node -e "const f=require('fs');const p=JSON.parse(f.readFileSync('package.json','utf8'));p.version='${{ needs.version.outputs.version }}';f.writeFileSync('package.json',JSON.stringify(p,null,2));"
 
-      - name: Build and release Tauri app
-        uses: tauri-apps/tauri-action@v0
+      - name: Build the application
+        run: npm run build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           PUBLIC_CHAT_API_URL: https://chat-be.lhamacorp.com
           PUBLIC_AUTH_API_URL: https://auth.lhamacorp.com
           PUBLIC_AUTH_UI_URL: https://login.lhamacorp.com
           PUBLIC_MQTT_BROKER_URL: wss://mqtt.lhamacorp.com
           PUBLIC_REALTIME_MODE: mqtt
           APP_VERSION: ${{ needs.version.outputs.version }}
-        with:
-          tagName: v${{ needs.version.outputs.version }}
-          releaseName: "Chat v${{ needs.version.outputs.version }}"
-          releaseBody: "${{ needs.version.outputs.commit_message }}"
-          releaseDraft: true
-          prerelease: false
-          updaterJsonKeepUniversal: true
-          args: ${{ matrix.args }}
+
+      - name: Build and publish Electron app
+        run: npx electron-builder ${{ matrix.build-args }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
   publish-release:
     name: Publish Release
-    needs: [version, tauri-release]
+    needs: [version, electron-release]
     runs-on: ubuntu-latest
     permissions:
       contents: write

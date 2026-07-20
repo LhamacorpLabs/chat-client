@@ -24,7 +24,7 @@
 	let selectedChatIndex = $state(-1);
 	let backendVersion = $state('');
 	let appVersion = $state('');
-	let isTauri = $state(typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window);
+	let isElectron = $state(typeof window !== 'undefined' && !!window.electronAPI);
 
 	$effect(() => {
 		if ($authLoaded && !$authStore.token) {
@@ -431,7 +431,7 @@
 					{#if appVersion} • v{appVersion}{/if}
 				</span>
 			{/if}
-			{#if !isTauri}
+			{#if !isElectron}
 				<a href="/download" class="download-link">• Download Client</a>
 			{/if}
 		</footer>

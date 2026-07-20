@@ -7,20 +7,6 @@ import {
 	cleanupAllNotifications
 } from '$lib/utils/osNotification';
 
-vi.mock('@tauri-apps/plugin-notification', () => ({
-	isPermissionGranted: vi.fn(),
-	requestPermission: vi.fn(),
-	sendNotification: vi.fn()
-}));
-
-function setTauri(enabled: boolean) {
-	if (enabled) {
-		(window as any).__TAURI_INTERNALS__ = {};
-	} else {
-		delete (window as any).__TAURI_INTERNALS__;
-	}
-}
-
 class MockNotification {
 	static permission: NotificationPermission = 'granted';
 	static requestPermission = vi.fn(() => Promise.resolve(MockNotification.permission));
@@ -38,9 +24,8 @@ class MockNotification {
 	}
 }
 
-describe('osNotification - browser mode', () => {
+describe('osNotification', () => {
 	beforeEach(() => {
-		setTauri(false);
 		(globalThis as any).Notification = MockNotification;
 		MockNotification.permission = 'granted';
 		Object.defineProperty(document, 'hidden', { value: true, configurable: true });
@@ -65,7 +50,7 @@ describe('osNotification - browser mode', () => {
 		expect(result).toBe('granted');
 	});
 
-	it('showMessageNotification creates browser Notification when not in Tauri', async () => {
+	it('showMessageNotification creates a Notification when the window is hidden', async () => {
 		const instances: MockNotification[] = [];
 		(globalThis as any).Notification = class extends MockNotification {
 			constructor(title: string, options?: NotificationOptions) {
@@ -112,6 +97,29 @@ describe('osNotification - browser mode', () => {
 		expect(instances.length).toBe(0);
 	});
 
+	it('showMessageNotification does nothing when permission denied', async () => {
+		MockNotification.permission = 'denied';
+
+		const instances: MockNotification[] = [];
+		(globalThis as any).Notification = class extends MockNotification {
+			constructor(title: string, options?: NotificationOptions) {
+				super(title, options);
+				instances.push(this);
+			}
+
+			static permission = 'denied' as NotificationPermission;
+			static requestPermission = MockNotification.requestPermission;
+		};
+
+		await showMessageNotification({
+			title: 'Test',
+			body: 'Body',
+			chatId: '000'
+		});
+
+		expect(instances.length).toBe(0);
+	});
+
 	it('canShowNotifications returns true when permission granted', () => {
 		MockNotification.permission = 'granted';
 		expect(canShowNotifications()).toBe(true);
@@ -125,85 +133,5 @@ describe('osNotification - browser mode', () => {
 	it('getNotificationPermission returns current permission', () => {
 		MockNotification.permission = 'denied';
 		expect(getNotificationPermission()).toBe('denied');
-	});
-});
-
-describe('osNotification - Tauri mode', () => {
-	let tauriMock: {
-		isPermissionGranted: ReturnType<typeof vi.fn>;
-		requestPermission: ReturnType<typeof vi.fn>;
-		sendNotification: ReturnType<typeof vi.fn>;
-	};
-
-	beforeEach(async () => {
-		setTauri(true);
-		tauriMock = await import('@tauri-apps/plugin-notification') as any;
-		tauriMock.isPermissionGranted.mockReset();
-		tauriMock.requestPermission.mockReset();
-		tauriMock.sendNotification.mockReset();
-		Object.defineProperty(document, 'hidden', { value: true, configurable: true });
-	});
-
-	afterEach(() => {
-		setTauri(false);
-		vi.restoreAllMocks();
-	});
-
-	it('requestNotificationPermission uses Tauri plugin when granted', async () => {
-		tauriMock.isPermissionGranted.mockResolvedValue(true);
-		const result = await requestNotificationPermission();
-		expect(result).toBe('granted');
-		expect(tauriMock.isPermissionGranted).toHaveBeenCalled();
-	});
-
-	it('requestNotificationPermission requests via Tauri when not granted', async () => {
-		tauriMock.isPermissionGranted.mockResolvedValue(false);
-		tauriMock.requestPermission.mockResolvedValue('granted');
-		const result = await requestNotificationPermission();
-		expect(result).toBe('granted');
-		expect(tauriMock.requestPermission).toHaveBeenCalled();
-	});
-
-	it('requestNotificationPermission returns denied when Tauri denies', async () => {
-		tauriMock.isPermissionGranted.mockResolvedValue(false);
-		tauriMock.requestPermission.mockResolvedValue('denied');
-		const result = await requestNotificationPermission();
-		expect(result).toBe('denied');
-	});
-
-	it('showMessageNotification uses Tauri sendNotification', async () => {
-		tauriMock.isPermissionGranted.mockResolvedValue(true);
-
-		await showMessageNotification({
-			title: 'Tauri msg',
-			body: 'Hello from Tauri',
-			chatId: '789'
-		});
-
-		expect(tauriMock.sendNotification).toHaveBeenCalledWith({
-			title: 'Tauri msg',
-			body: 'Hello from Tauri'
-		});
-	});
-
-	it('showMessageNotification does nothing when Tauri permission denied', async () => {
-		tauriMock.isPermissionGranted.mockResolvedValue(false);
-		tauriMock.requestPermission.mockResolvedValue('denied');
-
-		await showMessageNotification({
-			title: 'Test',
-			body: 'Body',
-			chatId: '000'
-		});
-
-		expect(tauriMock.sendNotification).not.toHaveBeenCalled();
-	});
-
-	it('canShowNotifications returns true in Tauri mode', () => {
-		expect(canShowNotifications()).toBe(true);
-	});
-
-	it('getNotificationPermission returns granted in Tauri mode', () => {
-		expect(getNotificationPermission()).toBe('granted');
 	});
 });

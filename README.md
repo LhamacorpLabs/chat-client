@@ -12,11 +12,11 @@ npm install
 npm run dev
 ```
 
-## Desktop Client (Tauri)
+## Desktop Client (Electron)
 
 ```bash
-npm run tauri:dev     # dev with hot reload
-npm run tauri:build   # production build
+npm run electron:dev     # dev with hot reload
+npm run electron:build   # production build (electron-builder)
 ```
 
 ## Scripts
@@ -26,8 +26,8 @@ npm run tauri:build   # production build
 | `npm run dev` | Start dev server |
 | `npm run build` | Production build |
 | `npm test` | Run tests |
-| `npm run tauri:dev` | Desktop dev mode |
-| `npm run tauri:build` | Desktop production build |
+| `npm run electron:dev` | Desktop dev mode |
+| `npm run electron:build` | Desktop production build |
 
 ## Keyboard Shortcuts
 

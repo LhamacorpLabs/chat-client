@@ -3,11 +3,11 @@ import { render, screen, waitFor } from '@testing-library/svelte';
 import DownloadPage from '../routes/download/+page.svelte';
 
 const mockAssets = [
-	{ name: 'Chat_0.1.0_aarch64.dmg', browser_download_url: 'https://github.com/LhamacorpLabs/chat-client/releases/download/v0.1.0/Chat_0.1.0_aarch64.dmg' },
+	{ name: 'Chat_0.1.0_arm64.dmg', browser_download_url: 'https://github.com/LhamacorpLabs/chat-client/releases/download/v0.1.0/Chat_0.1.0_arm64.dmg' },
 	{ name: 'Chat_0.1.0_x64.dmg', browser_download_url: 'https://github.com/LhamacorpLabs/chat-client/releases/download/v0.1.0/Chat_0.1.0_x64.dmg' },
 	{ name: 'Chat_0.1.0_x64-setup.exe', browser_download_url: 'https://github.com/LhamacorpLabs/chat-client/releases/download/v0.1.0/Chat_0.1.0_x64-setup.exe' },
-	{ name: 'Chat_0.1.0_amd64.AppImage', browser_download_url: 'https://github.com/LhamacorpLabs/chat-client/releases/download/v0.1.0/Chat_0.1.0_amd64.AppImage' },
-	{ name: 'Chat_0.1.0_amd64.deb', browser_download_url: 'https://github.com/LhamacorpLabs/chat-client/releases/download/v0.1.0/Chat_0.1.0_amd64.deb' }
+	{ name: 'Chat_0.1.0_x64.AppImage', browser_download_url: 'https://github.com/LhamacorpLabs/chat-client/releases/download/v0.1.0/Chat_0.1.0_x64.AppImage' },
+	{ name: 'Chat_0.1.0_x64.deb', browser_download_url: 'https://github.com/LhamacorpLabs/chat-client/releases/download/v0.1.0/Chat_0.1.0_x64.deb' }
 ];
 
 beforeEach(() => {

@@ -1,39 +1,22 @@
 import type { AuthResponse } from '../types/auth';
 
-const STORE_FILE = 'auth.json';
 const STORE_KEY = 'auth_data';
 
-function isTauri(): boolean {
-	return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
+type ElectronStore = NonNullable<Window['electronAPI']>['store'];
 
-let tauriStorePromise: Promise<any> | null = null;
-
-async function getTauriStore(): Promise<any | null> {
-	if (!isTauri()) return null;
-
-	if (!tauriStorePromise) {
-		tauriStorePromise = (async () => {
-			try {
-				const { LazyStore } = await import('@tauri-apps/plugin-store');
-				return new LazyStore(STORE_FILE);
-			} catch (error) {
-				console.warn('Tauri store plugin unavailable:', error);
-				return null;
-			}
-		})();
-	}
-
-	return tauriStorePromise;
+function getElectronStore(): ElectronStore | undefined {
+	if (typeof window === 'undefined' || !window.electronAPI) return undefined;
+	return window.electronAPI.store;
 }
 
 /**
- * localStorage persistence inside a Tauri webview isn't reliable on every
+ * localStorage persistence inside a webview isn't reliable on every
  * platform/webview version - there are documented cases (particularly on
- * macOS/WKWebView) where it doesn't survive an app restart even though the
- * app itself, and the rest of its data directory, persists fine. The Tauri
- * store plugin instead writes to an actual JSON file in the app's data
- * directory, which is far more dependable.
+ * macOS/WKWebView-based shells) where it doesn't survive an app restart
+ * even though the app itself, and the rest of its data directory, persists
+ * fine. The Electron desktop build instead writes to an actual JSON file in
+ * the app's userData directory (via the main process), which is far more
+ * dependable.
  *
  * Rather than rewrite every one of the many call sites across the app that
  * read `localStorage.getItem('auth_data')` synchronously, localStorage
@@ -46,7 +29,7 @@ export async function hydrateAuthFromPersistentStore(): Promise<void> {
 	if (typeof localStorage === 'undefined') return;
 	if (localStorage.getItem(STORE_KEY)) return;
 
-	const store = await getTauriStore();
+	const store = getElectronStore();
 	if (!store) return;
 
 	try {
@@ -60,24 +43,22 @@ export async function hydrateAuthFromPersistentStore(): Promise<void> {
 }
 
 export async function persistAuthData(data: AuthResponse): Promise<void> {
-	const store = await getTauriStore();
+	const store = getElectronStore();
 	if (!store) return;
 
 	try {
 		await store.set(STORE_KEY, data);
-		await store.save();
 	} catch (error) {
 		console.warn('Failed to persist auth session to disk store:', error);
 	}
 }
 
 export async function clearPersistedAuthData(): Promise<void> {
-	const store = await getTauriStore();
+	const store = getElectronStore();
 	if (!store) return;
 
 	try {
 		await store.delete(STORE_KEY);
-		await store.save();
 	} catch (error) {
 		console.warn('Failed to clear persisted auth session:', error);
 	}

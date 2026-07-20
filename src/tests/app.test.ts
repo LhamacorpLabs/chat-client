@@ -174,10 +174,10 @@ describe('Auth - Token Refresh', () => {
 		expect(get(authStore).token).toBe('refreshed-token');
 	});
 
-	it('does NOT log out when a refresh attempt fails for a transient/network reason (e.g. Tauri cold start)', async () => {
+	it('does NOT log out when a refresh attempt fails for a transient/network reason (e.g. Electron cold start)', async () => {
 		// Regression test: previously, ANY refresh failure (including a
 		// network error with no server response, which is common right
-		// after a Tauri app cold start) called logout() and wiped the
+		// after an Electron app cold start) called logout() and wiped the
 		// session, forcing the user to log in again every time they
 		// reopened the app.
 		const soonAuth = {
