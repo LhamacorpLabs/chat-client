@@ -138,8 +138,8 @@ jobs:
         include:
           - platform: macos-latest
             build-args: --mac --arm64 --x64
-          - platform: ubuntu-22.04
-            build-args: --linux --x64
+#          - platform: ubuntu-22.04
+#            build-args: --linux --x64
           - platform: windows-latest
             build-args: --win --x64
 
