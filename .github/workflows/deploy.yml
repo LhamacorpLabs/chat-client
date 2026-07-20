@@ -122,11 +122,12 @@ jobs:
       - name: Create release (draft)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_MESSAGE: ${{ needs.version.outputs.commit_message }}
         run: |
           gh release create "v${{ needs.version.outputs.version }}" \
             --repo ${{ github.repository }} \
             --title "Chat v${{ needs.version.outputs.version }}" \
-            --notes "${{ needs.version.outputs.commit_message }}" \
+            --notes "$COMMIT_MESSAGE" \
             --draft
 
   electron-release:
