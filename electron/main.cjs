@@ -1,10 +1,41 @@
-const { app, BrowserWindow, shell, ipcMain, nativeImage } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, nativeImage, protocol, net } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { pathToFileURL } = require('node:url');
 const { autoUpdater } = require('electron-updater');
 
 const isDev = !app.isPackaged;
 const devServerUrl = process.env.ELECTRON_DEV_SERVER_URL || 'http://localhost:5173';
+const buildDir = path.join(__dirname, '../build');
+const appUrl = 'app://local/';
+
+// redirectToLogin() (authRedirect.ts) navigates this window straight to the
+// login UI, which redirects back to https://chat.lhamacorp.com/auth/callback
+// on success - both legs must stay inside this window (same as the previous
+// Tauri build, which had no navigation guard) or the OAuth round trip
+// finishes in the system browser instead of coming back to the app.
+const authNavigationOrigins = ['https://login.lhamacorp.com', 'https://chat.lhamacorp.com'];
+
+function isAuthNavigation(url) {
+	return authNavigationOrigins.some((origin) => url === origin || url.startsWith(`${origin}/`));
+}
+
+// SvelteKit's static fallback page (build/index.html) uses root-absolute
+// asset paths ("/_app/...") since it must work at any URL depth on a real
+// server. Those paths resolve against the filesystem root under file://,
+// so we serve the build dir through a custom scheme instead - it behaves
+// like an http root, and unmatched paths fall back to index.html for
+// client-side routing.
+protocol.registerSchemesAsPrivileged([
+	{
+		scheme: 'app',
+		privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true }
+	}
+]);
+
+// No custom menu is needed - the app is fully controlled through its own UI,
+// so drop Electron's default File/Edit/View/Window menu bar entirely.
+Menu.setApplicationMenu(null);
 
 let mainWindow = null;
 
@@ -51,7 +82,8 @@ function createWindow() {
 
 	mainWindow.webContents.on('will-navigate', (event, url) => {
 		if (isDev && url.startsWith(devServerUrl)) return;
-		if (!isDev && url.startsWith('file://')) return;
+		if (!isDev && url.startsWith('app://')) return;
+		if (isAuthNavigation(url)) return;
 		event.preventDefault();
 		shell.openExternal(url);
 	});
@@ -59,7 +91,7 @@ function createWindow() {
 	if (isDev) {
 		mainWindow.loadURL(devServerUrl);
 	} else {
-		mainWindow.loadFile(path.join(__dirname, '../build/index.html'));
+		mainWindow.loadURL(appUrl);
 	}
 
 	mainWindow.on('closed', () => {
@@ -126,6 +158,17 @@ ipcMain.handle('updater:quit-and-install', () => {
 });
 
 app.whenReady().then(() => {
+	protocol.handle('app', (request) => {
+		const { pathname } = new URL(request.url);
+		let filePath = path.normalize(path.join(buildDir, decodeURIComponent(pathname)));
+
+		if (!filePath.startsWith(buildDir) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+			filePath = path.join(buildDir, 'index.html');
+		}
+
+		return net.fetch(pathToFileURL(filePath).toString());
+	});
+
 	createWindow();
 
 	app.on('activate', () => {
