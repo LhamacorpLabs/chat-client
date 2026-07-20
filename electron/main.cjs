@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, nativeImage, protocol, net } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, nativeImage, protocol, net } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
@@ -32,6 +32,10 @@ protocol.registerSchemesAsPrivileged([
 		privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true }
 	}
 ]);
+
+// No custom menu is needed - the app is fully controlled through its own UI,
+// so drop Electron's default File/Edit/View/Window menu bar entirely.
+Menu.setApplicationMenu(null);
 
 let mainWindow = null;
 
