@@ -24,11 +24,13 @@ jobs:
       commit_message: ${{ steps.version.outputs.commit_message }}
     steps:
       - id: version
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           echo "version=$(date -u +%-y).$(date -u +%-m).$(( ${{ github.run_number }} ))" >> $GITHUB_OUTPUT
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "commit_message<<$EOF" >> $GITHUB_OUTPUT
-          echo "${{ github.event.head_commit.message }}" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MESSAGE" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
 
   test:
@@ -120,11 +122,12 @@ jobs:
       - name: Create release (draft)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_MESSAGE: ${{ needs.version.outputs.commit_message }}
         run: |
           gh release create "v${{ needs.version.outputs.version }}" \
             --repo ${{ github.repository }} \
             --title "Chat v${{ needs.version.outputs.version }}" \
-            --notes "${{ needs.version.outputs.commit_message }}" \
+            --notes "$COMMIT_MESSAGE" \
             --draft
 
   electron-release:
