@@ -13,7 +13,7 @@ const MANIFEST_URL =
 // Non-secret - pairs with the MAC_UPDATE_SIGNING_KEY GitHub secret used to
 // sign releases in scripts/publish-mac-manifest.cjs.
 const PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
-REPLACE_WITH_GENERATED_PUBLIC_KEY
+MCowBQYDK2VwAyEAfYEaczj9e7hv9vnkpGOOmmiwR3sRu1ZimVdmlsUYesI=
 -----END PUBLIC KEY-----
 `;
 
