@@ -35,9 +35,34 @@ protocol.registerSchemesAsPrivileged([
 	}
 ]);
 
-// No custom menu is needed - the app is fully controlled through its own UI,
-// so drop Electron's default File/Edit/View/Window menu bar entirely.
-Menu.setApplicationMenu(null);
+// The app is fully controlled through its own UI, so there's no visible
+// File/Edit/View/Window menu bar. On macOS, though, Cmd+C/V/X/A/Z are only
+// routed to the focused web content if the app menu declares matching
+// roles - an app with no menu at all loses those shortcuts entirely, which
+// broke pasting into the chat input. Keep a bare Edit role menu on macOS
+// (it lives in the system menu bar, not an in-window one) and drop the
+// menu entirely elsewhere, where those shortcuts work natively.
+if (isMac) {
+	Menu.setApplicationMenu(
+		Menu.buildFromTemplate([
+			{ role: 'appMenu' },
+			{
+				label: 'Edit',
+				submenu: [
+					{ role: 'undo' },
+					{ role: 'redo' },
+					{ type: 'separator' },
+					{ role: 'cut' },
+					{ role: 'copy' },
+					{ role: 'paste' },
+					{ role: 'selectAll' }
+				]
+			}
+		])
+	);
+} else {
+	Menu.setApplicationMenu(null);
+}
 
 let mainWindow = null;
 
