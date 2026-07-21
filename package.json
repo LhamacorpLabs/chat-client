@@ -67,7 +67,8 @@
 				{ "target": "zip", "arch": ["x64"] }
 			],
 			"icon": "build-resources/icon.icns",
-			"artifactName": "${productName}_${version}_${arch}.${ext}"
+			"artifactName": "${productName}_${version}_${arch}.${ext}",
+			"identity": "-"
 		},
 		"win": {
 			"target": [{ "target": "nsis", "arch": ["x64"] }],
