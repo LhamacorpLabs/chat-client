@@ -5,6 +5,8 @@ const { pathToFileURL } = require('node:url');
 const { autoUpdater } = require('electron-updater');
 
 const isDev = !app.isPackaged;
+const isMac = process.platform === 'darwin';
+const macUpdater = isMac ? require('./macUpdater.cjs') : null;
 const devServerUrl = process.env.ELECTRON_DEV_SERVER_URL || 'http://localhost:5173';
 const buildDir = path.join(__dirname, '../build');
 const appUrl = 'app://local/';
@@ -131,19 +133,26 @@ ipcMain.handle('badge:set', (_event, count) => {
 	}
 });
 
-autoUpdater.autoDownload = true;
-autoUpdater.autoInstallOnAppQuit = false;
+// macOS auto-update bypasses electron-updater/Squirrel.Mac entirely (see
+// macUpdater.cjs) because Squirrel.Mac requires a paid Apple Developer ID
+// signature to validate updates. Windows keeps the electron-updater/NSIS
+// path below, unchanged.
+if (!isMac) {
+	autoUpdater.autoDownload = true;
+	autoUpdater.autoInstallOnAppQuit = false;
 
-autoUpdater.on('update-downloaded', () => {
-	mainWindow?.webContents.send('updater:ready');
-});
+	autoUpdater.on('update-downloaded', () => {
+		mainWindow?.webContents.send('updater:ready');
+	});
 
-autoUpdater.on('error', (error) => {
-	console.error('Auto updater error:', error);
-});
+	autoUpdater.on('error', (error) => {
+		console.error('Auto updater error:', error);
+	});
+}
 
 ipcMain.handle('updater:check', async () => {
 	if (isDev) return false;
+	if (isMac) return macUpdater.checkForUpdate(mainWindow);
 	try {
 		const result = await autoUpdater.checkForUpdates();
 		return !!result;
@@ -154,6 +163,10 @@ ipcMain.handle('updater:check', async () => {
 });
 
 ipcMain.handle('updater:quit-and-install', () => {
+	if (isMac) {
+		macUpdater.quitAndInstall();
+		return;
+	}
 	autoUpdater.quitAndInstall();
 });
 

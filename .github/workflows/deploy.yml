@@ -180,6 +180,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: Generate and sign mac update manifest
+        if: matrix.platform == 'macos-latest'
+        run: node scripts/publish-mac-manifest.cjs
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+          MAC_UPDATE_SIGNING_KEY: ${{ secrets.MAC_UPDATE_SIGNING_KEY }}
+
+      - name: Upload update manifest to release
+        if: matrix.platform == 'macos-latest'
+        run: gh release upload "v${{ needs.version.outputs.version }}" release/latest-mac.json --clobber --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish-release:
     name: Publish Release
     needs: [version, electron-release]
