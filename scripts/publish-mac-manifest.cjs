@@ -7,14 +7,25 @@ const PRODUCT_NAME = 'Chat';
 const RELEASE_DIR = path.join(__dirname, '..', 'release');
 const ARCHS = ['arm64', 'x64'];
 
+// GitHub's secret UI/CLI can mangle a multi-line PEM in a few common ways
+// (stripped newlines, literal "\n" text instead of real newlines, or just
+// the base64 body pasted without the BEGIN/END header lines). Normalize
+// whatever we're given back into a well-formed PKCS8 PEM before parsing.
+function normalizePrivateKeyPem(raw) {
+	const unescaped = raw.replace(/\\n/g, '\n');
+	const base64 = unescaped.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+	const lines = base64.match(/.{1,64}/g) || [];
+	return `-----BEGIN PRIVATE KEY-----\n${lines.join('\n')}\n-----END PRIVATE KEY-----\n`;
+}
+
 function main() {
 	const version = process.env.APP_VERSION;
-	const privateKeyPem = process.env.MAC_UPDATE_SIGNING_KEY;
+	const privateKeyPemRaw = process.env.MAC_UPDATE_SIGNING_KEY;
 
 	if (!version) throw new Error('APP_VERSION env var is required');
-	if (!privateKeyPem) throw new Error('MAC_UPDATE_SIGNING_KEY env var is required');
+	if (!privateKeyPemRaw) throw new Error('MAC_UPDATE_SIGNING_KEY env var is required');
 
-	const privateKey = crypto.createPrivateKey(privateKeyPem);
+	const privateKey = crypto.createPrivateKey(normalizePrivateKeyPem(privateKeyPemRaw));
 	const manifest = { version };
 
 	for (const arch of ARCHS) {
