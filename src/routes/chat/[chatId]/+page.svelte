@@ -1288,9 +1288,8 @@
 	$effect(() => {
 		function handleKeyDown(event: KeyboardEvent) {
 			if (event.key === 'Escape') {
-				const imageModal = document.querySelector('.image-modal-overlay');
-				const gifModal = document.querySelector('.gif-modal-overlay');
-				if (imageModal || gifModal) {
+				const lightbox = document.querySelector('.lightbox-overlay');
+				if (lightbox) {
 					return;
 				}
 
