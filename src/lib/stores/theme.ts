@@ -38,9 +38,18 @@ export function toggleTheme() {
 	});
 }
 
+// Matches --bg-primary in static/global.css for each theme, so mobile
+// browser chrome (Safari's status bar / toolbar) tints to match the page
+// instead of defaulting to white.
+const THEME_COLORS: Record<Theme, string> = {
+	light: '#ffffff',
+	dark: '#09090f'
+};
+
 // Apply theme to document
 function applyTheme(themeValue: Theme) {
 	if (browser) {
 		document.documentElement.setAttribute('data-theme', themeValue);
+		document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[themeValue]);
 	}
 }
