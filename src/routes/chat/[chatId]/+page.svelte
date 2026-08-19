@@ -1264,14 +1264,15 @@
 	});
 
 	$effect(() => {
+		// Layout resize on keyboard open/close is handled declaratively by
+		// `100dvh` + the `interactive-widget=resizes-content` viewport meta
+		// (src/app.html) — manually resizing/translating .chat-page here as
+		// well double-counts the keyboard height and leaves a blank gap
+		// above it. This just keeps the thread pinned to the bottom.
 		const viewport = window.visualViewport;
 		if (!viewport) return;
 
 		function handleViewportResize() {
-			const page = document.querySelector('.chat-page') as HTMLElement;
-			if (!page) return;
-			page.style.height = `${viewport!.height}px`;
-			page.style.transform = `translateY(${viewport!.offsetTop}px)`;
 			if (shouldAutoScroll) {
 				scrollToBottom();
 			}
@@ -1961,14 +1962,27 @@
 	}
 
 	:global([data-theme='dark']) .other-message {
-		background: var(--bg-glass);
-		border-color: var(--glass-border);
+		background: var(--bg-tertiary);
+		border: none;
+		border-left: 3px solid var(--current-member-color, var(--border-color));
 	}
 
 	:global([data-theme='dark']) .own-message {
-		background: rgba(99, 102, 241, 0.08);
+		background: rgba(99, 102, 241, 0.18);
 		color: var(--text-primary);
-		border: 1px solid rgba(99, 102, 241, 0.15);
+		border: none;
+	}
+
+	/* Re-assert the favorited indicator: same specificity as the
+	   .other-message/.own-message dark overrides above, but these come
+	   later so they win the border-left/border-right tie-break. */
+	:global([data-theme='dark']) .message-item.favorited {
+		border-left: 2px solid #f59e0b;
+	}
+
+	:global([data-theme='dark']) .message-item.favorited.own-message {
+		border-right: 2px solid #f59e0b;
+		border-left: none;
 	}
 
 	:global([data-theme='dark']) .own-message .message-user {
