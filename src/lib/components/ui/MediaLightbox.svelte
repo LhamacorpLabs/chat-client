@@ -60,9 +60,11 @@
 		background: rgba(0, 0, 0, 0.7);
 		color: white;
 		padding: var(--space-2) var(--space-3);
-		border-radius: var(--radius-sm);
+		border-radius: var(--radius-pill);
 		font-size: var(--font-xs);
-		font-weight: 500;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
 		pointer-events: none;
 		opacity: 0.8;
 		transition: opacity var(--duration-slower) var(--ease-standard);

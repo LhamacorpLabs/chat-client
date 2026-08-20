@@ -38,12 +38,12 @@ export function toggleTheme() {
 	});
 }
 
-// Matches --bg-primary in static/global.css for each theme, so mobile
-// browser chrome (Safari's status bar / toolbar) tints to match the page
-// instead of defaulting to white.
+// Matches the --bg-gradient start color in static/global.css for each
+// theme, so mobile browser chrome (Safari's status bar / toolbar) tints
+// to match the page instead of defaulting to white.
 const THEME_COLORS: Record<Theme, string> = {
-	light: '#ffffff',
-	dark: '#09090f'
+	light: '#f7dce8',
+	dark: '#1c1730'
 };
 
 // Apply theme to document
