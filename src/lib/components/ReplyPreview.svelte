@@ -66,24 +66,24 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 0.5rem;
-		border-radius: 6px;
+		border-radius: var(--radius-sm);
 		padding: 0.5rem;
 	}
 
 	.reply-preview.composition {
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border-light);
+		background: var(--surface-alt);
+		border: 1px solid var(--border);
 		margin-bottom: 0.5rem;
 	}
 
 	.reply-preview.display {
-		background: var(--bg-secondary);
+		background: var(--panel-bg);
 		cursor: pointer;
 		transition: background var(--duration-slow) var(--ease-standard);
 	}
 
 	.reply-preview.display:hover {
-		background: var(--bg-tertiary);
+		background: var(--surface-hover);
 	}
 
 	.reply-indicator {
@@ -153,13 +153,5 @@
 
 	.reply-cancel:hover {
 		color: var(--text-primary);
-	}
-
-	:global([data-theme='dark']) .reply-preview.display {
-		background: var(--bg-glass);
-	}
-
-	:global([data-theme='dark']) .reply-preview.display:hover {
-		background: var(--bg-glass-hover);
 	}
 </style>

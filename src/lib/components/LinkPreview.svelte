@@ -105,9 +105,9 @@
 <style>
 	.link-preview-card {
 		position: relative;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border-light);
-		border-radius: 12px;
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
 		margin-top: 0.75rem;
 		cursor: pointer;
 		transition: all 0.3s ease;
@@ -116,10 +116,10 @@
 	}
 
 	.link-preview-card:hover {
-		border-color: var(--border-color);
-		background: var(--bg-tertiary, var(--bg-secondary));
+		border-color: var(--border-hover);
+		background: var(--surface-hover);
 		transform: translateY(-2px);
-		box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-md);
 	}
 
 	.link-preview-card:focus {
@@ -153,8 +153,8 @@
 		justify-content: center;
 		width: 32px;
 		height: 32px;
-		background: var(--bg-tertiary);
-		border-radius: 8px;
+		background: var(--surface-alt);
+		border-radius: var(--radius-sm);
 		flex-shrink: 0;
 		transition: transform 0.2s ease;
 	}
@@ -207,7 +207,7 @@
 	.content-url {
 		font-size: 0.75rem;
 		color: var(--text-muted);
-		font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+		font-family: var(--font-mono);
 		opacity: 0.7;
 		text-transform: lowercase;
 	}
@@ -249,22 +249,7 @@
 		100% { background-position: 0% 50%; }
 	}
 
-	/* Dark theme adjustments */
-	:global([data-theme='dark']) .link-preview-card {
-		background: var(--bg-glass);
-		border-color: var(--glass-border);
-	}
-
-	:global([data-theme='dark']) .link-preview-card:hover {
-		background: var(--bg-glass-hover);
-		border-color: rgba(255, 255, 255, 0.2);
-		box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-	}
-
-	:global([data-theme='dark']) .platform-logo {
-		background: var(--bg-glass-hover);
-	}
-
+	/* Dark theme adjustments - brand tints get a touch more opacity for visibility */
 	:global([data-theme='dark']) .link-preview-card.youtube .platform-logo {
 		background: rgba(255, 0, 0, 0.15);
 	}

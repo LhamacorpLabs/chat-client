@@ -112,10 +112,10 @@
 		display: flex;
 		align-items: center;
 		gap: 4px;
-		padding: 2px 6px;
-		border: 1px solid var(--border-color);
-		border-radius: 12px;
-		background: var(--bg-secondary);
+		padding: 2px 8px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-pill);
+		background: var(--surface-hover);
 		cursor: pointer;
 		transition: all 0.2s ease;
 		font-size: 12px;
@@ -124,18 +124,19 @@
 	}
 
 	.reaction-button:hover {
-		background: var(--bg-tertiary);
+		background: var(--surface-alt);
 		transform: scale(1.05);
 	}
 
 	.reaction-button.user-reacted {
-		background: var(--accent);
-		color: white;
+		background: var(--accent-subtle);
+		color: var(--accent);
 		border-color: var(--accent);
 	}
 
 	.reaction-button.user-reacted:hover {
-		background: var(--accent-hover);
+		background: var(--accent);
+		color: var(--accent-contrast);
 	}
 
 	.reaction-button.updating {
@@ -175,7 +176,7 @@
 	.add-reaction-button {
 		padding: 2px 4px;
 		border: 1px solid transparent;
-		border-radius: 8px;
+		border-radius: var(--radius-pill);
 		background: transparent;
 		cursor: pointer;
 		font-size: 12px;
@@ -188,8 +189,8 @@
 	}
 
 	.add-reaction-button:hover {
-		background: var(--bg-tertiary);
-		border-color: var(--border-color);
+		background: var(--surface-alt);
+		border-color: var(--border);
 		transform: scale(1.1);
 	}
 

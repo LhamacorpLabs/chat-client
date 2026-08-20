@@ -74,10 +74,10 @@
 		position: relative;
 		display: inline-block;
 		max-width: 400px;
-		border-radius: 8px;
+		border-radius: var(--radius-sm);
 		overflow: hidden;
 		cursor: pointer;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-sm);
 		transition: transform 0.2s ease;
 		border: none;
 		padding: 0;
@@ -111,7 +111,7 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: var(--bg-secondary);
+		background: var(--surface-hover);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -133,18 +133,18 @@
 
 	.gif-indicator {
 		background: rgba(0, 0, 0, 0.7);
-		color: white;
+		color: #fff;
 		padding: 4px 8px;
-		border-radius: 4px;
+		border-radius: var(--radius-sm);
 		font-size: 10px;
 		font-weight: bold;
 		letter-spacing: 0.5px;
 	}
 
 	.gif-error {
-		background: var(--danger-subtle);
-		border: 1px solid rgba(239, 68, 68, 0.2);
-		border-radius: 8px;
+		background: var(--error-bg);
+		border: 1px solid var(--error-border);
+		border-radius: var(--radius-sm);
 		padding: 16px;
 		max-width: 300px;
 	}

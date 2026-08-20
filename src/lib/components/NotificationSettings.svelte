@@ -31,28 +31,28 @@
 	function getStatusColor() {
 		switch (permissionStatus) {
 			case 'granted':
-				return 'text-green-600';
+				return 'status-success';
 			case 'denied':
-				return 'text-red-600';
+				return 'status-error';
 			case 'default':
 			default:
-				return 'text-gray-600';
+				return 'status-muted';
 		}
 	}
 </script>
 
-<div class="bg-white rounded-lg shadow p-4 border">
-	<div class="flex items-center justify-between">
+<div class="card notification-settings">
+	<div class="settings-row">
 		<div>
-			<h3 class="text-lg font-semibold text-gray-900">Desktop Notifications</h3>
-			<p class="text-sm {getStatusColor()}">{getStatusMessage()}</p>
+			<h3>Desktop Notifications</h3>
+			<p class="status-text {getStatusColor()}">{getStatusMessage()}</p>
 		</div>
 
 		{#if permissionStatus === 'default'}
 			<button
 				on:click={enableNotifications}
 				disabled={isRequesting}
-				class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+				class="btn btn-primary"
 			>
 				{#if isRequesting}
 					Requesting...
@@ -65,10 +65,45 @@
 				on:click={() => {
 					alert('To enable notifications:\n\n1. Click the lock icon in your address bar\n2. Change notifications from "Block" to "Allow"\n3. Refresh the page');
 				}}
-				class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+				class="btn btn-ghost"
 			>
 				Help
 			</button>
 		{/if}
 	</div>
 </div>
+
+<style>
+	.notification-settings {
+		display: block;
+	}
+
+	.settings-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-4);
+	}
+
+	.notification-settings h3 {
+		margin: 0 0 0.25rem;
+		font-size: var(--font-lg);
+	}
+
+	.status-text {
+		margin: 0;
+		font-size: var(--font-sm);
+	}
+
+	.status-success {
+		color: var(--success-text);
+	}
+
+	.status-error {
+		color: var(--error-text);
+	}
+
+	.status-muted {
+		color: var(--text-secondary);
+	}
+</style>
