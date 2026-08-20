@@ -30,7 +30,7 @@
 	}
 
 	.spinner {
-		border: 2px solid var(--border-color);
+		border: 2px solid var(--border);
 		border-radius: 50%;
 		border-top-color: var(--accent);
 		animation: spin 0.8s linear infinite;

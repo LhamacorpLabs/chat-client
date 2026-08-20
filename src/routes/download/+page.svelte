@@ -119,7 +119,6 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: center;
-		background: var(--bg-primary);
 		padding: 4rem 2rem 2rem;
 	}
 
@@ -157,16 +156,18 @@
 		align-items: center;
 		gap: 1rem;
 		padding: 1rem 1.25rem;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: 0.75rem;
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-sm);
 		text-decoration: none;
-		transition: border-color 0.15s, background 0.15s;
+		transition: all 0.15s ease;
 	}
 
 	.platform-card:hover {
 		border-color: var(--accent);
-		background: var(--bg-tertiary);
+		background: var(--surface-hover);
+		box-shadow: var(--shadow-md);
 	}
 
 	.platform-icon {
@@ -201,20 +202,26 @@
 	}
 
 	.download-button {
-		display: inline-block;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		margin-top: 1.5rem;
-		padding: 0.85rem 2rem;
+		padding: 0.75rem 2rem;
 		background: var(--accent);
-		color: #fff;
-		border-radius: 0.6rem;
+		color: var(--accent-contrast);
+		border-radius: var(--radius-pill);
 		text-decoration: none;
-		font-weight: 500;
-		font-size: 0.95rem;
-		transition: opacity 0.15s;
+		font-family: var(--font-mono);
+		font-weight: 700;
+		font-size: 0.8125rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		transition: all 0.15s ease;
 	}
 
 	.download-button:hover {
-		opacity: 0.85;
+		background: var(--accent-hover);
+		box-shadow: 0 2px 8px var(--accent-shadow);
 	}
 
 	.macos-note {
@@ -235,9 +242,9 @@
 
 	.macos-note code {
 		display: block;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: 0.4rem;
+		background: var(--surface-hover);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
 		padding: 0.5rem 0.75rem;
 		font-size: 0.75rem;
 		word-break: break-all;

@@ -198,18 +198,18 @@
 	}
 
 	.upload-zone {
-		border: 2px dashed var(--border-color);
-		border-radius: 8px;
+		border: 2px dashed var(--border);
+		border-radius: var(--radius-sm);
 		padding: 16px;
 		text-align: center;
 		cursor: pointer;
 		transition: all 0.2s ease;
-		background: var(--bg-secondary);
+		background: var(--surface-hover);
 	}
 
 	.upload-zone:hover:not(.disabled) {
 		border-color: var(--accent);
-		background: var(--bg-tertiary);
+		background: var(--surface-alt);
 	}
 
 	.upload-zone.drag-over {
@@ -257,9 +257,9 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		background: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: 8px;
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
 		padding: 8px;
 		width: 120px;
 	}
@@ -288,14 +288,14 @@
 		border: none;
 		border-radius: 50%;
 		background: var(--danger);
-		color: white;
+		color: var(--accent-contrast);
 		font-size: 14px;
 		font-weight: bold;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.remove-file-btn:hover {
@@ -326,10 +326,10 @@
 	.validation-errors {
 		margin-top: 8px;
 		padding: 8px;
-		background: var(--danger-subtle);
-		border: 1px solid rgba(239, 68, 68, 0.2);
-		border-radius: 4px;
-		color: var(--danger);
+		background: var(--error-bg);
+		border: 1px solid var(--error-border);
+		border-radius: var(--radius-sm);
+		color: var(--error-text);
 	}
 
 	.error-item {

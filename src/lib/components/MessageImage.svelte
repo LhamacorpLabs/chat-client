@@ -104,10 +104,10 @@
 		position: relative;
 		display: inline-block;
 		max-width: 300px;
-		border-radius: 8px;
+		border-radius: var(--radius-sm);
 		overflow: hidden;
 		cursor: pointer;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-sm);
 		transition: transform 0.2s ease;
 		border: none;
 		padding: 0;
@@ -149,9 +149,9 @@
 		flex-direction: column;
 		align-items: center;
 		padding: 16px;
-		background: var(--bg-secondary);
-		border-radius: 8px;
-		border: 1px dashed var(--border-color);
+		background: var(--surface-hover);
+		border-radius: var(--radius-sm);
+		border: 1px dashed var(--border);
 		max-width: 200px;
 	}
 

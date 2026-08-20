@@ -33,20 +33,15 @@
 		position: absolute;
 		bottom: calc(100% + 4px);
 		left: 0;
-		background: var(--bg-primary);
-		border: 1px solid var(--border-color);
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		box-shadow: 0 4px 12px var(--shadow-elevated);
+		box-shadow: var(--shadow-md);
 		padding: 0.25rem;
 		z-index: 101;
 		min-width: 180px;
 		max-height: 200px;
 		overflow-y: auto;
-	}
-
-	:global([data-theme='dark']) .emoji-autocomplete {
-		background: var(--bg-secondary);
-		border-color: var(--glass-border);
 	}
 
 	.autocomplete-item {
@@ -66,12 +61,7 @@
 
 	.autocomplete-item:hover,
 	.autocomplete-item.selected {
-		background: var(--bg-secondary);
-	}
-
-	:global([data-theme='dark']) .autocomplete-item:hover,
-	:global([data-theme='dark']) .autocomplete-item.selected {
-		background: var(--bg-glass-hover);
+		background: var(--surface-hover);
 	}
 
 	.autocomplete-emoji {

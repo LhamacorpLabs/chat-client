@@ -1434,7 +1434,7 @@
 		</header>
 
 		<!-- Main Chat Area -->
-		<main class="chat-content" bind:this={chatContent}>
+		<main class="chat-content panel-focused" bind:this={chatContent}>
 			<!-- Jump to newest button -->
 			{#if showJumpToNewest}
 				<button
@@ -1797,15 +1797,18 @@
 		flex-direction: column;
 		height: 100vh;
 		height: 100dvh;
-		background: var(--bg-primary);
-		padding-top: env(safe-area-inset-top);
 		overflow: hidden;
+		gap: var(--gap);
+		padding: var(--gap);
+		padding-top: calc(var(--gap) + env(safe-area-inset-top));
 	}
 
-	/* Header */
+	/* Header - floating panel */
 	.chat-header {
-		background: var(--bg-primary);
-		border-bottom: 1px solid var(--border-color);
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-md);
 		flex-shrink: 0;
 	}
 
@@ -1855,13 +1858,15 @@
 		gap: 0.5rem;
 	}
 
-	/* Chat Content */
+	/* Chat Content - floating panel (primary/hero surface, see .panel-focused below) */
 	.chat-content {
 		flex: 1;
+		min-height: 0;
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
 		overflow-y: auto;
 		padding: 1rem 1.5rem;
-		max-width: 900px;
-		margin: 0 auto;
 		width: 100%;
 		position: relative;
 		-webkit-overflow-scrolling: touch;
@@ -1875,6 +1880,8 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
+		max-width: 900px;
+		margin: 0 auto;
 		color: var(--text-muted);
 	}
 
@@ -1884,6 +1891,8 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
+		max-width: 900px;
+		margin: 0 auto;
 		text-align: center;
 		color: var(--text-muted);
 	}
@@ -1894,6 +1903,8 @@
 		flex-direction: column;
 		gap: 0.375rem;
 		padding: 0.5rem 0;
+		max-width: 900px;
+		margin: 0 auto;
 	}
 
 	/* Auto-loading indicator */
@@ -1938,37 +1949,37 @@
 	}
 
 	.message-item.favorited {
-		border-left: 2px solid #f59e0b;
+		border-left: 2px solid var(--warning-text);
 	}
 
 	.message-item.favorited.own-message {
-		border-right: 2px solid #f59e0b;
+		border-right: 2px solid var(--warning-text);
 		border-left: none;
 	}
 
 	.own-message {
 		background: var(--accent);
-		color: white;
+		color: var(--accent-contrast);
 		align-self: flex-end;
 		border-bottom-right-radius: 4px;
 	}
 
 	.other-message {
-		background: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-left: 3px solid var(--current-member-color, var(--border-color));
+		background: var(--surface-hover);
+		border: 1px solid var(--border);
+		border-left: 3px solid var(--current-member-color, var(--border));
 		align-self: flex-start;
 		border-bottom-left-radius: 4px;
 	}
 
 	:global([data-theme='dark']) .other-message {
-		background: var(--bg-tertiary);
+		background: var(--surface-alt);
 		border: none;
-		border-left: 3px solid var(--current-member-color, var(--border-color));
+		border-left: 3px solid var(--current-member-color, var(--border));
 	}
 
 	:global([data-theme='dark']) .own-message {
-		background: rgba(99, 102, 241, 0.18);
+		background: color-mix(in srgb, var(--accent) 16%, transparent);
 		color: var(--text-primary);
 		border: none;
 	}
@@ -1977,16 +1988,16 @@
 	   .other-message/.own-message dark overrides above, but these come
 	   later so they win the border-left/border-right tie-break. */
 	:global([data-theme='dark']) .message-item.favorited {
-		border-left: 2px solid #f59e0b;
+		border-left: 2px solid var(--warning-text);
 	}
 
 	:global([data-theme='dark']) .message-item.favorited.own-message {
-		border-right: 2px solid #f59e0b;
+		border-right: 2px solid var(--warning-text);
 		border-left: none;
 	}
 
 	:global([data-theme='dark']) .own-message .message-user {
-		color: #818cf8;
+		color: var(--accent);
 	}
 
 	:global([data-theme='dark']) .own-message .message-time {
@@ -2015,7 +2026,7 @@
 	}
 
 	.favorite-indicator {
-		color: #f59e0b;
+		color: var(--warning-text);
 		font-size: 0.7rem;
 		display: inline-block;
 		margin-left: 0.125rem;
@@ -2096,7 +2107,7 @@
 	}
 
 	.action-btn:hover {
-		background: var(--bg-tertiary);
+		background: var(--surface-alt);
 	}
 
 	.menu-btn {
@@ -2114,10 +2125,10 @@
 		position: absolute;
 		top: 100%;
 		right: 0;
-		background: var(--bg-primary);
-		border: 1px solid var(--border-color);
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		box-shadow: 0 4px 16px var(--shadow-elevated);
+		box-shadow: var(--shadow-md);
 		z-index: 1000;
 		min-width: 120px;
 		margin-top: 4px;
@@ -2151,7 +2162,7 @@
 	}
 
 	.dropdown-item:hover {
-		background: var(--bg-secondary);
+		background: var(--surface-hover);
 	}
 
 	.delete-item {
@@ -2159,7 +2170,7 @@
 	}
 
 	.delete-item:hover {
-		background: rgba(239, 68, 68, 0.08);
+		background: var(--error-bg);
 	}
 
 	.reply-item {
@@ -2171,11 +2182,11 @@
 	}
 
 	.favorite-item {
-		color: #f59e0b;
+		color: var(--warning-text);
 	}
 
 	.favorite-item:hover {
-		background: rgba(245, 158, 11, 0.08);
+		background: var(--warning-bg);
 	}
 
 	/* Position menu on left for other messages */
@@ -2205,15 +2216,15 @@
 
 	/* Own message styling overrides */
 	.own-message .message-user {
-		color: rgba(255, 255, 255, 0.85);
+		color: color-mix(in srgb, var(--accent-contrast) 85%, transparent);
 	}
 
 	.own-message .message-time {
-		color: rgba(255, 255, 255, 0.6);
+		color: color-mix(in srgb, var(--accent-contrast) 60%, transparent);
 	}
 
 	.own-message .message-content {
-		color: white;
+		color: var(--accent-contrast);
 	}
 
 	/* Link styling in messages */
@@ -2231,18 +2242,20 @@
 
 	/* Link styling in own messages */
 	.own-message .message-content :global(.message-link) {
-		color: rgba(255, 255, 255, 0.9);
+		color: color-mix(in srgb, var(--accent-contrast) 90%, transparent);
 		text-decoration: underline;
 	}
 
 	.own-message .message-content :global(.message-link):hover {
-		color: white;
+		color: var(--accent-contrast);
 	}
 
-	/* Message Input */
+	/* Message Input - floating panel */
 	.message-input-area {
-		background: var(--bg-primary);
-		border-top: 1px solid var(--border-color);
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-md);
 		padding: 0.75rem 1.5rem;
 		padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 		flex-shrink: 0;
@@ -2275,9 +2288,9 @@
 	.image-upload-section {
 		max-width: 900px;
 		margin: 0 auto 0.75rem auto;
-		background: var(--bg-secondary);
+		background: var(--surface-hover);
 		border-radius: var(--radius-md);
-		border: 1px solid var(--border-color);
+		border: 1px solid var(--border);
 		padding: 0.75rem;
 	}
 
@@ -2291,8 +2304,8 @@
 		justify-content: center;
 		font-size: 14px;
 		padding: 0;
-		background: var(--bg-secondary);
-		border: 1.5px solid var(--border-color);
+		background: var(--surface-hover);
+		border: 1.5px solid var(--border);
 		color: var(--text-secondary);
 		transition: all 0.15s ease;
 		box-sizing: border-box;
@@ -2318,8 +2331,8 @@
 		justify-content: center;
 		font-size: 16px;
 		padding: 0;
-		background: var(--bg-secondary);
-		border: 1.5px solid var(--border-color);
+		background: var(--surface-hover);
+		border: 1.5px solid var(--border);
 		color: var(--text-secondary);
 		transition: all 0.15s ease;
 		box-sizing: border-box;
@@ -2351,8 +2364,8 @@
 		width: 100%;
 		padding: 0.5rem 0.875rem;
 		border-radius: var(--radius-md);
-		border: 1.5px solid var(--border-color);
-		background: var(--bg-secondary);
+		border: 1.5px solid var(--border);
+		background: var(--input-bg);
 		color: var(--text-primary);
 		font-family: inherit;
 		font-size: 0.9375rem;
@@ -2374,9 +2387,8 @@
 
 	.message-input:focus {
 		outline: none;
-		border-color: var(--accent);
-		box-shadow: 0 0 0 3px var(--accent-subtle);
-		background: var(--bg-primary);
+		border-color: var(--border-focus);
+		box-shadow: 0 0 0 3px var(--focus-ring);
 	}
 
 	.message-input:disabled {
@@ -2390,12 +2402,41 @@
 		justify-content: center;
 		align-items: center;
 		min-height: 100vh;
-		background: var(--bg-primary);
+		min-height: 100dvh;
 		color: var(--text-muted);
 	}
 
 	/* Responsive Design */
 	@media (max-width: 768px) {
+		/* Collapse the floating panels to edge-to-edge */
+		.chat-page {
+			gap: 0;
+			padding: 0;
+			padding-top: env(safe-area-inset-top);
+		}
+
+		.chat-header {
+			border-radius: 0;
+			border-top: none;
+			border-left: none;
+			border-right: none;
+			box-shadow: none;
+		}
+
+		.chat-content {
+			border: none;
+			border-radius: 0;
+			box-shadow: none;
+		}
+
+		.message-input-area {
+			border-radius: 0;
+			border-bottom: none;
+			border-left: none;
+			border-right: none;
+			box-shadow: none;
+		}
+
 		.header-content {
 			padding: 0.625rem 1rem;
 		}
@@ -2462,6 +2503,10 @@
 			backdrop-filter: blur(2px);
 			z-index: 9998;
 			animation: fadeIn 0.15s ease-out;
+		}
+
+		:global([data-theme='dark']) .mobile-menu-backdrop {
+			background: rgba(0, 0, 0, 0.6);
 		}
 
 		@keyframes fadeIn {
@@ -2663,7 +2708,7 @@
 
 	.invite-code {
 		flex: 1;
-		font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+		font-family: var(--font-mono);
 		font-size: 1.125rem;
 		font-weight: 600;
 		color: var(--accent);
@@ -2679,7 +2724,7 @@
 	}
 
 	.copy-btn.copied {
-		color: var(--success, #10b981);
+		color: var(--success-text);
 	}
 
 	.invite-note {
@@ -2710,7 +2755,7 @@
 	}
 
 	.link-url {
-		font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+		font-family: var(--font-mono);
 		font-size: 0.8rem;
 		color: var(--accent);
 		display: block;
@@ -2730,40 +2775,43 @@
 	.jump-to-newest-btn {
 		position: sticky;
 		bottom: 0.75rem;
-		align-self: center;
-		margin-left: auto;
-		margin-right: auto;
+		left: 50%;
+		transform: translateX(-50%);
+		display: block;
 		background: var(--accent);
-		color: white;
+		color: var(--accent-contrast);
 		border: none;
-		border-radius: 20px;
+		border-radius: var(--radius-pill);
 		padding: 0.5rem 1rem;
+		font-family: var(--font-mono);
 		font-size: 0.8125rem;
-		font-weight: 500;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
 		cursor: pointer;
 		z-index: 100;
-		box-shadow: 0 2px 8px var(--shadow-hover);
+		box-shadow: var(--shadow-md);
 		transition: all 0.15s ease;
 		animation: slideInUp 0.2s ease-out;
 	}
 
 	.jump-to-newest-btn:hover {
 		background: var(--accent-hover);
-		box-shadow: 0 4px 12px var(--shadow-elevated);
+		box-shadow: var(--shadow-lg);
 	}
 
 	.jump-to-newest-btn:active {
-		transform: scale(0.97);
+		transform: translateX(-50%) scale(0.97);
 	}
 
 	@keyframes slideInUp {
 		from {
 			opacity: 0;
-			transform: translateY(12px);
+			transform: translateX(-50%) translateY(12px);
 		}
 		to {
 			opacity: 1;
-			transform: translateY(0);
+			transform: translateX(-50%) translateY(0);
 		}
 	}
 

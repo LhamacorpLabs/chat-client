@@ -164,9 +164,9 @@
 		flex-direction: column;
 		align-items: center;
 		padding: 16px;
-		background: var(--bg-secondary);
-		border-radius: 8px;
-		border: 1px dashed var(--border-color);
+		background: var(--surface-hover);
+		border-radius: var(--radius-sm);
+		border: 1px dashed var(--border);
 		min-width: 120px;
 	}
 </style>

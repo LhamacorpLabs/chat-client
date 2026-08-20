@@ -29,18 +29,13 @@
 		position: absolute;
 		bottom: calc(100% + 8px);
 		left: 0;
-		background: var(--bg-primary);
-		border: 1px solid var(--border-color);
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		box-shadow: 0 4px 16px var(--shadow-elevated);
+		box-shadow: var(--shadow-lg);
 		padding: 0.75rem;
 		z-index: 100;
 		width: 280px;
-	}
-
-	:global([data-theme='dark']) .emoji-picker {
-		background: var(--bg-secondary);
-		border-color: var(--glass-border);
 	}
 
 	.emoji-grid {
@@ -64,10 +59,6 @@
 	}
 
 	.emoji-item:hover {
-		background: var(--bg-secondary);
-	}
-
-	:global([data-theme='dark']) .emoji-item:hover {
-		background: var(--bg-glass-hover);
+		background: var(--surface-hover);
 	}
 </style>
