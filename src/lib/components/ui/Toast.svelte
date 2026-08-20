@@ -24,7 +24,7 @@
 		gap: var(--space-3);
 		min-width: 280px;
 		max-width: 90vw;
-		box-shadow: 0 4px 16px var(--shadow-elevated);
+		box-shadow: var(--shadow-lg);
 	}
 
 	.close-btn {
