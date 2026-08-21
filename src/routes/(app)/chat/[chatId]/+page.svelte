@@ -95,6 +95,9 @@
 	const REACTION_POLLING_INTERVAL_MS = 10000; // Poll reactions every 10 seconds
 	let messageInputElement = $state<HTMLTextAreaElement>(undefined!);
 	let chatContent = $state<HTMLElement>(undefined!);
+	// The content that actually grows (messages, images, reactions) - as
+	// opposed to chatContent, the fixed-height viewport that scrolls it.
+	let messagesContainer = $state<HTMLElement | undefined>(undefined);
 	let windowFocused = $state(true);
 	let hasUnreadMessages = $state(false);
 
@@ -235,15 +238,16 @@
 			if (!chatContent) return;
 
 			// Skip the reassignment if we're already effectively at the
-			// bottom. On displays with non-100% scaling (common on
-			// Windows), scrollHeight/clientHeight are fractional, so
-			// `scrollTop = scrollHeight` never lands on exactly the same
-			// value twice - each reassignment nudges the position by a
-			// sub-pixel amount and still fires a real 'scroll' event, which
-			// (without the markProgrammaticScroll guard below) would get
-			// misread as user scrolling and re-trigger another
-			// scrollToBottom - an endless loop seen as the chat scrolling up
-			// and down on its own.
+			// bottom. scrollHeight/clientHeight are always rounded to
+			// integers, but on displays with non-100% scaling (common on
+			// Windows) the underlying layout is computed in fractional
+			// device pixels, so which integer that rounds to can flip by a
+			// pixel between reads - `scrollTop = scrollHeight` then never
+			// lands on exactly the same value twice, and each reassignment
+			// still fires a real 'scroll' event, which (without the
+			// markProgrammaticScroll guard below) would get misread as user
+			// scrolling and re-trigger another scrollToBottom - an endless
+			// loop seen as the chat scrolling up and down on its own.
 			if (Math.abs(distanceFromBottom(chatContent)) < SCROLL_SETTLE_EPSILON_PX) return;
 
 			markProgrammaticScroll();
@@ -298,6 +302,25 @@
 		};
 	});
 
+	// Content can grow for reasons that never touch the `messages` array -
+	// an image or GIF finishing its async load, a web font swapping in, a
+	// reaction badge appearing - none of which fire a 'scroll' event on
+	// their own. Without this, staying pinned to the bottom only got
+	// re-checked on new messages, so a late-loading image could silently
+	// push the true bottom below what's visible while shouldAutoScroll
+	// stayed stuck true and the jump-to-newest button never appeared.
+	$effect(() => {
+		if (!messagesContainer || typeof ResizeObserver === 'undefined') return;
+
+		const observer = new ResizeObserver(() => {
+			if (shouldAutoScroll && !isUserScrolling && !isInitialScroll) {
+				scrollToBottom();
+			}
+		});
+		observer.observe(messagesContainer);
+
+		return () => observer.disconnect();
+	});
 
 	function updateDocumentTitle() {
 		const baseTitle = `#${chatName} - Lhama Chat`;
@@ -1495,7 +1518,7 @@
 					<EmptyState icon="💬" title="No messages yet" description="Be the first to start the conversation!" />
 				</div>
 			{:else}
-				<div class="messages-container">
+				<div class="messages-container" bind:this={messagesContainer}>
 					<!-- Auto-loading indicator -->
 					{#if hasMoreMessages && isLoadingMore}
 						<div class="loading-more-container">
