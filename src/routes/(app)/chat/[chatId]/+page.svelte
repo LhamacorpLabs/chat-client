@@ -277,11 +277,28 @@
 		if (!chatContent) return;
 
 		let userScrollTimeout: ReturnType<typeof setTimeout>;
+		let lastScrollTop = chatContent.scrollTop;
 
 		function handleScroll() {
-			if (!chatContent || isProgrammaticScroll) return;
+			if (!chatContent) return;
 
-			shouldAutoScroll = distanceFromBottom(chatContent) <= BOTTOM_THRESHOLD_PX;
+			// Windows mouse wheels typically move in small increments (often
+			// well under BOTTOM_THRESHOLD_PX per notch), unlike a mac
+			// trackpad swipe which usually covers the threshold in one go.
+			// Judging "pinned" by distance alone meant a Windows user
+			// nudging up, one notch at a time, could stay inside the
+			// threshold for several ticks - any message arriving in that
+			// window (poll, websocket) would yank them back to the bottom
+			// mid-gesture. Tracking direction lets a single upward tick
+			// unpin immediately, regardless of how far it actually moved.
+			const currentScrollTop = chatContent.scrollTop;
+			const scrolledUp = currentScrollTop < lastScrollTop - SCROLL_SETTLE_EPSILON_PX;
+			lastScrollTop = currentScrollTop;
+
+			if (isProgrammaticScroll) return;
+
+			const distance = distanceFromBottom(chatContent);
+			shouldAutoScroll = scrolledUp ? distance <= SCROLL_SETTLE_EPSILON_PX : distance <= BOTTOM_THRESHOLD_PX;
 			isUserScrolling = true;
 
 			if (chatContent.scrollTop <= LOAD_MORE_THRESHOLD_PX && !isLoadingMore && hasMoreMessages) {
