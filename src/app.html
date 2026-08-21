@@ -7,9 +7,16 @@
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-		<link rel="stylesheet" href="/global.css?v=2.0" />
+		<link rel="stylesheet" href="/global.css?v=3.0" />
 		<link rel="icon" type="image/png" href="/logo.png" />
 		<title>Chat</title>
+		<!--
+			No-FOUC theme script: must run as a blocking inline tag before any
+			stylesheet paints, so it can't be a normal JS import - this is a
+			manually-kept-in-sync copy of NO_FOUC_SCRIPT from
+			@lhamacorplabs/design-tokens (src/theme.ts). If that constant
+			changes, update this block to match.
+		-->
 		<script>
 			(function () {
 				var stored = localStorage.getItem('theme');
