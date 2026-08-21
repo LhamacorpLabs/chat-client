@@ -1801,9 +1801,13 @@
 		gap: var(--gap);
 	}
 
-	/* Header - blends into the page background, like .message-input-area */
+	/* Header - floating panel, kept opaque so scrolling messages don't
+	   show through underneath it. */
 	.chat-header {
-		background: transparent;
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-md);
 		flex-shrink: 0;
 	}
 
@@ -2410,20 +2414,6 @@
 		.chat-header {
 			border-radius: 0;
 			border-top: none;
-			border-left: none;
-			border-right: none;
-			box-shadow: none;
-		}
-
-		.chat-content {
-			border: none;
-			border-radius: 0;
-			box-shadow: none;
-		}
-
-		.message-input-area {
-			border-radius: 0;
-			border-bottom: none;
 			border-left: none;
 			border-right: none;
 			box-shadow: none;
