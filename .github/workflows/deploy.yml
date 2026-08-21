@@ -18,7 +18,7 @@ concurrency:
 jobs:
   version:
     name: Version
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       version: ${{ steps.version.outputs.version }}
       commit_message: ${{ steps.version.outputs.commit_message }}
@@ -35,7 +35,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -57,7 +57,7 @@ jobs:
   build-and-release:
     name: Build & Release
     needs: [test, version]
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -107,7 +107,7 @@ jobs:
   deploy:
     name: Deploy
     needs: build-and-release
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Trigger Portainer Webhook
         run: curl --location --request POST '${{ secrets.DEPLOY_WEBHOOK }}'
@@ -115,7 +115,7 @@ jobs:
   create-release:
     name: Create Release
     needs: [version, deploy]
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: write
     steps:
@@ -196,7 +196,7 @@ jobs:
   publish-release:
     name: Publish Release
     needs: [version, electron-release]
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: write
     steps:
@@ -213,7 +213,7 @@ jobs:
     name: Cleanup
     needs: [version, publish-release]
     if: ${{ always() && needs.version.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: write
     steps:
