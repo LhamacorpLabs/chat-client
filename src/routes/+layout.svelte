@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '@lhamacorplabs/design-tokens/css/tokens.css';
 	import { onMount } from 'svelte';
 	import { loadAuth } from '$lib/stores/auth';
 	import { loadTheme } from '$lib/stores/theme';
