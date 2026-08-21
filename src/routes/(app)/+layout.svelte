@@ -237,7 +237,7 @@
 </script>
 
 {#if $authStore.user}
-	<div class="app-shell" class:chat-open={isChatRoute} class:sidebar-collapsed={sidebarCollapsed}>
+	<div class="app-shell" class:chat-open={isChatRoute} class:sidebar-collapsed={sidebarCollapsed && isChatRoute}>
 		<div class="shell-row">
 		<!-- Shown in place of the sidebar on desktop when it's collapsed,
 		     so there's always a way to bring it back. -->
@@ -626,8 +626,9 @@
 		gap: 0.375rem;
 	}
 
-	/* Desktop-only, like .sidebar-expand-btn below - on mobile the sidebar
-	   is already collapsible by navigating into a chat. */
+	/* Only relevant once a chat is open, and desktop-only like
+	   .sidebar-expand-btn below - on mobile the sidebar is already
+	   collapsible by navigating into a chat. */
 	.collapse-btn {
 		display: none;
 		font-size: 0.9375rem;
@@ -655,7 +656,7 @@
 	}
 
 	@media (min-width: 769px) {
-		.collapse-btn {
+		.app-shell.chat-open .collapse-btn {
 			display: inline-flex;
 		}
 

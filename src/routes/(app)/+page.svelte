@@ -15,10 +15,7 @@
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
+		background: transparent;
 		overflow: hidden;
 	}
 
