@@ -889,6 +889,10 @@
 			display: none;
 		}
 
+		.app-footer {
+			display: none;
+		}
+
 		.sidebar-header {
 			padding: 0.75rem 1rem;
 		}
