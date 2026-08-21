@@ -1795,8 +1795,8 @@
 	.chat-page {
 		display: flex;
 		flex-direction: column;
-		height: 100vh;
-		height: 100dvh;
+		flex: 1;
+		min-height: 0;
 		overflow: hidden;
 		gap: var(--gap);
 		padding: var(--gap);
@@ -2401,8 +2401,8 @@
 		flex-direction: column;
 		justify-content: center;
 		align-items: center;
-		min-height: 100vh;
-		min-height: 100dvh;
+		flex: 1;
+		min-height: 0;
 		color: var(--text-muted);
 	}
 

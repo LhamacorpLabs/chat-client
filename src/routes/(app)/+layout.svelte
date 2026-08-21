@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { page } from '$app/state';
 	import { authStore, authLoaded, logout, getValidToken } from '$lib/stores/auth';
 	import { chatStore, fetchChats, createChat, clearChats } from '$lib/stores/chat';
 	import { redeemInvitation } from '$lib/api/chat';
@@ -15,6 +16,8 @@
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 
+	let { children } = $props();
+
 	let showCreateModal = $state(false);
 	let showJoinModal = $state(false);
 	let newChatName = $state('');
@@ -25,6 +28,11 @@
 	let backendVersion = $state('');
 	let appVersion = $state('');
 	let isElectron = $state(typeof window !== 'undefined' && !!window.electronAPI);
+
+	// The currently open chat, if any - drives both the mobile show/hide
+	// (list vs. conversation) and highlighting the open chat in the list.
+	let openChatId = $derived(page.params.chatId as string | undefined);
+	let isChatRoute = $derived(!!openChatId);
 
 	$effect(() => {
 		if ($authLoaded && !$authStore.token) {
@@ -217,9 +225,10 @@
 </script>
 
 {#if $authStore.user}
-	<div class="app-shell">
+	<div class="app-shell" class:chat-open={isChatRoute}>
 		<div class="shell-row">
-		<!-- Sidebar - the chat list itself, WhatsApp-style -->
+		<!-- Sidebar - the chat list itself, WhatsApp-style. Stays mounted
+		     across chat navigation so switching chats is instant. -->
 		<aside class="sidebar">
 			<div class="sidebar-header">
 				<div class="sidebar-brand">
@@ -273,7 +282,13 @@
 				{#if !$chatStore.isLoading && $chatStore.chats.length > 0}
 					<div class="chats-list">
 						{#each $chatStore.chats as chat, index (chat.id)}
-							<button class="chat-item card clickable" class:selected={index === selectedChatIndex} onclick={() => openChat(chat.id)} type="button">
+							<button
+								class="chat-item card clickable"
+								class:selected={index === selectedChatIndex}
+								class:open={chat.id === openChatId}
+								onclick={() => openChat(chat.id)}
+								type="button"
+							>
 								<div class="chat-info">
 									<div class="chat-name-container">
 										<h3 class="chat-name">#{chat.name}</h3>
@@ -325,15 +340,12 @@
 			</div>
 		</aside>
 
-		<!-- Main column - shown on desktop only; on mobile the chat list IS
-		     the screen, same as WhatsApp's mobile behavior. Selecting a chat
-		     always navigates to its own full route. -->
+		<!-- Main column - the active route renders here. On desktop this
+		     sits beside the sidebar at all times; on mobile it only takes
+		     over the full screen while a chat is open (WhatsApp's mobile
+		     behavior), and the list route below just never shows it. -->
 		<div class="shell-main">
-			<div class="chat-placeholder">
-				<div class="chat-placeholder-icon">💬</div>
-				<h2>Select a chat</h2>
-				<p>Choose a conversation from the list to start messaging.</p>
-			</div>
+			{@render children()}
 		</div>
 		</div>
 
@@ -586,48 +598,16 @@
 		padding: 0.75rem;
 	}
 
-	/* Main column - desktop-only placeholder panel, shown when no chat is
-	   selected (selecting one navigates to its own full route) */
+	/* Main column - just a sizing container. The active route (the "select
+	   a chat" placeholder, or the chat view) provides its own floating
+	   panel look, same as the sidebar, so this stays unstyled. */
 	.shell-main {
 		flex: 1;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
+		min-height: 0;
 		overflow: hidden;
-	}
-
-	.chat-placeholder {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 2rem;
-		text-align: center;
-	}
-
-	.chat-placeholder-icon {
-		font-size: 2.5rem;
-		opacity: 0.5;
-		margin-bottom: 0.25rem;
-	}
-
-	.chat-placeholder h2 {
-		margin: 0;
-		color: var(--text-secondary);
-		font-size: 1.0625rem;
-	}
-
-	.chat-placeholder p {
-		margin: 0;
-		color: var(--text-muted);
-		font-size: 0.8125rem;
-		max-width: 280px;
 	}
 
 	/* Footer - plain text below the panels, not a panel itself */
@@ -751,18 +731,22 @@
 		transform: translateX(2px);
 	}
 
-	/* Selected state for keyboard navigation */
-	.chat-item.selected {
+	/* Highlight the chat that's currently selected via keyboard nav, or
+	   currently open in the main column */
+	.chat-item.selected,
+	.chat-item.open {
 		border-color: var(--accent);
 		background: var(--accent-subtle);
 	}
 
-	.chat-item.selected .chat-chevron {
+	.chat-item.selected .chat-chevron,
+	.chat-item.open .chat-chevron {
 		color: var(--accent);
 		opacity: 1;
 	}
 
-	/* Loading Screen */
+	/* Loading Screen - shown full-viewport while auth is still hydrating,
+	   before the shell itself renders */
 	.loading-screen {
 		display: flex;
 		flex-direction: column;
@@ -802,9 +786,9 @@
 		min-width: 80px;
 	}
 
-	/* Responsive Design - on mobile the chat list IS the screen (WhatsApp's
-	   mobile behavior): the placeholder main panel hides, and the sidebar
-	   takes over the full edge-to-edge layout instead of sitting beside it. */
+	/* Responsive Design - on mobile the shell only ever shows one pane at a
+	   time, WhatsApp-style: the chat list by default, or the open chat
+	   (full-screen) while chat-open is set. */
 	@media (max-width: 768px) {
 		.app-shell {
 			gap: 0;
@@ -835,6 +819,15 @@
 
 		.chat-item {
 			padding: 0.875rem 1rem;
+		}
+
+		.app-shell.chat-open .sidebar {
+			display: none;
+		}
+
+		.app-shell.chat-open .shell-main {
+			display: flex;
+			width: 100%;
 		}
 	}
 
