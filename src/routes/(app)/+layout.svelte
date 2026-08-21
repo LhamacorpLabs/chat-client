@@ -29,6 +29,18 @@
 	let appVersion = $state('');
 	let isElectron = $state(typeof window !== 'undefined' && !!window.electronAPI);
 
+	// Whether the sidebar is manually collapsed (desktop only - on mobile,
+	// visibility is still driven purely by the route, see isChatRoute below).
+	let sidebarCollapsed = $state(
+		typeof window !== 'undefined' && localStorage.getItem('sidebarCollapsed') === 'true'
+	);
+
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+		}
+	});
+
 	// The currently open chat, if any - drives both the mobile show/hide
 	// (list vs. conversation) and highlighting the open chat in the list.
 	let openChatId = $derived(page.params.chatId as string | undefined);
@@ -225,8 +237,18 @@
 </script>
 
 {#if $authStore.user}
-	<div class="app-shell" class:chat-open={isChatRoute}>
+	<div class="app-shell" class:chat-open={isChatRoute} class:sidebar-collapsed={sidebarCollapsed}>
 		<div class="shell-row">
+		<!-- Shown in place of the sidebar on desktop when it's collapsed,
+		     so there's always a way to bring it back. -->
+		<button
+			class="btn btn-ghost sidebar-expand-btn"
+			onclick={() => (sidebarCollapsed = false)}
+			title="Show chat list"
+			aria-label="Show chat list"
+			type="button"
+		>☰</button>
+
 		<!-- Sidebar - the chat list itself, WhatsApp-style. Stays mounted
 		     across chat navigation so switching chats is instant. -->
 		<aside class="sidebar">
@@ -235,32 +257,41 @@
 					<img src="/logo.png" alt="" class="brand-icon" />
 					<span class="brand-name">Chat</span>
 				</div>
-				<DropdownMenu width="120px">
-					{#snippet trigger({ toggle })}
-						<button
-							onclick={toggle}
-							class="btn btn-ghost add-btn"
-							title="Create or join a chat"
-							type="button"
-						>+</button>
-					{/snippet}
-					{#snippet children({ close })}
-						<button
-							onclick={() => { openCreateModal(); close(); }}
-							class="dropdown-item"
-							type="button"
-						>
-							<span>Create</span>
-						</button>
-						<button
-							onclick={() => { openJoinModal(); close(); }}
-							class="dropdown-item"
-							type="button"
-						>
-							<span>Join</span>
-						</button>
-					{/snippet}
-				</DropdownMenu>
+				<div class="sidebar-header-actions">
+					<DropdownMenu width="120px">
+						{#snippet trigger({ toggle })}
+							<button
+								onclick={toggle}
+								class="btn btn-ghost add-btn"
+								title="Create or join a chat"
+								type="button"
+							>+</button>
+						{/snippet}
+						{#snippet children({ close })}
+							<button
+								onclick={() => { openCreateModal(); close(); }}
+								class="dropdown-item"
+								type="button"
+							>
+								<span>Create</span>
+							</button>
+							<button
+								onclick={() => { openJoinModal(); close(); }}
+								class="dropdown-item"
+								type="button"
+							>
+								<span>Join</span>
+							</button>
+						{/snippet}
+					</DropdownMenu>
+					<button
+						class="btn btn-ghost collapse-btn"
+						onclick={() => (sidebarCollapsed = true)}
+						title="Hide chat list"
+						aria-label="Hide chat list"
+						type="button"
+					>«</button>
+				</div>
 			</div>
 
 			<div class="sidebar-list">
@@ -587,6 +618,54 @@
 		padding: 0.375rem 0.5rem;
 		font-weight: bold;
 		line-height: 1;
+	}
+
+	.sidebar-header-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+
+	/* Desktop-only, like .sidebar-expand-btn below - on mobile the sidebar
+	   is already collapsible by navigating into a chat. */
+	.collapse-btn {
+		display: none;
+		font-size: 0.9375rem;
+		padding: 0.375rem 0.5rem;
+		font-weight: bold;
+		line-height: 1;
+	}
+
+	/* Stand-in for the sidebar on desktop once it's collapsed - hidden by
+	   default, shown by the min-width media query below. */
+	.sidebar-expand-btn {
+		display: none;
+		flex-shrink: 0;
+		align-self: flex-start;
+		width: 40px;
+		height: 40px;
+		align-items: center;
+		justify-content: center;
+		font-size: 1rem;
+		padding: 0;
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-md);
+	}
+
+	@media (min-width: 769px) {
+		.collapse-btn {
+			display: inline-flex;
+		}
+
+		.app-shell.sidebar-collapsed .sidebar {
+			display: none;
+		}
+
+		.app-shell.sidebar-collapsed .sidebar-expand-btn {
+			display: flex;
+		}
 	}
 
 	/* Chat list scroll area, inside the sidebar */

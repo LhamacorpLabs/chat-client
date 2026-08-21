@@ -1434,7 +1434,7 @@
 		</header>
 
 		<!-- Main Chat Area -->
-		<main class="chat-content panel-focused" bind:this={chatContent}>
+		<main class="chat-content" bind:this={chatContent}>
 			<!-- Jump to newest button -->
 			{#if showJumpToNewest}
 				<button
@@ -1801,12 +1801,9 @@
 		gap: var(--gap);
 	}
 
-	/* Header - floating panel */
+	/* Header - blends into the page background, like .message-input-area */
 	.chat-header {
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
+		background: transparent;
 		flex-shrink: 0;
 	}
 
@@ -1856,13 +1853,11 @@
 		gap: 0.5rem;
 	}
 
-	/* Chat Content - floating panel (primary/hero surface, see .panel-focused below) */
+	/* Chat Content - blends into the page background, like .message-input-area */
 	.chat-content {
 		flex: 1;
 		min-height: 0;
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
+		background: transparent;
 		overflow-y: auto;
 		padding: 1rem 1.5rem;
 		width: 100%;
@@ -2248,12 +2243,11 @@
 		color: var(--accent-contrast);
 	}
 
-	/* Message Input - floating panel */
+	/* Message Input - blends into the page background instead of floating
+	   as its own panel; the input/buttons inside still have their own
+	   surfaces for definition. */
 	.message-input-area {
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
+		background: transparent;
 		padding: 0.75rem 1.5rem;
 		padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 		flex-shrink: 0;
