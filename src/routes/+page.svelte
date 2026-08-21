@@ -253,6 +253,7 @@
 			tabindex={sidebarOpen ? 0 : -1}
 		></button>
 
+		<div class="shell-row">
 		<!-- Sidebar -->
 		<aside class="sidebar" class:open={sidebarOpen}>
 			<div class="sidebar-header">
@@ -295,7 +296,10 @@
 		<!-- Main column -->
 		<div class="shell-main">
 			<header class="content-header">
-				<h1>Your Chats</h1>
+				<div class="content-heading">
+					<h1>Your Chats</h1>
+					<p class="content-subtitle">Your conversations and groups</p>
+				</div>
 				<DropdownMenu width="120px">
 					{#snippet trigger({ toggle })}
 						<button
@@ -378,19 +382,20 @@
 					{/if}
 				</div>
 			</main>
-
-			<footer class="app-footer">
-				©<span id="year"></span> Lhamacorp <script> document.getElementById('year').textContent = new Date().getFullYear(); </script>
-				{#if appVersion || backendVersion}
-					<span class="version-info">
-						{#if appVersion} • v{appVersion}{/if}
-					</span>
-				{/if}
-				{#if !isElectron}
-					<a href="/download" class="download-link">• Download Client</a>
-				{/if}
-			</footer>
 		</div>
+		</div>
+
+		<footer class="app-footer">
+			©<span id="year"></span> Lhamacorp <script> document.getElementById('year').textContent = new Date().getFullYear(); </script>
+			{#if appVersion || backendVersion}
+				<span class="version-info">
+					{#if appVersion} • v{appVersion}{/if}
+				</span>
+			{/if}
+			{#if !isElectron}
+				<a href="/download" class="download-link">• Download Client</a>
+			{/if}
+		</footer>
 
 		<!-- Create Chat Modal -->
 		{#if showCreateModal}
@@ -484,18 +489,31 @@
 		height: 100vh;
 		height: 100dvh;
 		display: flex;
+		flex-direction: column;
 		overflow: hidden;
+		gap: var(--gap);
+		padding: var(--gap);
+		padding-bottom: 0;
 	}
 
-	/* Sidebar */
+	.shell-row {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		gap: var(--gap);
+	}
+
+	/* Sidebar - floating panel, matches the main-content panel treatment */
 	.sidebar {
 		width: 240px;
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
 		background: var(--panel-bg);
-		border-right: 1px solid var(--border);
-		height: 100%;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-md);
+		overflow: hidden;
 	}
 
 	.sidebar-header {
@@ -649,31 +667,41 @@
 		cursor: pointer;
 	}
 
-	/* Main column */
+	/* Main column - floating panel, same treatment as the sidebar */
 	.shell-main {
 		flex: 1;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		height: 100%;
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-md);
 		overflow: hidden;
 	}
 
 	.content-header {
 		flex-shrink: 0;
-		padding: 1rem 1.5rem;
+		padding: 1.25rem 1.5rem;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: 1rem;
 		border-bottom: 1px solid var(--border);
 	}
 
-	.content-header h1 {
+	.content-heading h1 {
 		margin: 0;
 		font-size: 1.25rem;
 		font-weight: 700;
 		color: var(--text-primary);
 		letter-spacing: -0.02em;
+	}
+
+	.content-subtitle {
+		margin: 0.25rem 0 0;
+		color: var(--text-muted);
+		font-size: 0.8125rem;
 	}
 
 	.add-btn {
@@ -697,7 +725,7 @@
 		padding: 1.5rem;
 	}
 
-	/* Footer */
+	/* Footer - plain text below the panels, not a panel itself */
 	.app-footer {
 		flex-shrink: 0;
 		padding: 0.75rem 1.5rem;
@@ -705,7 +733,6 @@
 		text-align: center;
 		color: var(--text-muted);
 		font-size: 0.7rem;
-		border-top: 1px solid var(--border);
 	}
 
 	.version-info {
@@ -863,13 +890,29 @@
 	}
 
 	/* Responsive Design - sidebar collapses into an off-canvas drawer */
+	/* Responsive Design - collapse floating panels to edge-to-edge; the
+	   sidebar becomes an off-canvas drawer since it can't sit permanently
+	   alongside the content on a small screen. */
 	@media (max-width: 768px) {
+		.app-shell {
+			gap: 0;
+			padding: 0;
+		}
+
+		.shell-row {
+			gap: 0;
+		}
+
 		.sidebar {
 			position: fixed;
 			top: 0;
 			left: 0;
 			bottom: 0;
 			z-index: 150;
+			border-radius: 0;
+			border-top: none;
+			border-bottom: none;
+			border-left: none;
 			transform: translateX(-100%);
 			transition: transform 0.2s ease;
 			box-shadow: var(--shadow-lg);
@@ -885,6 +928,13 @@
 
 		.sidebar-overlay.active {
 			display: block;
+		}
+
+		.shell-main {
+			border-radius: 0;
+			border-left: none;
+			border-right: none;
+			box-shadow: none;
 		}
 
 		.content-header {
@@ -906,7 +956,7 @@
 			font-size: 1rem;
 		}
 
-		.content-header h1 {
+		.content-heading h1 {
 			font-size: 1.0625rem;
 		}
 	}
