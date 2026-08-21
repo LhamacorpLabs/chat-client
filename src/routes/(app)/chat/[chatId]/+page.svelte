@@ -95,6 +95,9 @@
 	const REACTION_POLLING_INTERVAL_MS = 10000; // Poll reactions every 10 seconds
 	let messageInputElement = $state<HTMLTextAreaElement>(undefined!);
 	let chatContent = $state<HTMLElement>(undefined!);
+	// The content that actually grows (messages, images, reactions) - as
+	// opposed to chatContent, the fixed-height viewport that scrolls it.
+	let messagesContainer = $state<HTMLElement | undefined>(undefined);
 	let windowFocused = $state(true);
 	let hasUnreadMessages = $state(false);
 
@@ -103,14 +106,30 @@
 	let hasMoreMessages = $state(false);
 	let isLoadingMore = $state(false);
 
+	// shouldAutoScroll is the single source of truth for "are we pinned to
+	// the bottom of the thread". The jump-to-newest button is just its
+	// inverse - deriving it means there's no second flag that can drift out
+	// of sync (it used to be set separately in a couple of places and could
+	// end up stale).
 	let shouldAutoScroll = $state(true);
-	let showJumpToNewest = $state(false);
+	const showJumpToNewest = $derived(!shouldAutoScroll);
 	let isUserScrolling = $state(false);
 	let isInitialScroll = $state(true);
+
 	// Not reactive on purpose: only read/written from scroll handling code,
-	// never rendered. Lets scrollToBottom() tell handleScroll() that a scroll
-	// event was caused by us, not the user.
+	// never rendered. A 'scroll' event looks identical whether the user
+	// caused it or our own code did (scrollToBottom, restoring position
+	// after loading older messages). This flag lets handleScroll() tell the
+	// difference so it doesn't mistake our own scrolling for the user's and
+	// re-trigger itself in a loop.
 	let isProgrammaticScroll = false;
+
+	const BOTTOM_THRESHOLD_PX = 200; // how close to the bottom still counts as "pinned"
+	const LOAD_MORE_THRESHOLD_PX = 100; // how close to the top triggers pagination
+	const USER_SCROLL_SETTLE_MS = 150; // pause auto-scroll this long after the user scrolls
+	const SCROLL_SETTLE_EPSILON_PX = 2; // treat this close to a target as "already there"
+	const RENDER_SETTLE_DELAY_MS = 100; // let newly-rendered messages paint before measuring
+	const FOCUS_SCROLL_DELAY_MS = 300; // let the on-screen keyboard/viewport settle first
 
 	let shouldUseColors = $state(false);
 
@@ -199,44 +218,52 @@
 		}
 	});
 
+	function distanceFromBottom(el: HTMLElement) {
+		return el.scrollHeight - el.clientHeight - el.scrollTop;
+	}
+
+	// Call right before a synchronous scrollTop assignment so the 'scroll'
+	// event(s) it causes are ignored by handleScroll() instead of being
+	// mistaken for user input.
+	function markProgrammaticScroll() {
+		isProgrammaticScroll = true;
+		requestAnimationFrame(() => {
+			isProgrammaticScroll = false;
+		});
+	}
+
 	function scrollToBottom() {
-		if (chatContent) {
-			setTimeout(() => {
-				if (!chatContent) return;
+		if (!chatContent) return;
+		setTimeout(() => {
+			if (!chatContent) return;
 
-				// Skip the reassignment if we're already effectively at the
-				// bottom. On displays with non-100% scaling (common on
-				// Windows), scrollHeight/clientHeight are fractional, so
-				// `scrollTop = scrollHeight` never lands on exactly the same
-				// value twice - each reassignment nudges the position by a
-				// sub-pixel amount and still fires a 'scroll' event. That
-				// event flips isUserScrolling/shouldAutoScroll and re-queues
-				// another scrollToBottom, an endless loop perceived as the
-				// chat scrolling up and down on its own.
-				const distanceFromBottom =
-					chatContent.scrollHeight - chatContent.clientHeight - chatContent.scrollTop;
-				if (Math.abs(distanceFromBottom) < 2) return;
+			// Skip the reassignment if we're already effectively at the
+			// bottom. scrollHeight/clientHeight are always rounded to
+			// integers, but on displays with non-100% scaling (common on
+			// Windows) the underlying layout is computed in fractional
+			// device pixels, so which integer that rounds to can flip by a
+			// pixel between reads - `scrollTop = scrollHeight` then never
+			// lands on exactly the same value twice, and each reassignment
+			// still fires a real 'scroll' event, which (without the
+			// markProgrammaticScroll guard below) would get misread as user
+			// scrolling and re-trigger another scrollToBottom - an endless
+			// loop seen as the chat scrolling up and down on its own.
+			if (Math.abs(distanceFromBottom(chatContent)) < SCROLL_SETTLE_EPSILON_PX) return;
 
-				isProgrammaticScroll = true;
-				chatContent.scrollTop = chatContent.scrollHeight;
-				requestAnimationFrame(() => {
-					isProgrammaticScroll = false;
-				});
-			}, 0);
-		}
+			markProgrammaticScroll();
+			chatContent.scrollTop = chatContent.scrollHeight;
+		}, 0);
 	}
 
 	function scrollToMessage(messageIndex: number) {
 		if (chatContent && messageIndex >= 0 && messageIndex < messages.length) {
 			setTimeout(() => {
 				const messageElements = chatContent.querySelectorAll('.message-item');
-				if (messageElements[messageIndex]) {
-					messageElements[messageIndex].scrollIntoView({
-						behavior: 'smooth',
-						block: 'start'
-					});
-				}
-			}, 100);
+				messageElements[messageIndex]?.scrollIntoView({
+					behavior: 'smooth',
+					block: 'start'
+				});
+			}, RENDER_SETTLE_DELAY_MS);
 		}
 	}
 
@@ -249,43 +276,51 @@
 	$effect(() => {
 		if (!chatContent) return;
 
+		let userScrollTimeout: ReturnType<typeof setTimeout>;
+
 		function handleScroll() {
-			if (!chatContent) return;
-			if (isProgrammaticScroll) return;
+			if (!chatContent || isProgrammaticScroll) return;
 
-			const scrollTop = chatContent.scrollTop;
-			const scrollHeight = chatContent.scrollHeight;
-			const clientHeight = chatContent.clientHeight;
-
-			const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200;
-
-			showJumpToNewest = !isNearBottom;
+			shouldAutoScroll = distanceFromBottom(chatContent) <= BOTTOM_THRESHOLD_PX;
 			isUserScrolling = true;
-			shouldAutoScroll = isNearBottom;
 
-			const scrollThreshold = 100;
-			if (scrollTop <= scrollThreshold && !isLoadingMore && hasMoreMessages) {
+			if (chatContent.scrollTop <= LOAD_MORE_THRESHOLD_PX && !isLoadingMore && hasMoreMessages) {
 				loadMoreMessages();
 			}
 
 			clearTimeout(userScrollTimeout);
 			userScrollTimeout = setTimeout(() => {
 				isUserScrolling = false;
-			}, 150);
+			}, USER_SCROLL_SETTLE_MS);
 		}
-
-		let userScrollTimeout: NodeJS.Timeout;
 
 		chatContent.addEventListener('scroll', handleScroll);
 
 		return () => {
-			if (chatContent) {
-				chatContent.removeEventListener('scroll', handleScroll);
-				clearTimeout(userScrollTimeout);
-			}
+			chatContent?.removeEventListener('scroll', handleScroll);
+			clearTimeout(userScrollTimeout);
 		};
 	});
 
+	// Content can grow for reasons that never touch the `messages` array -
+	// an image or GIF finishing its async load, a web font swapping in, a
+	// reaction badge appearing - none of which fire a 'scroll' event on
+	// their own. Without this, staying pinned to the bottom only got
+	// re-checked on new messages, so a late-loading image could silently
+	// push the true bottom below what's visible while shouldAutoScroll
+	// stayed stuck true and the jump-to-newest button never appeared.
+	$effect(() => {
+		if (!messagesContainer || typeof ResizeObserver === 'undefined') return;
+
+		const observer = new ResizeObserver(() => {
+			if (shouldAutoScroll && !isUserScrolling && !isInitialScroll) {
+				scrollToBottom();
+			}
+		});
+		observer.observe(messagesContainer);
+
+		return () => observer.disconnect();
+	});
 
 	function updateDocumentTitle() {
 		const baseTitle = `#${chatName} - Lhama Chat`;
@@ -579,28 +614,18 @@
 			hasMoreMessages = messagesResponse.hasMore;
 
 			const lastKnownTimestamp = chatNotifications.getLastKnownTimestamp(chatId);
-			if (lastKnownTimestamp && messages.length > 0) {
-				const firstUnreadIndex = messages.findIndex(msg =>
-					new Date(msg.createdAt) > new Date(lastKnownTimestamp)
-				);
+			const firstUnreadIndex = lastKnownTimestamp
+				? messages.findIndex(msg => new Date(msg.createdAt) > new Date(lastKnownTimestamp))
+				: -1;
 
+			setTimeout(() => {
 				if (firstUnreadIndex >= 0) {
-					setTimeout(() => {
-						scrollToMessage(firstUnreadIndex);
-						isInitialScroll = false;
-					}, 100);
+					scrollToMessage(firstUnreadIndex);
 				} else {
-					setTimeout(() => {
-						scrollToBottom();
-						isInitialScroll = false;
-					}, 100);
-				}
-			} else {
-				setTimeout(() => {
 					scrollToBottom();
-					isInitialScroll = false;
-				}, 100);
-			}
+				}
+				isInitialScroll = false;
+			}, RENDER_SETTLE_DELAY_MS);
 
 			try {
 				const chats = await apiFetchChats(token);
@@ -811,8 +836,15 @@
 			cleanupMessages();
 
 			setTimeout(() => {
-				const newScrollHeight = chatContent.scrollHeight;
-				const scrollDifference = newScrollHeight - prevScrollHeight;
+				if (!chatContent) return;
+				// markProgrammaticScroll() matters here: this restore lands
+				// back near the top by design, and without it the resulting
+				// 'scroll' event would reach handleScroll() and immediately
+				// re-trigger loadMoreMessages() again - pagination looping
+				// on our own scroll adjustment rather than anything the
+				// user did.
+				const scrollDifference = chatContent.scrollHeight - prevScrollHeight;
+				markProgrammaticScroll();
 				chatContent.scrollTop = prevScrollTop + scrollDifference;
 			}, 0);
 
@@ -897,7 +929,7 @@
 
 			// Ensure we scroll to bottom after sending
 			shouldAutoScroll = true;
-			setTimeout(scrollToBottom, 0);
+			scrollToBottom();
 		} catch (err: any) {
 			console.error('Failed to send message:', err);
 			sendError = err.message || 'Failed to send message';
@@ -1193,8 +1225,7 @@
 	}
 
 	async function jumpToNewest() {
-		shouldAutoScroll = true;
-		showJumpToNewest = false;
+		shouldAutoScroll = true; // showJumpToNewest derives from this
 		isInitialScroll = false; // Reset initial scroll flag
 		scrollToBottom();
 
@@ -1487,7 +1518,7 @@
 					<EmptyState icon="💬" title="No messages yet" description="Be the first to start the conversation!" />
 				</div>
 			{:else}
-				<div class="messages-container">
+				<div class="messages-container" bind:this={messagesContainer}>
 					<!-- Auto-loading indicator -->
 					{#if hasMoreMessages && isLoadingMore}
 						<div class="loading-more-container">
@@ -1681,7 +1712,12 @@
 						oninput={handleMessageInput}
 						onfocus={() => {
 							selectedMessageIndex = -1;
-							setTimeout(() => scrollToBottom(), 300);
+							// Only jump to bottom on focus if we're already pinned
+							// there - don't yank the view away from scrollback the
+							// user is reading just because they tapped the input.
+							if (shouldAutoScroll) {
+								setTimeout(() => scrollToBottom(), FOCUS_SCROLL_DELAY_MS);
+							}
 						}}
 						placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
 						disabled={isSending || isUploadingImages}
