@@ -106,15 +106,18 @@
 	let hasMoreMessages = $state(false);
 	let isLoadingMore = $state(false);
 
-	// shouldAutoScroll is the single source of truth for "are we pinned to
-	// the bottom of the thread". The jump-to-newest button is just its
-	// inverse - deriving it means there's no second flag that can drift out
-	// of sync (it used to be set separately in a couple of places and could
-	// end up stale).
-	let shouldAutoScroll = $state(true);
-	const showJumpToNewest = $derived(!shouldAutoScroll);
+	// isPinnedToBottom is the single source of truth for "are we viewing the
+	// bottom of the thread". It never triggers a scroll by itself - it only
+	// decides whether the jump-to-newest button shows (their derivation
+	// keeps the two from drifting out of sync). The thread is only ever
+	// scrolled programmatically in response to a direct user action: opening
+	// the chat, sending a message, or clicking that button. Background
+	// updates (messages from others, reaction polls, images loading in)
+	// never move the viewport - they only update this flag so the button
+	// reflects reality.
+	let isPinnedToBottom = $state(true);
+	const showJumpToNewest = $derived(!isPinnedToBottom);
 	let isUserScrolling = $state(false);
-	let isInitialScroll = $state(true);
 
 	// Not reactive on purpose: only read/written from scroll handling code,
 	// never rendered. A 'scroll' event looks identical whether the user
@@ -268,12 +271,6 @@
 	}
 
 	$effect(() => {
-		if (messages.length > 0 && shouldAutoScroll && !isUserScrolling && !isInitialScroll) {
-			scrollToBottom();
-		}
-	});
-
-	$effect(() => {
 		if (!chatContent) return;
 
 		let userScrollTimeout: ReturnType<typeof setTimeout>;
@@ -298,7 +295,7 @@
 			if (isProgrammaticScroll) return;
 
 			const distance = distanceFromBottom(chatContent);
-			shouldAutoScroll = scrolledUp ? distance <= SCROLL_SETTLE_EPSILON_PX : distance <= BOTTOM_THRESHOLD_PX;
+			isPinnedToBottom = scrolledUp ? distance <= SCROLL_SETTLE_EPSILON_PX : distance <= BOTTOM_THRESHOLD_PX;
 			isUserScrolling = true;
 
 			if (chatContent.scrollTop <= LOAD_MORE_THRESHOLD_PX && !isLoadingMore && hasMoreMessages) {
@@ -319,20 +316,22 @@
 		};
 	});
 
-	// Content can grow for reasons that never touch the `messages` array -
-	// an image or GIF finishing its async load, a web font swapping in, a
-	// reaction badge appearing - none of which fire a 'scroll' event on
-	// their own. Without this, staying pinned to the bottom only got
-	// re-checked on new messages, so a late-loading image could silently
-	// push the true bottom below what's visible while shouldAutoScroll
-	// stayed stuck true and the jump-to-newest button never appeared.
+	// The thread's content can grow for reasons that never fire a 'scroll'
+	// event on their own - a new message being appended, an image or GIF
+	// finishing its async load, a web font swapping in, a reaction badge
+	// appearing. None of these should ever move the viewport (see
+	// isPinnedToBottom above), but they can silently push the true bottom
+	// out of view while isPinnedToBottom stays stuck true, hiding the
+	// jump-to-newest button when it should show. Re-derive the flag - never
+	// the scroll position - whenever the content resizes. Skipped while the
+	// user is actively scrolling so this doesn't fight the direction-aware
+	// value handleScroll just set.
 	$effect(() => {
 		if (!messagesContainer || typeof ResizeObserver === 'undefined') return;
 
 		const observer = new ResizeObserver(() => {
-			if (shouldAutoScroll && !isUserScrolling && !isInitialScroll) {
-				scrollToBottom();
-			}
+			if (!chatContent || isUserScrolling) return;
+			isPinnedToBottom = distanceFromBottom(chatContent) <= BOTTOM_THRESHOLD_PX;
 		});
 		observer.observe(messagesContainer);
 
@@ -641,7 +640,6 @@
 				} else {
 					scrollToBottom();
 				}
-				isInitialScroll = false;
 			}, RENDER_SETTLE_DELAY_MS);
 
 			try {
@@ -686,12 +684,13 @@
 			const newMessages = messagesWithReactions.filter(m => !existingIds.has(m.id));
 
 			if (newMessages.length > 0) {
+				// Appending here never scrolls - the ResizeObserver above
+				// picks up the resulting layout growth and re-derives
+				// isPinnedToBottom, which is all the jump-to-newest button
+				// needs.
 				messages = [...messages, ...newMessages];
 				prevCursor = messagesResponse.prevCursor;
 				cleanupMessages();
-				if (shouldAutoScroll) {
-					scrollToBottom();
-				}
 			}
 		} catch (err) {
 			console.warn('Failed to refresh messages on focus:', err);
@@ -842,7 +841,7 @@
 		if (!token || !nextCursor || isLoadingMore) return;
 
 		isLoadingMore = true;
-		shouldAutoScroll = false;
+		isPinnedToBottom = false;
 
 		try {
 			const response: PagedMessageResponse = await fetchMessagesPaginated(
@@ -955,8 +954,8 @@
 				console.warn('Failed to fetch updated chat info for notifications after sending:', error);
 			}
 
-			// Ensure we scroll to bottom after sending
-			shouldAutoScroll = true;
+			// Follow our own message down to the bottom.
+			isPinnedToBottom = true;
 			scrollToBottom();
 		} catch (err: any) {
 			console.error('Failed to send message:', err);
@@ -1253,8 +1252,7 @@
 	}
 
 	async function jumpToNewest() {
-		shouldAutoScroll = true; // showJumpToNewest derives from this
-		isInitialScroll = false; // Reset initial scroll flag
+		isPinnedToBottom = true; // showJumpToNewest derives from this
 		scrollToBottom();
 
 		const token = $authStore.token;
@@ -1356,7 +1354,7 @@
 		if (!viewport) return;
 
 		function handleViewportResize() {
-			if (shouldAutoScroll) {
+			if (isPinnedToBottom) {
 				scrollToBottom();
 			}
 		}
@@ -1743,7 +1741,7 @@
 							// Only jump to bottom on focus if we're already pinned
 							// there - don't yank the view away from scrollback the
 							// user is reading just because they tapped the input.
-							if (shouldAutoScroll) {
+							if (isPinnedToBottom) {
 								setTimeout(() => scrollToBottom(), FOCUS_SCROLL_DELAY_MS);
 							}
 						}}
