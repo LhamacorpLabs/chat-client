@@ -115,7 +115,7 @@ jobs:
   create-release:
     name: Create Release
     needs: [version, deploy]
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
