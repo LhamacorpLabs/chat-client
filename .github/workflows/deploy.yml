@@ -196,7 +196,7 @@ jobs:
   publish-release:
     name: Publish Release
     needs: [version, electron-release]
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
