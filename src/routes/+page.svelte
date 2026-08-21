@@ -25,7 +25,6 @@
 	let backendVersion = $state('');
 	let appVersion = $state('');
 	let isElectron = $state(typeof window !== 'undefined' && !!window.electronAPI);
-	let sidebarOpen = $state(false);
 
 	$effect(() => {
 		if ($authLoaded && !$authStore.token) {
@@ -105,16 +104,7 @@
 	}
 
 	function openChat(chatId: string) {
-		sidebarOpen = false;
 		goto(`/chat/${chatId}`);
-	}
-
-	function toggleSidebar() {
-		sidebarOpen = !sidebarOpen;
-	}
-
-	function closeSidebar() {
-		sidebarOpen = false;
 	}
 
 	async function handleJoinChat() {
@@ -178,11 +168,6 @@
 			const isModalOpen = showCreateModal || showJoinModal;
 			const isTyping = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
 
-			if (sidebarOpen && event.key === 'Escape') {
-				closeSidebar();
-				return;
-			}
-
 			if (isModalOpen || isTyping) {
 				if (event.key === 'Escape') {
 					if (showCreateModal) closeCreateModal();
@@ -233,71 +218,13 @@
 
 {#if $authStore.user}
 	<div class="app-shell">
-		<!-- Mobile sidebar toggle -->
-		<button
-			class="sidebar-toggle"
-			onclick={toggleSidebar}
-			aria-label="Toggle menu"
-			aria-expanded={sidebarOpen}
-			type="button"
-		>
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18">
-				<path d="M3 6h18M3 12h18M3 18h18" />
-			</svg>
-		</button>
-		<button
-			class="sidebar-overlay"
-			class:active={sidebarOpen}
-			onclick={closeSidebar}
-			aria-label="Close menu"
-			tabindex={sidebarOpen ? 0 : -1}
-		></button>
-
 		<div class="shell-row">
-		<!-- Sidebar -->
-		<aside class="sidebar" class:open={sidebarOpen}>
+		<!-- Sidebar - the chat list itself, WhatsApp-style -->
+		<aside class="sidebar">
 			<div class="sidebar-header">
 				<div class="sidebar-brand">
 					<img src="/logo.png" alt="" class="brand-icon" />
 					<span class="brand-name">Chat</span>
-				</div>
-			</div>
-
-			<nav class="sidebar-nav">
-				<div class="nav-section-label label-upper">Menu</div>
-				<button class="nav-item active" type="button">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-						<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-					</svg>
-					<span>Chats</span>
-				</button>
-			</nav>
-
-			<div class="sidebar-footer">
-				<button class="nav-item" onclick={() => logout()} type="button">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-						<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-						<path d="M16 17l5-5-5-5" />
-						<path d="M21 12H9" />
-					</svg>
-					<span>Sign Out</span>
-				</button>
-				<div class="sidebar-user">
-					<div class="user-avatar">{($authStore.user?.username ?? '?').charAt(0).toUpperCase()}</div>
-					<div class="user-meta">
-						<div class="user-name">@{$authStore.user?.username}</div>
-					</div>
-					<ThemeToggle />
-				</div>
-			</div>
-		</aside>
-
-		<!-- Main column -->
-		<div class="shell-main">
-			<header class="content-header">
-				<div class="content-heading">
-					<h1>Your Chats</h1>
-					<p class="content-subtitle">Your conversations and groups</p>
 				</div>
 				<DropdownMenu width="120px">
 					{#snippet trigger({ toggle })}
@@ -325,62 +252,88 @@
 						</button>
 					{/snippet}
 				</DropdownMenu>
-			</header>
+			</div>
 
-			<!-- Main Content -->
-			<main class="main-content">
-				<div class="chats-container">
-					<!-- Error Message -->
-					{#if $chatStore.error}
-						<div class="alert alert-error">
-							{$chatStore.error}
-						</div>
-					{/if}
+			<div class="sidebar-list">
+				<!-- Error Message -->
+				{#if $chatStore.error}
+					<div class="alert alert-error">
+						{$chatStore.error}
+					</div>
+				{/if}
 
-					<!-- Loading State -->
-					{#if $chatStore.isLoading}
-						<div class="loading-container">
-							<LoadingSpinner label="Loading your chats..." />
-						</div>
-					{/if}
+				<!-- Loading State -->
+				{#if $chatStore.isLoading}
+					<div class="loading-container">
+						<LoadingSpinner label="Loading your chats..." />
+					</div>
+				{/if}
 
-					<!-- Chats List -->
-					{#if !$chatStore.isLoading && $chatStore.chats.length > 0}
-						<div class="chats-list">
-							{#each $chatStore.chats as chat, index (chat.id)}
-								<button class="chat-item card clickable" class:selected={index === selectedChatIndex} onclick={() => openChat(chat.id)} type="button">
-									<div class="chat-info">
-										<div class="chat-name-container">
-											<h3 class="chat-name">#{chat.name}</h3>
-											{#if $chatNotifications.hasUnreadMessages[chat.id]}
-												<div class="unread-indicator" title="New messages"></div>
-											{/if}
-										</div>
-										<p class="chat-meta">
-											Created {new Date(chat.createdAt).toLocaleDateString()}
-											{#if chat.members.length > 0}
-												• {chat.members.length} member{chat.members.length === 1 ? '' : 's'}
-											{/if}
-										</p>
+				<!-- Chats List -->
+				{#if !$chatStore.isLoading && $chatStore.chats.length > 0}
+					<div class="chats-list">
+						{#each $chatStore.chats as chat, index (chat.id)}
+							<button class="chat-item card clickable" class:selected={index === selectedChatIndex} onclick={() => openChat(chat.id)} type="button">
+								<div class="chat-info">
+									<div class="chat-name-container">
+										<h3 class="chat-name">#{chat.name}</h3>
+										{#if $chatNotifications.hasUnreadMessages[chat.id]}
+											<div class="unread-indicator" title="New messages"></div>
+										{/if}
 									</div>
-									<div class="chat-chevron">
-										→
-									</div>
-								</button>
-							{/each}
-						</div>
-					{/if}
+									<p class="chat-meta">
+										Created {new Date(chat.createdAt).toLocaleDateString()}
+										{#if chat.members.length > 0}
+											• {chat.members.length} member{chat.members.length === 1 ? '' : 's'}
+										{/if}
+									</p>
+								</div>
+								<div class="chat-chevron">
+									→
+								</div>
+							</button>
+						{/each}
+					</div>
+				{/if}
 
-					<!-- Empty State -->
-					{#if !$chatStore.isLoading && $chatStore.chats.length === 0 && !$chatStore.error}
-						<EmptyState
-							icon="💬"
-							title="No chats yet"
-							description={'Create your first chat or join one with an invitation code using the "+" button above!'}
-						/>
-					{/if}
+				<!-- Empty State -->
+				{#if !$chatStore.isLoading && $chatStore.chats.length === 0 && !$chatStore.error}
+					<EmptyState
+						icon="💬"
+						title="No chats yet"
+						description={'Create your first chat or join one with an invitation code using the "+" button above!'}
+					/>
+				{/if}
+			</div>
+
+			<div class="sidebar-footer">
+				<button class="nav-item" onclick={() => logout()} type="button">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+						<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+						<path d="M16 17l5-5-5-5" />
+						<path d="M21 12H9" />
+					</svg>
+					<span>Sign Out</span>
+				</button>
+				<div class="sidebar-user">
+					<div class="user-avatar">{($authStore.user?.username ?? '?').charAt(0).toUpperCase()}</div>
+					<div class="user-meta">
+						<div class="user-name">@{$authStore.user?.username}</div>
+					</div>
+					<ThemeToggle />
 				</div>
-			</main>
+			</div>
+		</aside>
+
+		<!-- Main column - shown on desktop only; on mobile the chat list IS
+		     the screen, same as WhatsApp's mobile behavior. Selecting a chat
+		     always navigates to its own full route. -->
+		<div class="shell-main">
+			<div class="chat-placeholder">
+				<div class="chat-placeholder-icon">💬</div>
+				<h2>Select a chat</h2>
+				<p>Choose a conversation from the list to start messaging.</p>
+			</div>
 		</div>
 		</div>
 
@@ -502,9 +455,9 @@
 		gap: var(--gap);
 	}
 
-	/* Sidebar - floating panel, matches the main-content panel treatment */
+	/* Sidebar - the chat list panel, WhatsApp-style */
 	.sidebar {
-		width: 240px;
+		width: 340px;
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
@@ -517,7 +470,11 @@
 
 	.sidebar-header {
 		flex-shrink: 0;
-		padding: 1.25rem 1.25rem 1rem;
+		padding: 1rem 1.25rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -539,18 +496,6 @@
 		font-weight: 700;
 		color: var(--text-primary);
 		letter-spacing: -0.02em;
-	}
-
-	.sidebar-nav {
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		padding: 1rem 0.75rem;
-	}
-
-	.nav-section-label {
-		padding: 0 0.625rem;
-		margin-bottom: 0.5rem;
 	}
 
 	.nav-item {
@@ -579,11 +524,6 @@
 	.nav-item:hover {
 		background: var(--surface-hover);
 		color: var(--text-primary);
-	}
-
-	.nav-item.active {
-		background: var(--accent-subtle);
-		color: var(--accent);
 	}
 
 	.sidebar-footer {
@@ -630,43 +570,24 @@
 		text-overflow: ellipsis;
 	}
 
-	.user-role {
-		color: var(--text-muted);
-		font-size: 0.6875rem;
-		text-transform: capitalize;
+	.add-btn {
+		font-size: 1rem;
+		padding: 0.375rem 0.5rem;
+		font-weight: bold;
+		line-height: 1;
 	}
 
-	/* Mobile sidebar toggle + overlay (hidden on desktop) */
-	.sidebar-toggle {
-		display: none;
-		position: fixed;
-		top: 0.75rem;
-		left: 0.75rem;
-		z-index: 200;
-		width: 36px;
-		height: 36px;
-		align-items: center;
-		justify-content: center;
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		box-shadow: var(--shadow-sm);
-		cursor: pointer;
+	/* Chat list scroll area, inside the sidebar */
+	.sidebar-list {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		padding: 0.75rem;
 	}
 
-	.sidebar-overlay {
-		display: none;
-		position: fixed;
-		inset: 0;
-		border: none;
-		padding: 0;
-		background: rgba(0, 0, 0, 0.4);
-		z-index: 99;
-		cursor: pointer;
-	}
-
-	/* Main column - floating panel, same treatment as the sidebar */
+	/* Main column - desktop-only placeholder panel, shown when no chat is
+	   selected (selecting one navigates to its own full route) */
 	.shell-main {
 		flex: 1;
 		min-width: 0;
@@ -679,49 +600,34 @@
 		overflow: hidden;
 	}
 
-	.content-header {
-		flex-shrink: 0;
-		padding: 1.25rem 1.5rem;
+	.chat-placeholder {
+		flex: 1;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		border-bottom: 1px solid var(--border);
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 2rem;
+		text-align: center;
 	}
 
-	.content-heading h1 {
+	.chat-placeholder-icon {
+		font-size: 2.5rem;
+		opacity: 0.5;
+		margin-bottom: 0.25rem;
+	}
+
+	.chat-placeholder h2 {
 		margin: 0;
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: var(--text-primary);
-		letter-spacing: -0.02em;
+		color: var(--text-secondary);
+		font-size: 1.0625rem;
 	}
 
-	.content-subtitle {
-		margin: 0.25rem 0 0;
+	.chat-placeholder p {
+		margin: 0;
 		color: var(--text-muted);
 		font-size: 0.8125rem;
-	}
-
-	.add-btn {
-		font-size: 1rem;
-		padding: 0.375rem 0.5rem;
-		font-weight: bold;
-		line-height: 1;
-	}
-
-	/* Main Content */
-	.main-content {
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		-webkit-overflow-scrolling: touch;
-	}
-
-	.main-content > .chats-container {
-		max-width: 640px;
-		margin: 0 auto;
-		padding: 1.5rem;
+		max-width: 280px;
 	}
 
 	/* Footer - plain text below the panels, not a panel itself */
@@ -794,6 +700,7 @@
 
 	.chat-info {
 		flex: 1;
+		min-width: 0;
 	}
 
 	.chat-name-container {
@@ -801,6 +708,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		margin-bottom: 0.25rem;
+		min-width: 0;
 	}
 
 	.chat-name {
@@ -808,6 +716,9 @@
 		color: var(--text-primary);
 		font-size: 0.9375rem;
 		font-weight: 600;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.unread-indicator {
@@ -822,6 +733,9 @@
 		margin: 0;
 		color: var(--text-muted);
 		font-size: 0.75rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.chat-chevron {
@@ -888,10 +802,9 @@
 		min-width: 80px;
 	}
 
-	/* Responsive Design - sidebar collapses into an off-canvas drawer */
-	/* Responsive Design - collapse floating panels to edge-to-edge; the
-	   sidebar becomes an off-canvas drawer since it can't sit permanently
-	   alongside the content on a small screen. */
+	/* Responsive Design - on mobile the chat list IS the screen (WhatsApp's
+	   mobile behavior): the placeholder main panel hides, and the sidebar
+	   takes over the full edge-to-edge layout instead of sitting beside it. */
 	@media (max-width: 768px) {
 		.app-shell {
 			gap: 0;
@@ -903,46 +816,21 @@
 		}
 
 		.sidebar {
-			position: fixed;
-			top: 0;
-			left: 0;
-			bottom: 0;
-			z-index: 150;
+			width: 100%;
 			border-radius: 0;
-			border-top: none;
-			border-bottom: none;
-			border-left: none;
-			transform: translateX(-100%);
-			transition: transform 0.2s ease;
-			box-shadow: var(--shadow-lg);
-		}
-
-		.sidebar.open {
-			transform: translateX(0);
-		}
-
-		.sidebar-toggle {
-			display: flex;
-		}
-
-		.sidebar-overlay.active {
-			display: block;
-		}
-
-		.shell-main {
-			border-radius: 0;
-			border-left: none;
-			border-right: none;
 			box-shadow: none;
 		}
 
-		.content-header {
-			padding: 0.75rem 1rem;
-			padding-left: 3.25rem;
+		.shell-main {
+			display: none;
 		}
 
-		.main-content > .chats-container {
-			padding: 1.25rem 1rem;
+		.sidebar-header {
+			padding: 0.75rem 1rem;
+		}
+
+		.sidebar-list {
+			padding: 0.75rem 1rem;
 		}
 
 		.chat-item {
@@ -953,10 +841,6 @@
 	@media (max-width: 480px) {
 		.brand-name {
 			font-size: 1rem;
-		}
-
-		.content-heading h1 {
-			font-size: 1.0625rem;
 		}
 	}
 </style>
