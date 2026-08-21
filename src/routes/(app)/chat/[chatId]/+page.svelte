@@ -31,7 +31,7 @@
 	import EmojiAutocomplete from '$lib/components/EmojiAutocomplete.svelte';
 	import { searchEmojis } from '$lib/utils/emojis';
 	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
-	import { mergeMessagesWithPerMessageReactions, getUserReactionForMessage } from '$lib/utils/reactionUtils';
+	import { mergeMessagesWithPerMessageReactions, messagesReactionsChanged, getUserReactionForMessage } from '$lib/utils/reactionUtils';
 	import type { ReactionSummary } from '$lib/types/chat';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
@@ -802,7 +802,18 @@
 				memberMapping[member.id] = member.name;
 			}
 
-			messages = mergeMessagesWithPerMessageReactions(messages, reactionsByMessage, memberMapping);
+			// Reaction polling runs every REACTION_POLLING_INTERVAL_MS whether
+			// or not anything actually changed. mergeMessagesWithPerMessageReactions
+			// always returns fresh message objects, so assigning it unconditionally
+			// replaced `messages` (a new array reference) on every tick - which
+			// retriggers the auto-scroll-to-bottom effect below even when no
+			// message or reaction actually changed, forcing the chat back to the
+			// bottom out of nowhere. Only replace the array when a reaction
+			// summary actually differs.
+			const mergedMessages = mergeMessagesWithPerMessageReactions(messages, reactionsByMessage, memberMapping);
+			if (messagesReactionsChanged(messages, mergedMessages)) {
+				messages = mergedMessages;
+			}
 		} catch (error) {
 			const errMsg = error instanceof Error ? error.message : '';
 			if (errMsg.includes('401') || errMsg.includes('403')) {

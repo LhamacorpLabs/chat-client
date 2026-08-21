@@ -113,6 +113,33 @@ export function mergeMessagesWithPerMessageReactions(
 }
 
 /**
+ * Compares two messages' reaction summaries for equivalent content,
+ * ignoring group/user ordering (which isn't guaranteed stable across
+ * fetches since it falls out of Map iteration order).
+ */
+function reactionsEqual(a: ReactionSummary[] | undefined, b: ReactionSummary[] | undefined): boolean {
+	const normalize = (reactions?: ReactionSummary[]) =>
+		(reactions ?? [])
+			.map(group => `${group.type}:${group.users.map(user => user.userId).sort().join(',')}`)
+			.sort()
+			.join('|');
+
+	return normalize(a) === normalize(b);
+}
+
+/**
+ * True if any message's reactions differ between the two lists (assumed to
+ * be the same messages in the same order - e.g. before/after a reaction
+ * refresh). Lets callers skip replacing the messages array, and the
+ * re-renders and auto-scroll re-evaluation that go with it, when a poll
+ * comes back with nothing new to show.
+ */
+export function messagesReactionsChanged(previous: Message[], next: Message[]): boolean {
+	if (previous.length !== next.length) return true;
+	return next.some((message, i) => !reactionsEqual(previous[i]?.reactions, message.reactions));
+}
+
+/**
  * Gets the current user's reaction for a specific message
  */
 export function getUserReactionForMessage(
