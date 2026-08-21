@@ -286,7 +286,6 @@
 					<div class="user-avatar">{($authStore.user?.username ?? '?').charAt(0).toUpperCase()}</div>
 					<div class="user-meta">
 						<div class="user-name">@{$authStore.user?.username}</div>
-						<div class="user-role">{$authStore.user?.roles?.length ? $authStore.user.roles.join(', ') : 'Member'}</div>
 					</div>
 					<ThemeToggle />
 				</div>
