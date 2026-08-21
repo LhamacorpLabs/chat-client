@@ -2248,12 +2248,11 @@
 		color: var(--accent-contrast);
 	}
 
-	/* Message Input - floating panel */
+	/* Message Input - blends into the page background instead of floating
+	   as its own panel; the input/buttons inside still have their own
+	   surfaces for definition. */
 	.message-input-area {
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
+		background: transparent;
 		padding: 0.75rem 1.5rem;
 		padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 		flex-shrink: 0;
