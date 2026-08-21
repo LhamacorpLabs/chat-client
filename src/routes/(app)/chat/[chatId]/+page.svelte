@@ -1799,8 +1799,6 @@
 		min-height: 0;
 		overflow: hidden;
 		gap: var(--gap);
-		padding: var(--gap);
-		padding-top: calc(var(--gap) + env(safe-area-inset-top));
 	}
 
 	/* Header - floating panel */
