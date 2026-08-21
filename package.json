@@ -87,7 +87,8 @@
 			],
 			"icon": "build-resources/icon.png",
 			"category": "Network",
-			"artifactName": "${productName}_${version}_${arch}.${ext}"
+			"artifactName": "${productName}_${version}_${arch}.${ext}",
+			"maintainer": "Lhamacorp <support@lhamacorp.com>"
 		},
 		"publish": {
 			"provider": "github",
