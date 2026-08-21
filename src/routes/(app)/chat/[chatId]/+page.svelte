@@ -107,6 +107,10 @@
 	let showJumpToNewest = $state(false);
 	let isUserScrolling = $state(false);
 	let isInitialScroll = $state(true);
+	// Not reactive on purpose: only read/written from scroll handling code,
+	// never rendered. Lets scrollToBottom() tell handleScroll() that a scroll
+	// event was caused by us, not the user.
+	let isProgrammaticScroll = false;
 
 	let shouldUseColors = $state(false);
 
@@ -198,7 +202,26 @@
 	function scrollToBottom() {
 		if (chatContent) {
 			setTimeout(() => {
+				if (!chatContent) return;
+
+				// Skip the reassignment if we're already effectively at the
+				// bottom. On displays with non-100% scaling (common on
+				// Windows), scrollHeight/clientHeight are fractional, so
+				// `scrollTop = scrollHeight` never lands on exactly the same
+				// value twice - each reassignment nudges the position by a
+				// sub-pixel amount and still fires a 'scroll' event. That
+				// event flips isUserScrolling/shouldAutoScroll and re-queues
+				// another scrollToBottom, an endless loop perceived as the
+				// chat scrolling up and down on its own.
+				const distanceFromBottom =
+					chatContent.scrollHeight - chatContent.clientHeight - chatContent.scrollTop;
+				if (Math.abs(distanceFromBottom) < 2) return;
+
+				isProgrammaticScroll = true;
 				chatContent.scrollTop = chatContent.scrollHeight;
+				requestAnimationFrame(() => {
+					isProgrammaticScroll = false;
+				});
 			}, 0);
 		}
 	}
@@ -228,6 +251,7 @@
 
 		function handleScroll() {
 			if (!chatContent) return;
+			if (isProgrammaticScroll) return;
 
 			const scrollTop = chatContent.scrollTop;
 			const scrollHeight = chatContent.scrollHeight;
