@@ -124,6 +124,15 @@
 	const showJumpToNewest = $derived(!isPinnedToBottom);
 	let isUserScrolling = $state(false);
 
+	// True once a message has actually arrived while the user was away from
+	// the bottom (scrolled up reading, so it didn't auto-follow - see
+	// isPinnedToBottom above). Lets the jump-to-newest button say "new
+	// messages" instead of the generic "jump to newer messages" when
+	// there's a concrete reason to go back down, not just because the user
+	// happens to have scrolled up. Cleared the moment they're back at the
+	// bottom, whether by clicking the button or scrolling there themselves.
+	let hasNewMessagesBelow = $state(false);
+
 	// Not reactive on purpose: only read/written from scroll handling code,
 	// never rendered. A 'scroll' event looks identical whether the user
 	// caused it or our own code did (scrollToBottom, restoring position
@@ -314,6 +323,7 @@
 
 			const distance = distanceFromBottom(chatContent);
 			isPinnedToBottom = scrolledUp ? distance <= SCROLL_SETTLE_EPSILON_PX : distance <= BOTTOM_THRESHOLD_PX;
+			if (isPinnedToBottom) hasNewMessagesBelow = false;
 			isUserScrolling = true;
 
 			if (chatContent.scrollTop <= LOAD_MORE_THRESHOLD_PX && !isLoadingMore && hasMoreMessages) {
@@ -574,6 +584,8 @@
 		if (shouldFollow) {
 			isPinnedToBottom = true;
 			scrollToBottom();
+		} else {
+			hasNewMessagesBelow = true;
 		}
 
 		// Refresh reactions when there's chat activity to show others' reactions
@@ -719,6 +731,8 @@
 				if (shouldFollow) {
 					isPinnedToBottom = true;
 					scrollToBottom();
+				} else {
+					hasNewMessagesBelow = true;
 				}
 			}
 		} catch (err) {
@@ -1282,6 +1296,7 @@
 
 	async function jumpToNewest() {
 		isPinnedToBottom = true; // showJumpToNewest derives from this
+		hasNewMessagesBelow = false;
 		scrollToBottom();
 
 		const token = $authStore.token;
@@ -1550,9 +1565,10 @@
 				<button
 					onclick={jumpToNewest}
 					class="jump-to-newest-btn"
-					title="Jump to newest messages"
+					class:has-new-messages={hasNewMessagesBelow}
+					title={hasNewMessagesBelow ? 'New messages' : 'Jump to newest messages'}
 				>
-					↓ Jump to newer messages
+					{hasNewMessagesBelow ? '↓ New messages' : '↓ Jump to newer messages'}
 				</button>
 			{/if}
 			{#if error}
@@ -2899,6 +2915,22 @@
 
 	.jump-to-newest-btn:active {
 		transform: translateX(-50%) scale(0.97);
+	}
+
+	/* Distinguishes "a message actually arrived while you were scrolled up"
+	   from the plain "you scrolled away from the bottom" state - same
+	   button, but worth a glance instead of a generic scroll affordance. */
+	.jump-to-newest-btn.has-new-messages {
+		animation: slideInUp 0.2s ease-out, pulseGlow 1.6s ease-in-out infinite;
+	}
+
+	@keyframes pulseGlow {
+		0%, 100% {
+			box-shadow: var(--shadow-md), 0 0 0 0 var(--accent-glow);
+		}
+		50% {
+			box-shadow: var(--shadow-md), 0 0 0 6px transparent;
+		}
 	}
 
 	@keyframes slideInUp {
