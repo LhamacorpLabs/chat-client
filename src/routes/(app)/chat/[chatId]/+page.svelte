@@ -106,39 +106,22 @@
 	let hasMoreMessages = $state(false);
 	let isLoadingMore = $state(false);
 
-	// isPinnedToBottom is the single source of truth for "are we viewing the
-	// bottom of the thread" (their derivation keeps the jump-to-newest
-	// button from drifting out of sync with it). It does NOT by itself
-	// justify scrolling anyone anywhere - a background update (a reaction
-	// poll, an image loading in, someone else's message) never moves the
-	// viewport just because this happens to be true. The one exception is a
-	// new message actually arriving: then, and only then, we check the
-	// live scroll position at that exact moment (see wasAtBottom below) -
-	// if the user is glued to the very bottom, the view follows the new
-	// message down, same as any chat app; if they've scrolled up even a
-	// little, it doesn't move and they get the jump-to-newest button
-	// instead. Everywhere else, the thread only scrolls in direct response
-	// to the user's own action: opening the chat, sending a message, or
-	// clicking that button.
+	// Whether the user is viewing the bottom of the thread. Only justifies
+	// scrolling for a message that arrives while it's true (see
+	// wasAtBottom) - background updates (reactions, images, others'
+	// content resizing) just update this flag, never the scroll position.
 	let isPinnedToBottom = $state(true);
 	const showJumpToNewest = $derived(!isPinnedToBottom);
 	let isUserScrolling = $state(false);
 
-	// Counts messages that have actually arrived while the user was away
-	// from the bottom (scrolled up reading, so they didn't auto-follow -
-	// see isPinnedToBottom above). Lets the jump-to-newest button show a
-	// WhatsApp-style unread badge when there's a concrete reason to go back
-	// down, not just because the user happens to have scrolled up. Reset
-	// the moment they're back at the bottom, whether by clicking the button
-	// or scrolling there themselves.
+	// Messages that arrived while scrolled away from the bottom, so they
+	// didn't auto-follow. Drives the jump-to-newest button's unread badge;
+	// reset once the user is back at the bottom, however they got there.
 	let newMessagesBelowCount = $state(0);
 
-	// Not reactive on purpose: only read/written from scroll handling code,
-	// never rendered. A 'scroll' event looks identical whether the user
-	// caused it or our own code did (scrollToBottom, restoring position
-	// after loading older messages). This flag lets handleScroll() tell the
-	// difference so it doesn't mistake our own scrolling for the user's and
-	// re-trigger itself in a loop.
+	// Not reactive on purpose: read/written only by scroll handling code,
+	// to tell handleScroll() a 'scroll' event was caused by our own code
+	// (scrollToBottom, restoring position) rather than the user.
 	let isProgrammaticScroll = false;
 
 	const BOTTOM_THRESHOLD_PX = 200; // how close to the bottom still counts as "pinned"
@@ -239,15 +222,10 @@
 		return el.scrollHeight - el.clientHeight - el.scrollTop;
 	}
 
-	// Reads the live scroll position, right before new content is about to
-	// be appended, to answer "is the user glued to the very bottom right
-	// now" - the only condition under which an arriving message is allowed
-	// to pull the view down with it. Deliberately tighter than
-	// BOTTOM_THRESHOLD_PX (which just governs when the jump-to-newest
-	// button can re-hide on its own): a couple hundred px of slack there is
-	// a reasonable "close enough" to stop nagging, but auto-following
-	// someone from 150px away because a message showed up would be exactly
-	// the unwanted yank this file used to cause.
+	// Checked right before new content is appended, to decide if it's
+	// allowed to pull the view down. Tighter than BOTTOM_THRESHOLD_PX
+	// (which just hides the jump button) - auto-following from 150px away
+	// would be the same unwanted yank this was built to avoid.
 	function wasAtBottom() {
 		return !!chatContent && distanceFromBottom(chatContent) <= SCROLL_SETTLE_EPSILON_PX;
 	}
@@ -267,17 +245,10 @@
 		setTimeout(() => {
 			if (!chatContent) return;
 
-			// Skip the reassignment if we're already effectively at the
-			// bottom. scrollHeight/clientHeight are always rounded to
-			// integers, but on displays with non-100% scaling (common on
-			// Windows) the underlying layout is computed in fractional
-			// device pixels, so which integer that rounds to can flip by a
-			// pixel between reads - `scrollTop = scrollHeight` then never
-			// lands on exactly the same value twice, and each reassignment
-			// still fires a real 'scroll' event, which (without the
-			// markProgrammaticScroll guard below) would get misread as user
-			// scrolling and re-trigger another scrollToBottom - an endless
-			// loop seen as the chat scrolling up and down on its own.
+			// Skip if already effectively at the bottom - on fractional-DPI
+			// displays (common on Windows) distanceFromBottom never quite
+			// settles at exactly 0, so reassigning every time would loop
+			// scroll events with handleScroll via markProgrammaticScroll.
 			if (Math.abs(distanceFromBottom(chatContent)) < SCROLL_SETTLE_EPSILON_PX) return;
 
 			markProgrammaticScroll();
@@ -306,15 +277,10 @@
 		function handleScroll() {
 			if (!chatContent) return;
 
-			// Windows mouse wheels typically move in small increments (often
-			// well under BOTTOM_THRESHOLD_PX per notch), unlike a mac
-			// trackpad swipe which usually covers the threshold in one go.
-			// Judging "pinned" by distance alone meant a Windows user
-			// nudging up, one notch at a time, could stay inside the
-			// threshold for several ticks - any message arriving in that
-			// window (poll, websocket) would yank them back to the bottom
-			// mid-gesture. Tracking direction lets a single upward tick
-			// unpin immediately, regardless of how far it actually moved.
+			// Windows mouse wheel notches are small enough to stay inside
+			// BOTTOM_THRESHOLD_PX for several ticks, so judging "pinned" by
+			// distance alone left Windows users pinned mid-gesture. Track
+			// direction instead - any upward movement unpins immediately.
 			const currentScrollTop = chatContent.scrollTop;
 			const scrolledUp = currentScrollTop < lastScrollTop - SCROLL_SETTLE_EPSILON_PX;
 			lastScrollTop = currentScrollTop;
@@ -344,16 +310,11 @@
 		};
 	});
 
-	// The thread's content can grow for reasons that never fire a 'scroll'
-	// event on their own - a new message being appended, an image or GIF
-	// finishing its async load, a web font swapping in, a reaction badge
-	// appearing. None of these should ever move the viewport (see
-	// isPinnedToBottom above), but they can silently push the true bottom
-	// out of view while isPinnedToBottom stays stuck true, hiding the
-	// jump-to-newest button when it should show. Re-derive the flag - never
-	// the scroll position - whenever the content resizes. Skipped while the
-	// user is actively scrolling so this doesn't fight the direction-aware
-	// value handleScroll just set.
+	// Content can grow without firing a 'scroll' event (image/font load,
+	// reaction badge), silently pushing the true bottom out of view while
+	// isPinnedToBottom stays stuck true. Re-derive it (never the scroll
+	// position) on resize; skip while actively scrolling so this doesn't
+	// fight the direction-aware value handleScroll just set.
 	$effect(() => {
 		if (!messagesContainer || typeof ResizeObserver === 'undefined') return;
 
@@ -2922,9 +2883,6 @@
 		transform: translateX(-50%) scale(0.97);
 	}
 
-	/* Distinguishes "a message actually arrived while you were scrolled up"
-	   from the plain "you scrolled away from the bottom" state - same
-	   button, but worth a glance instead of a generic scroll affordance. */
 	.jump-to-newest-btn.has-new-messages {
 		animation: slideInUp 0.2s ease-out, pulseGlow 1.6s ease-in-out infinite;
 	}
@@ -2938,8 +2896,6 @@
 		}
 	}
 
-	/* WhatsApp-style unread count, inverted against the button's own
-	   background so it reads as a badge rather than more button label. */
 	.new-messages-badge {
 		display: inline-flex;
 		align-items: center;
