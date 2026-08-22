@@ -31,7 +31,7 @@
 	import EmojiAutocomplete from '$lib/components/EmojiAutocomplete.svelte';
 	import { searchEmojis } from '$lib/utils/emojis';
 	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
-	import { mergeMessagesWithPerMessageReactions, getUserReactionForMessage } from '$lib/utils/reactionUtils';
+	import { mergeMessagesWithPerMessageReactions, messagesReactionsChanged, getUserReactionForMessage } from '$lib/utils/reactionUtils';
 	import type { ReactionSummary } from '$lib/types/chat';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
@@ -106,22 +106,22 @@
 	let hasMoreMessages = $state(false);
 	let isLoadingMore = $state(false);
 
-	// shouldAutoScroll is the single source of truth for "are we pinned to
-	// the bottom of the thread". The jump-to-newest button is just its
-	// inverse - deriving it means there's no second flag that can drift out
-	// of sync (it used to be set separately in a couple of places and could
-	// end up stale).
-	let shouldAutoScroll = $state(true);
-	const showJumpToNewest = $derived(!shouldAutoScroll);
+	// Whether the user is viewing the bottom of the thread. Only justifies
+	// scrolling for a message that arrives while it's true (see
+	// wasAtBottom) - background updates (reactions, images, others'
+	// content resizing) just update this flag, never the scroll position.
+	let isPinnedToBottom = $state(true);
+	const showJumpToNewest = $derived(!isPinnedToBottom);
 	let isUserScrolling = $state(false);
-	let isInitialScroll = $state(true);
 
-	// Not reactive on purpose: only read/written from scroll handling code,
-	// never rendered. A 'scroll' event looks identical whether the user
-	// caused it or our own code did (scrollToBottom, restoring position
-	// after loading older messages). This flag lets handleScroll() tell the
-	// difference so it doesn't mistake our own scrolling for the user's and
-	// re-trigger itself in a loop.
+	// Messages that arrived while scrolled away from the bottom, so they
+	// didn't auto-follow. Drives the jump-to-newest button's unread badge;
+	// reset once the user is back at the bottom, however they got there.
+	let newMessagesBelowCount = $state(0);
+
+	// Not reactive on purpose: read/written only by scroll handling code,
+	// to tell handleScroll() a 'scroll' event was caused by our own code
+	// (scrollToBottom, restoring position) rather than the user.
 	let isProgrammaticScroll = false;
 
 	const BOTTOM_THRESHOLD_PX = 200; // how close to the bottom still counts as "pinned"
@@ -222,6 +222,14 @@
 		return el.scrollHeight - el.clientHeight - el.scrollTop;
 	}
 
+	// Checked right before new content is appended, to decide if it's
+	// allowed to pull the view down. Tighter than BOTTOM_THRESHOLD_PX
+	// (which just hides the jump button) - auto-following from 150px away
+	// would be the same unwanted yank this was built to avoid.
+	function wasAtBottom() {
+		return !!chatContent && distanceFromBottom(chatContent) <= SCROLL_SETTLE_EPSILON_PX;
+	}
+
 	// Call right before a synchronous scrollTop assignment so the 'scroll'
 	// event(s) it causes are ignored by handleScroll() instead of being
 	// mistaken for user input.
@@ -237,17 +245,10 @@
 		setTimeout(() => {
 			if (!chatContent) return;
 
-			// Skip the reassignment if we're already effectively at the
-			// bottom. scrollHeight/clientHeight are always rounded to
-			// integers, but on displays with non-100% scaling (common on
-			// Windows) the underlying layout is computed in fractional
-			// device pixels, so which integer that rounds to can flip by a
-			// pixel between reads - `scrollTop = scrollHeight` then never
-			// lands on exactly the same value twice, and each reassignment
-			// still fires a real 'scroll' event, which (without the
-			// markProgrammaticScroll guard below) would get misread as user
-			// scrolling and re-trigger another scrollToBottom - an endless
-			// loop seen as the chat scrolling up and down on its own.
+			// Skip if already effectively at the bottom - on fractional-DPI
+			// displays (common on Windows) distanceFromBottom never quite
+			// settles at exactly 0, so reassigning every time would loop
+			// scroll events with handleScroll via markProgrammaticScroll.
 			if (Math.abs(distanceFromBottom(chatContent)) < SCROLL_SETTLE_EPSILON_PX) return;
 
 			markProgrammaticScroll();
@@ -268,20 +269,27 @@
 	}
 
 	$effect(() => {
-		if (messages.length > 0 && shouldAutoScroll && !isUserScrolling && !isInitialScroll) {
-			scrollToBottom();
-		}
-	});
-
-	$effect(() => {
 		if (!chatContent) return;
 
 		let userScrollTimeout: ReturnType<typeof setTimeout>;
+		let lastScrollTop = chatContent.scrollTop;
 
 		function handleScroll() {
-			if (!chatContent || isProgrammaticScroll) return;
+			if (!chatContent) return;
 
-			shouldAutoScroll = distanceFromBottom(chatContent) <= BOTTOM_THRESHOLD_PX;
+			// Windows mouse wheel notches are small enough to stay inside
+			// BOTTOM_THRESHOLD_PX for several ticks, so judging "pinned" by
+			// distance alone left Windows users pinned mid-gesture. Track
+			// direction instead - any upward movement unpins immediately.
+			const currentScrollTop = chatContent.scrollTop;
+			const scrolledUp = currentScrollTop < lastScrollTop - SCROLL_SETTLE_EPSILON_PX;
+			lastScrollTop = currentScrollTop;
+
+			if (isProgrammaticScroll) return;
+
+			const distance = distanceFromBottom(chatContent);
+			isPinnedToBottom = scrolledUp ? distance <= SCROLL_SETTLE_EPSILON_PX : distance <= BOTTOM_THRESHOLD_PX;
+			if (isPinnedToBottom) newMessagesBelowCount = 0;
 			isUserScrolling = true;
 
 			if (chatContent.scrollTop <= LOAD_MORE_THRESHOLD_PX && !isLoadingMore && hasMoreMessages) {
@@ -302,20 +310,17 @@
 		};
 	});
 
-	// Content can grow for reasons that never touch the `messages` array -
-	// an image or GIF finishing its async load, a web font swapping in, a
-	// reaction badge appearing - none of which fire a 'scroll' event on
-	// their own. Without this, staying pinned to the bottom only got
-	// re-checked on new messages, so a late-loading image could silently
-	// push the true bottom below what's visible while shouldAutoScroll
-	// stayed stuck true and the jump-to-newest button never appeared.
+	// Content can grow without firing a 'scroll' event (image/font load,
+	// reaction badge), silently pushing the true bottom out of view while
+	// isPinnedToBottom stays stuck true. Re-derive it (never the scroll
+	// position) on resize; skip while actively scrolling so this doesn't
+	// fight the direction-aware value handleScroll just set.
 	$effect(() => {
 		if (!messagesContainer || typeof ResizeObserver === 'undefined') return;
 
 		const observer = new ResizeObserver(() => {
-			if (shouldAutoScroll && !isUserScrolling && !isInitialScroll) {
-				scrollToBottom();
-			}
+			if (!chatContent || isUserScrolling) return;
+			isPinnedToBottom = distanceFromBottom(chatContent) <= BOTTOM_THRESHOLD_PX;
 		});
 		observer.observe(messagesContainer);
 
@@ -531,8 +536,18 @@
 	}
 
 	function handleNewMessage(newMsg: Message) {
+		// Capture this before the append below changes it.
+		const shouldFollow = wasAtBottom();
+
 		// Add the new message to the messages array
 		messages = [...messages, newMsg];
+
+		if (shouldFollow) {
+			isPinnedToBottom = true;
+			scrollToBottom();
+		} else {
+			newMessagesBelowCount += 1;
+		}
 
 		// Refresh reactions when there's chat activity to show others' reactions
 		refreshReactions();
@@ -624,7 +639,6 @@
 				} else {
 					scrollToBottom();
 				}
-				isInitialScroll = false;
 			}, RENDER_SETTLE_DELAY_MS);
 
 			try {
@@ -669,11 +683,17 @@
 			const newMessages = messagesWithReactions.filter(m => !existingIds.has(m.id));
 
 			if (newMessages.length > 0) {
+				const shouldFollow = wasAtBottom();
+
 				messages = [...messages, ...newMessages];
 				prevCursor = messagesResponse.prevCursor;
 				cleanupMessages();
-				if (shouldAutoScroll) {
+
+				if (shouldFollow) {
+					isPinnedToBottom = true;
 					scrollToBottom();
+				} else {
+					newMessagesBelowCount += newMessages.length;
 				}
 			}
 		} catch (err) {
@@ -785,7 +805,18 @@
 				memberMapping[member.id] = member.name;
 			}
 
-			messages = mergeMessagesWithPerMessageReactions(messages, reactionsByMessage, memberMapping);
+			// Reaction polling runs every REACTION_POLLING_INTERVAL_MS whether
+			// or not anything actually changed. mergeMessagesWithPerMessageReactions
+			// always returns fresh message objects, so assigning it unconditionally
+			// replaced `messages` (a new array reference) on every tick - which
+			// retriggers the auto-scroll-to-bottom effect below even when no
+			// message or reaction actually changed, forcing the chat back to the
+			// bottom out of nowhere. Only replace the array when a reaction
+			// summary actually differs.
+			const mergedMessages = mergeMessagesWithPerMessageReactions(messages, reactionsByMessage, memberMapping);
+			if (messagesReactionsChanged(messages, mergedMessages)) {
+				messages = mergedMessages;
+			}
 		} catch (error) {
 			const errMsg = error instanceof Error ? error.message : '';
 			if (errMsg.includes('401') || errMsg.includes('403')) {
@@ -814,7 +845,7 @@
 		if (!token || !nextCursor || isLoadingMore) return;
 
 		isLoadingMore = true;
-		shouldAutoScroll = false;
+		isPinnedToBottom = false;
 
 		try {
 			const response: PagedMessageResponse = await fetchMessagesPaginated(
@@ -927,8 +958,8 @@
 				console.warn('Failed to fetch updated chat info for notifications after sending:', error);
 			}
 
-			// Ensure we scroll to bottom after sending
-			shouldAutoScroll = true;
+			// Follow our own message down to the bottom.
+			isPinnedToBottom = true;
 			scrollToBottom();
 		} catch (err: any) {
 			console.error('Failed to send message:', err);
@@ -1225,8 +1256,8 @@
 	}
 
 	async function jumpToNewest() {
-		shouldAutoScroll = true; // showJumpToNewest derives from this
-		isInitialScroll = false; // Reset initial scroll flag
+		isPinnedToBottom = true; // showJumpToNewest derives from this
+		newMessagesBelowCount = 0;
 		scrollToBottom();
 
 		const token = $authStore.token;
@@ -1328,7 +1359,7 @@
 		if (!viewport) return;
 
 		function handleViewportResize() {
-			if (shouldAutoScroll) {
+			if (isPinnedToBottom) {
 				scrollToBottom();
 			}
 		}
@@ -1495,9 +1526,13 @@
 				<button
 					onclick={jumpToNewest}
 					class="jump-to-newest-btn"
-					title="Jump to newest messages"
+					class:has-new-messages={newMessagesBelowCount > 0}
+					title={newMessagesBelowCount > 0 ? `${newMessagesBelowCount} new message${newMessagesBelowCount > 1 ? 's' : ''}` : 'Jump to newest messages'}
 				>
-					↓ Jump to newer messages
+					{newMessagesBelowCount > 0 ? '↓ New messages' : '↓ Jump to newer messages'}
+					{#if newMessagesBelowCount > 0}
+						<span class="new-messages-badge">{newMessagesBelowCount > 99 ? '99+' : newMessagesBelowCount}</span>
+					{/if}
 				</button>
 			{/if}
 			{#if error}
@@ -1715,7 +1750,7 @@
 							// Only jump to bottom on focus if we're already pinned
 							// there - don't yank the view away from scrollback the
 							// user is reading just because they tapped the input.
-							if (shouldAutoScroll) {
+							if (isPinnedToBottom) {
 								setTimeout(() => scrollToBottom(), FOCUS_SCROLL_DELAY_MS);
 							}
 						}}
@@ -2819,7 +2854,9 @@
 		bottom: 0.75rem;
 		left: 50%;
 		transform: translateX(-50%);
-		display: block;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 		background: var(--accent);
 		color: var(--accent-contrast);
 		border: none;
@@ -2844,6 +2881,35 @@
 
 	.jump-to-newest-btn:active {
 		transform: translateX(-50%) scale(0.97);
+	}
+
+	.jump-to-newest-btn.has-new-messages {
+		animation: slideInUp 0.2s ease-out, pulseGlow 1.6s ease-in-out infinite;
+	}
+
+	@keyframes pulseGlow {
+		0%, 100% {
+			box-shadow: var(--shadow-md), 0 0 0 0 var(--accent-glow);
+		}
+		50% {
+			box-shadow: var(--shadow-md), 0 0 0 6px transparent;
+		}
+	}
+
+	.new-messages-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 1.25rem;
+		height: 1.25rem;
+		padding: 0 0.35rem;
+		border-radius: var(--radius-pill);
+		background: var(--accent-contrast);
+		color: var(--accent);
+		font-size: 0.6875rem;
+		font-weight: 700;
+		letter-spacing: normal;
+		text-transform: none;
 	}
 
 	@keyframes slideInUp {
