@@ -124,14 +124,14 @@
 	const showJumpToNewest = $derived(!isPinnedToBottom);
 	let isUserScrolling = $state(false);
 
-	// True once a message has actually arrived while the user was away from
-	// the bottom (scrolled up reading, so it didn't auto-follow - see
-	// isPinnedToBottom above). Lets the jump-to-newest button say "new
-	// messages" instead of the generic "jump to newer messages" when
-	// there's a concrete reason to go back down, not just because the user
-	// happens to have scrolled up. Cleared the moment they're back at the
-	// bottom, whether by clicking the button or scrolling there themselves.
-	let hasNewMessagesBelow = $state(false);
+	// Counts messages that have actually arrived while the user was away
+	// from the bottom (scrolled up reading, so they didn't auto-follow -
+	// see isPinnedToBottom above). Lets the jump-to-newest button show a
+	// WhatsApp-style unread badge when there's a concrete reason to go back
+	// down, not just because the user happens to have scrolled up. Reset
+	// the moment they're back at the bottom, whether by clicking the button
+	// or scrolling there themselves.
+	let newMessagesBelowCount = $state(0);
 
 	// Not reactive on purpose: only read/written from scroll handling code,
 	// never rendered. A 'scroll' event looks identical whether the user
@@ -323,7 +323,7 @@
 
 			const distance = distanceFromBottom(chatContent);
 			isPinnedToBottom = scrolledUp ? distance <= SCROLL_SETTLE_EPSILON_PX : distance <= BOTTOM_THRESHOLD_PX;
-			if (isPinnedToBottom) hasNewMessagesBelow = false;
+			if (isPinnedToBottom) newMessagesBelowCount = 0;
 			isUserScrolling = true;
 
 			if (chatContent.scrollTop <= LOAD_MORE_THRESHOLD_PX && !isLoadingMore && hasMoreMessages) {
@@ -585,7 +585,7 @@
 			isPinnedToBottom = true;
 			scrollToBottom();
 		} else {
-			hasNewMessagesBelow = true;
+			newMessagesBelowCount += 1;
 		}
 
 		// Refresh reactions when there's chat activity to show others' reactions
@@ -732,7 +732,7 @@
 					isPinnedToBottom = true;
 					scrollToBottom();
 				} else {
-					hasNewMessagesBelow = true;
+					newMessagesBelowCount += newMessages.length;
 				}
 			}
 		} catch (err) {
@@ -1296,7 +1296,7 @@
 
 	async function jumpToNewest() {
 		isPinnedToBottom = true; // showJumpToNewest derives from this
-		hasNewMessagesBelow = false;
+		newMessagesBelowCount = 0;
 		scrollToBottom();
 
 		const token = $authStore.token;
@@ -1565,10 +1565,13 @@
 				<button
 					onclick={jumpToNewest}
 					class="jump-to-newest-btn"
-					class:has-new-messages={hasNewMessagesBelow}
-					title={hasNewMessagesBelow ? 'New messages' : 'Jump to newest messages'}
+					class:has-new-messages={newMessagesBelowCount > 0}
+					title={newMessagesBelowCount > 0 ? `${newMessagesBelowCount} new message${newMessagesBelowCount > 1 ? 's' : ''}` : 'Jump to newest messages'}
 				>
-					{hasNewMessagesBelow ? '↓ New messages' : '↓ Jump to newer messages'}
+					{newMessagesBelowCount > 0 ? '↓ New messages' : '↓ Jump to newer messages'}
+					{#if newMessagesBelowCount > 0}
+						<span class="new-messages-badge">{newMessagesBelowCount > 99 ? '99+' : newMessagesBelowCount}</span>
+					{/if}
 				</button>
 			{/if}
 			{#if error}
@@ -2890,7 +2893,9 @@
 		bottom: 0.75rem;
 		left: 50%;
 		transform: translateX(-50%);
-		display: block;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 		background: var(--accent);
 		color: var(--accent-contrast);
 		border: none;
@@ -2931,6 +2936,24 @@
 		50% {
 			box-shadow: var(--shadow-md), 0 0 0 6px transparent;
 		}
+	}
+
+	/* WhatsApp-style unread count, inverted against the button's own
+	   background so it reads as a badge rather than more button label. */
+	.new-messages-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 1.25rem;
+		height: 1.25rem;
+		padding: 0 0.35rem;
+		border-radius: var(--radius-pill);
+		background: var(--accent-contrast);
+		color: var(--accent);
+		font-size: 0.6875rem;
+		font-weight: 700;
+		letter-spacing: normal;
+		text-transform: none;
 	}
 
 	@keyframes slideInUp {
