@@ -107,14 +107,19 @@
 	let isLoadingMore = $state(false);
 
 	// isPinnedToBottom is the single source of truth for "are we viewing the
-	// bottom of the thread". It never triggers a scroll by itself - it only
-	// decides whether the jump-to-newest button shows (their derivation
-	// keeps the two from drifting out of sync). The thread is only ever
-	// scrolled programmatically in response to a direct user action: opening
-	// the chat, sending a message, or clicking that button. Background
-	// updates (messages from others, reaction polls, images loading in)
-	// never move the viewport - they only update this flag so the button
-	// reflects reality.
+	// bottom of the thread" (their derivation keeps the jump-to-newest
+	// button from drifting out of sync with it). It does NOT by itself
+	// justify scrolling anyone anywhere - a background update (a reaction
+	// poll, an image loading in, someone else's message) never moves the
+	// viewport just because this happens to be true. The one exception is a
+	// new message actually arriving: then, and only then, we check the
+	// live scroll position at that exact moment (see wasAtBottom below) -
+	// if the user is glued to the very bottom, the view follows the new
+	// message down, same as any chat app; if they've scrolled up even a
+	// little, it doesn't move and they get the jump-to-newest button
+	// instead. Everywhere else, the thread only scrolls in direct response
+	// to the user's own action: opening the chat, sending a message, or
+	// clicking that button.
 	let isPinnedToBottom = $state(true);
 	const showJumpToNewest = $derived(!isPinnedToBottom);
 	let isUserScrolling = $state(false);
@@ -223,6 +228,19 @@
 
 	function distanceFromBottom(el: HTMLElement) {
 		return el.scrollHeight - el.clientHeight - el.scrollTop;
+	}
+
+	// Reads the live scroll position, right before new content is about to
+	// be appended, to answer "is the user glued to the very bottom right
+	// now" - the only condition under which an arriving message is allowed
+	// to pull the view down with it. Deliberately tighter than
+	// BOTTOM_THRESHOLD_PX (which just governs when the jump-to-newest
+	// button can re-hide on its own): a couple hundred px of slack there is
+	// a reasonable "close enough" to stop nagging, but auto-following
+	// someone from 150px away because a message showed up would be exactly
+	// the unwanted yank this file used to cause.
+	function wasAtBottom() {
+		return !!chatContent && distanceFromBottom(chatContent) <= SCROLL_SETTLE_EPSILON_PX;
 	}
 
 	// Call right before a synchronous scrollTop assignment so the 'scroll'
@@ -547,8 +565,16 @@
 	}
 
 	function handleNewMessage(newMsg: Message) {
+		// Capture this before the append below changes it.
+		const shouldFollow = wasAtBottom();
+
 		// Add the new message to the messages array
 		messages = [...messages, newMsg];
+
+		if (shouldFollow) {
+			isPinnedToBottom = true;
+			scrollToBottom();
+		}
 
 		// Refresh reactions when there's chat activity to show others' reactions
 		refreshReactions();
@@ -684,13 +710,16 @@
 			const newMessages = messagesWithReactions.filter(m => !existingIds.has(m.id));
 
 			if (newMessages.length > 0) {
-				// Appending here never scrolls - the ResizeObserver above
-				// picks up the resulting layout growth and re-derives
-				// isPinnedToBottom, which is all the jump-to-newest button
-				// needs.
+				const shouldFollow = wasAtBottom();
+
 				messages = [...messages, ...newMessages];
 				prevCursor = messagesResponse.prevCursor;
 				cleanupMessages();
+
+				if (shouldFollow) {
+					isPinnedToBottom = true;
+					scrollToBottom();
+				}
 			}
 		} catch (err) {
 			console.warn('Failed to refresh messages on focus:', err);
