@@ -196,6 +196,12 @@
 				return;
 			}
 
+			// Ignore key combos (e.g. Ctrl+C to copy a selected message) so they
+			// aren't swallowed by the single-letter shortcuts below.
+			if (event.ctrlKey || event.metaKey || event.altKey) {
+				return;
+			}
+
 			const chats = $chatStore.chats;
 
 			switch (event.key) {
@@ -218,10 +224,12 @@
 					}
 					break;
 				case 'c':
+					if (isChatRoute) break;
 					event.preventDefault();
 					openCreateModal();
 					break;
 				case 'j':
+					if (isChatRoute) break;
 					event.preventDefault();
 					openJoinModal();
 					break;
