@@ -2342,6 +2342,30 @@
 		color: var(--accent-contrast);
 	}
 
+	/* Dark theme link colors: --accent resolves to the same color as
+	   --text-primary in dark mode, so links following it are visually
+	   identical to surrounding text. Own-message bubbles in dark mode are
+	   also just a translucent accent tint rather than the solid fill light
+	   theme uses, so --accent-contrast (meant for text on a solid accent
+	   background) renders as near-black text on a near-black bubble. Use
+	   the focus-ring blue instead, which stays legible as a link in both
+	   cases. */
+	:global([data-theme='dark']) .message-content :global(.message-link) {
+		color: var(--border-focus);
+	}
+
+	:global([data-theme='dark']) .message-content :global(.message-link):hover {
+		color: #9db3ff;
+	}
+
+	:global([data-theme='dark']) .own-message .message-content :global(.message-link) {
+		color: var(--border-focus);
+	}
+
+	:global([data-theme='dark']) .own-message .message-content :global(.message-link):hover {
+		color: #9db3ff;
+	}
+
 	/* Message Input - blends into the page background instead of floating
 	   as its own panel; the input/buttons inside still have their own
 	   surfaces for definition. */
