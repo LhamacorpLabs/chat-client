@@ -2319,7 +2319,6 @@
 		color: var(--accent-contrast);
 	}
 
-	/* Link styling in messages */
 	.message-content :global(.message-link) {
 		color: var(--accent);
 		text-decoration: underline;
@@ -2332,7 +2331,6 @@
 		color: var(--accent-hover);
 	}
 
-	/* Link styling in own messages */
 	.own-message .message-content :global(.message-link) {
 		color: color-mix(in srgb, var(--accent-contrast) 90%, transparent);
 		text-decoration: underline;
