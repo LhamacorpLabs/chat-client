@@ -2356,9 +2356,6 @@
 		color: #9db3ff;
 	}
 
-	/* Message Input - blends into the page background instead of floating
-	   as its own panel; the input/buttons inside still have their own
-	   surfaces for definition. */
 	.message-input-area {
 		background: transparent;
 		padding: 0.75rem 1.5rem;
