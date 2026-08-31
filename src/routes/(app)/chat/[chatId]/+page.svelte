@@ -2319,7 +2319,6 @@
 		color: var(--accent-contrast);
 	}
 
-	/* Link styling in messages */
 	.message-content :global(.message-link) {
 		color: var(--accent);
 		text-decoration: underline;
@@ -2332,7 +2331,6 @@
 		color: var(--accent-hover);
 	}
 
-	/* Link styling in own messages */
 	.own-message .message-content :global(.message-link) {
 		color: color-mix(in srgb, var(--accent-contrast) 90%, transparent);
 		text-decoration: underline;
@@ -2342,9 +2340,22 @@
 		color: var(--accent-contrast);
 	}
 
-	/* Message Input - blends into the page background instead of floating
-	   as its own panel; the input/buttons inside still have their own
-	   surfaces for definition. */
+	:global([data-theme='dark']) .message-content :global(.message-link) {
+		color: var(--border-focus);
+	}
+
+	:global([data-theme='dark']) .message-content :global(.message-link):hover {
+		color: #9db3ff;
+	}
+
+	:global([data-theme='dark']) .own-message .message-content :global(.message-link) {
+		color: var(--border-focus);
+	}
+
+	:global([data-theme='dark']) .own-message .message-content :global(.message-link):hover {
+		color: #9db3ff;
+	}
+
 	.message-input-area {
 		background: transparent;
 		padding: 0.75rem 1.5rem;
