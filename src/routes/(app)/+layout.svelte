@@ -274,7 +274,11 @@
 
 {#if $authStore.user}
 	<div class="app-shell" class:chat-open={isChatRoute}>
-		<div class="shell-row">
+		<!-- Rail is a direct app-shell child (not inset by --gap like the
+		     rest of the chrome) so it spans the full window height,
+		     flush against the top/bottom/left edges - matching the
+		     reference's edge-to-edge nav rail rather than a floating
+		     panel. -->
 		<div class="rail-wrapper" bind:this={railWrapperEl}>
 			<Rail
 				chats={$chatStore.chats}
@@ -285,6 +289,9 @@
 				onSelectChat={openChat}
 			/>
 		</div>
+
+		<div class="app-content">
+		<div class="shell-row">
 
 		<!-- Sidebar - the chat list itself, WhatsApp-style. Stays mounted
 		     across chat navigation so switching chats is instant. On
@@ -431,6 +438,7 @@
 				<a href="/download" class="download-link">• Download Client</a>
 			{/if}
 		</footer>
+		</div>
 
 		<!-- Create Chat Modal -->
 		{#if showCreateModal}
@@ -524,6 +532,15 @@
 		height: 100vh;
 		height: 100dvh;
 		display: flex;
+		overflow: hidden;
+	}
+
+	/* Everything except the rail keeps the old inset/floating-panel
+	   treatment - only the rail itself is edge-to-edge. */
+	.app-content {
+		flex: 1;
+		min-width: 0;
+		display: flex;
 		flex-direction: column;
 		overflow: hidden;
 		gap: var(--gap);
@@ -560,8 +577,13 @@
 		border: 1px solid var(--glass-border, var(--border));
 		border-radius: var(--radius-lg);
 		box-shadow: var(--glass-shadow, var(--shadow-md));
-		backdrop-filter: blur(var(--glass-blur, 0px));
+		/* -webkit- listed first: the production CSS minifier collapses
+		   these two identical-value declarations into one and keeps
+		   whichever is declared last, so the standards-track property
+		   (which is what current browsers actually implement) has to be
+		   second or it silently gets dropped. */
 		-webkit-backdrop-filter: blur(var(--glass-blur, 0px));
+		backdrop-filter: blur(var(--glass-blur, 0px));
 		overflow: hidden;
 	}
 
@@ -697,12 +719,15 @@
 		}
 
 		/* Flyout: floats over shell-main instead of pushing it, so
-		   toggling it doesn't reflow the open chat. */
+		   toggling it doesn't reflow the open chat. Positioned relative
+		   to shell-row, which starts right after the rail (the rail is
+		   a sibling of app-content now, not inside shell-row), so no
+		   extra offset for its width is needed here. */
 		.sidebar {
 			position: absolute;
 			top: 0;
 			bottom: 0;
-			left: calc(var(--rail-width, 56px) + var(--gap));
+			left: 0;
 			z-index: 20;
 			box-shadow: var(--shadow-lg);
 		}
@@ -913,7 +938,7 @@
 	   time, WhatsApp-style: the chat list by default, or the open chat
 	   (full-screen) while chat-open is set. */
 	@media (max-width: 768px) {
-		.app-shell {
+		.app-content {
 			gap: 0;
 			padding: 0;
 		}

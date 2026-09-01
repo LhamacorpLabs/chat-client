@@ -99,6 +99,7 @@
 <style>
 	.rail {
 		width: var(--rail-width, 56px);
+		height: 100%;
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
@@ -106,7 +107,6 @@
 		gap: var(--rail-icon-gap, 4px);
 		padding: 12px 0;
 		background: var(--rail-bg, #000);
-		border-radius: var(--radius-lg);
 	}
 
 	.rail-mark {
