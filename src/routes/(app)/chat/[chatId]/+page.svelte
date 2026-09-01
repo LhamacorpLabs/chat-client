@@ -1446,6 +1446,7 @@
 					<div class="chat-title">
 						<img src="/logo.png" alt="Lhama Chat Logo" class="chat-logo" />
 						<h1>#{chatName}</h1>
+						<span class="member-count">{currentChat.members.length} member{currentChat.members.length === 1 ? '' : 's'}</span>
 					</div>
 				</div>
 
@@ -1896,13 +1897,20 @@
 		gap: var(--gap);
 	}
 
-	/* Header - floating panel, kept opaque so scrolling messages don't
-	   show through underneath it. */
+	/* Header - floating glass panel, same treatment as the rail's chat
+	   list and the Get Started card. Falls back to the old opaque
+	   --panel-bg cleanly on v1, since --glass-* doesn't exist there. */
 	.chat-header {
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
+		background: var(--glass-bg, var(--panel-bg));
+		border: 1px solid var(--glass-border, var(--border));
 		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
+		box-shadow: var(--glass-shadow, var(--shadow-md));
+		/* -webkit- listed first: the production CSS minifier collapses
+		   identical-value backdrop-filter declarations into one and keeps
+		   whichever is declared last - the standards property needs to be
+		   second or it silently gets dropped. */
+		-webkit-backdrop-filter: blur(var(--glass-blur, 0px));
+		backdrop-filter: blur(var(--glass-blur, 0px));
 		flex-shrink: 0;
 	}
 
@@ -1934,6 +1942,7 @@
 	}
 
 	.back-btn {
+		display: none;
 		padding: 0.375rem 0.625rem;
 		font-size: 0.875rem;
 	}
@@ -1944,6 +1953,12 @@
 		font-weight: 600;
 		color: var(--text-primary);
 		letter-spacing: -0.01em;
+	}
+
+	.member-count {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--text-muted);
 	}
 
 	.header-actions {
@@ -2534,6 +2549,7 @@
 		}
 
 		.back-btn {
+			display: inline-flex;
 			padding: 0.375rem 0.5rem;
 			font-size: 0.8rem;
 		}
@@ -2749,13 +2765,17 @@
 		}
 	}
 
-	/* Very small screens - truncate group name */
+	/* Very small screens - truncate group name, drop the member count */
 	@media (max-width: 428px) {
 		.header-content h1 {
 			max-width: 14ch;
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
+		}
+
+		.member-count {
+			display: none;
 		}
 	}
 
