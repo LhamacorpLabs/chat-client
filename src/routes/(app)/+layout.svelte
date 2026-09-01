@@ -15,6 +15,7 @@
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import Rail from '$lib/components/Rail.svelte';
 
 	let { children } = $props();
 
@@ -247,6 +248,7 @@
 {#if $authStore.user}
 	<div class="app-shell" class:chat-open={isChatRoute} class:sidebar-collapsed={sidebarCollapsed && isChatRoute}>
 		<div class="shell-row">
+		<Rail />
 		<!-- Shown in place of the sidebar on desktop when it's collapsed,
 		     so there's always a way to bring it back. -->
 		<button
@@ -506,16 +508,21 @@
 		gap: var(--gap);
 	}
 
-	/* Sidebar - the chat list panel, WhatsApp-style */
+	/* Sidebar - the chat list panel, WhatsApp-style. Under v2, a
+	   translucent glass surface (over the app's backdrop) rather than a
+	   flat panel - falls back to --panel-bg/--shadow-md/--border cleanly
+	   on v1, since --glass-bg etc. don't exist there. */
 	.sidebar {
 		width: 340px;
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
+		background: var(--glass-bg, var(--panel-bg));
+		border: 1px solid var(--glass-border, var(--border));
 		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
+		box-shadow: var(--glass-shadow, var(--shadow-md));
+		backdrop-filter: blur(var(--glass-blur, 0px));
+		-webkit-backdrop-filter: blur(var(--glass-blur, 0px));
 		overflow: hidden;
 	}
 
@@ -885,6 +892,13 @@
 
 		.shell-row {
 			gap: 0;
+		}
+
+		/* The rail is desktop-only chrome for now, same as the collapsed
+		   sidebar treatment below - mobile keeps its existing single-pane
+		   (list or open chat) behavior unchanged. */
+		:global(.rail) {
+			display: none;
 		}
 
 		.sidebar {

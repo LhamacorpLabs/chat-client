@@ -2900,7 +2900,7 @@
 
 	@keyframes pulseGlow {
 		0%, 100% {
-			box-shadow: var(--shadow-md), 0 0 0 0 var(--accent-glow);
+			box-shadow: var(--shadow-md), 0 0 0 0 var(--accent-shadow);
 		}
 		50% {
 			box-shadow: var(--shadow-md), 0 0 0 6px transparent;

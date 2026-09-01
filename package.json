@@ -18,7 +18,7 @@
 		"test:watch": "vitest"
 	},
 	"dependencies": {
-		"@lhamacorplabs/design-tokens": "github:LhamacorpLabs/design-system",
+		"@lhamacorplabs/design-tokens": "github:LhamacorpLabs/design-system#claude/design-system-evolution-25shdd",
 		"@stomp/stompjs": "^7.3.0",
 		"electron-updater": "^6.8.9",
 		"mqtt": "^5.15.2",
