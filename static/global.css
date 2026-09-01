@@ -4,7 +4,7 @@
  * The actual COSMIC design tokens (colors, type, spacing, radii,
  * shadows, motion, light/dark theming) live in the shared
  * @lhamacorplabs/design-tokens package and are imported in
- * src/routes/+layout.svelte via `import '@lhamacorplabs/design-tokens/css'`.
+ * src/routes/+layout.svelte via `import '@lhamacorplabs/design-tokens/v2/css'`.
  * This file only adds:
  *   - old variable names kept as aliases so existing component code
  *     (--bg-primary, --border-color, etc.) didn't need a rewrite when
@@ -36,12 +36,13 @@
 	--warning-subtle: var(--warning-bg);
 	--radius-xl: var(--radius-lg);
 
-	/* Flat panels replace the old blur/glass surfaces */
-	--bg-glass: var(--panel-bg);
-	--bg-glass-hover: var(--surface-hover);
-	--glass-blur: 0px;
-	--glass-border: var(--border);
-	--accent-glow: var(--accent-subtle);
+	/* --glass-(bg/border/blur/shadow) and --accent-glow used to be
+	   aliased here to flat v1 stand-ins ("flat panels replace the old
+	   blur/glass surfaces"). v2 tokens now define those for real
+	   (translucent surfaces, a genuine glow ring), so the aliases are
+	   removed rather than shadowing them. --bg-glass/--bg-glass-hover
+	   had no callers left; any new glass surface should reference
+	   --glass-bg/--glass-bg-hover from the package directly. */
 
 	/* Semantic state colors - unread/mention/muted indicators used across
 	   the chat list and message thread. */
