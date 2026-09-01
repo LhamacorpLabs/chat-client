@@ -30,16 +30,42 @@
 	let appVersion = $state('');
 	let isElectron = $state(typeof window !== 'undefined' && !!window.electronAPI);
 
-	// Whether the sidebar is manually collapsed (desktop only - on mobile,
-	// visibility is still driven purely by the route, see isChatRoute below).
-	let sidebarCollapsed = $state(
-		typeof window !== 'undefined' && localStorage.getItem('sidebarCollapsed') === 'true'
+	// Whether the chat-list flyout is open (desktop only - on mobile,
+	// visibility is still driven purely by the route, see isChatRoute
+	// below). The rail's list-toggle button drives this; it also closes
+	// on chat selection and on an outside click, like a dropdown.
+	let listOpen = $state(
+		typeof window === 'undefined' || localStorage.getItem('chatListOpen') !== 'false'
 	);
+	let sidebarEl: HTMLElement | undefined = $state();
+	let railWrapperEl: HTMLElement | undefined = $state();
 
 	$effect(() => {
 		if (typeof window !== 'undefined') {
-			localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+			localStorage.setItem('chatListOpen', String(listOpen));
 		}
+	});
+
+	$effect(() => {
+		if (!listOpen) return;
+
+		function handleClickOutside(event: MouseEvent) {
+			const target = event.target as Node;
+			if (sidebarEl?.contains(target)) return;
+			if (railWrapperEl?.contains(target)) return;
+			listOpen = false;
+		}
+
+		function handleEscape(event: KeyboardEvent) {
+			if (event.key === 'Escape') listOpen = false;
+		}
+
+		document.addEventListener('click', handleClickOutside);
+		document.addEventListener('keydown', handleEscape);
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+			document.removeEventListener('keydown', handleEscape);
+		};
 	});
 
 	// The currently open chat, if any - drives both the mobile show/hide
@@ -126,6 +152,7 @@
 
 	function openChat(chatId: string) {
 		goto(`/chat/${chatId}`);
+		listOpen = false;
 	}
 
 	async function handleJoinChat() {
@@ -246,22 +273,25 @@
 </script>
 
 {#if $authStore.user}
-	<div class="app-shell" class:chat-open={isChatRoute} class:sidebar-collapsed={sidebarCollapsed && isChatRoute}>
+	<div class="app-shell" class:chat-open={isChatRoute}>
 		<div class="shell-row">
-		<Rail />
-		<!-- Shown in place of the sidebar on desktop when it's collapsed,
-		     so there's always a way to bring it back. -->
-		<button
-			class="btn btn-ghost sidebar-expand-btn"
-			onclick={() => (sidebarCollapsed = false)}
-			title="Show chat list"
-			aria-label="Show chat list"
-			type="button"
-		>☰</button>
+		<div class="rail-wrapper" bind:this={railWrapperEl}>
+			<Rail
+				chats={$chatStore.chats}
+				activeChatId={openChatId}
+				unreadMap={$chatNotifications.hasUnreadMessages}
+				{listOpen}
+				onToggleList={() => (listOpen = !listOpen)}
+				onSelectChat={openChat}
+			/>
+		</div>
 
 		<!-- Sidebar - the chat list itself, WhatsApp-style. Stays mounted
-		     across chat navigation so switching chats is instant. -->
-		<aside class="sidebar">
+		     across chat navigation so switching chats is instant. On
+		     desktop it's a flyout the rail toggles open/closed; on mobile
+		     it's unconditionally shown/hidden by the route (isChatRoute),
+		     same as before - see the media query below. -->
+		<aside class="sidebar" class:closed={!listOpen} bind:this={sidebarEl}>
 			<div class="sidebar-header">
 				<div class="sidebar-brand">
 					<img src="/logo.png" alt="" class="brand-icon" />
@@ -296,7 +326,7 @@
 					</DropdownMenu>
 					<button
 						class="btn btn-ghost collapse-btn"
-						onclick={() => (sidebarCollapsed = true)}
+						onclick={() => (listOpen = false)}
 						title="Hide chat list"
 						aria-label="Hide chat list"
 						type="button"
@@ -506,12 +536,21 @@
 		min-height: 0;
 		display: flex;
 		gap: var(--gap);
+		position: relative;
+	}
+
+	.rail-wrapper {
+		display: contents;
 	}
 
 	/* Sidebar - the chat list panel, WhatsApp-style. Under v2, a
 	   translucent glass surface (over the app's backdrop) rather than a
 	   flat panel - falls back to --panel-bg/--shadow-md/--border cleanly
-	   on v1, since --glass-bg etc. don't exist there. */
+	   on v1, since --glass-bg etc. don't exist there. On desktop (see the
+	   min-width media query below) it's a flyout absolutely positioned
+	   beside the rail, toggled by the rail's list button, rather than a
+	   layout-affecting flex column - closing it gives shell-main the
+	   space back instead of just hiding an empty gap. */
 	.sidebar {
 		width: 340px;
 		flex-shrink: 0;
@@ -641,9 +680,9 @@
 		gap: 0.375rem;
 	}
 
-	/* Only relevant once a chat is open, and desktop-only like
-	   .sidebar-expand-btn below - on mobile the sidebar is already
-	   collapsible by navigating into a chat. */
+	/* Explicit close affordance inside the flyout header, alongside the
+	   rail's own list-toggle button - desktop-only, since on mobile the
+	   list is dismissed by navigating into a chat instead. */
 	.collapse-btn {
 		display: none;
 		font-size: 0.9375rem;
@@ -652,35 +691,24 @@
 		line-height: 1;
 	}
 
-	/* Stand-in for the sidebar on desktop once it's collapsed - hidden by
-	   default, shown by the min-width media query below. */
-	.sidebar-expand-btn {
-		display: none;
-		flex-shrink: 0;
-		align-self: flex-start;
-		width: 40px;
-		height: 40px;
-		align-items: center;
-		justify-content: center;
-		font-size: 1rem;
-		padding: 0;
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
-	}
-
 	@media (min-width: 769px) {
-		.app-shell.chat-open .collapse-btn {
+		.collapse-btn {
 			display: inline-flex;
 		}
 
-		.app-shell.sidebar-collapsed .sidebar {
-			display: none;
+		/* Flyout: floats over shell-main instead of pushing it, so
+		   toggling it doesn't reflow the open chat. */
+		.sidebar {
+			position: absolute;
+			top: 0;
+			bottom: 0;
+			left: calc(var(--rail-width, 56px) + var(--gap));
+			z-index: 20;
+			box-shadow: var(--shadow-lg);
 		}
 
-		.app-shell.sidebar-collapsed .sidebar-expand-btn {
-			display: flex;
+		.sidebar.closed {
+			display: none;
 		}
 	}
 

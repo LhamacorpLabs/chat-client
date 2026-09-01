@@ -1,13 +1,29 @@
 <script lang="ts">
 	import { authStore } from '$lib/stores/auth';
+	import type { Chat } from '$lib/types/chat';
 
-	// Global icon-only nav rail, introduced alongside the v2 (COSMIC)
-	// design tokens. Only "Chats" is a real destination today; the rest
-	// of the app's surface (contacts, notifications, settings) doesn't
-	// exist yet, so those buttons are real `disabled` elements rather
-	// than dead-but-clickable ones - remove `disabled` as each section
-	// ships instead of wiring up placeholder routes.
+	interface Props {
+		chats: Chat[];
+		activeChatId?: string;
+		unreadMap?: Record<string, boolean>;
+		listOpen: boolean;
+		onToggleList: () => void;
+		onSelectChat: (id: string) => void;
+	}
+
+	let { chats, activeChatId, unreadMap = {}, listOpen, onToggleList, onSelectChat }: Props = $props();
+
 	const initial = $derived(($authStore.user?.username ?? '?').charAt(0).toUpperCase());
+
+	// Deterministic-but-varied avatar color per chat, so the icon-only
+	// stack reads as distinct destinations rather than a wall of
+	// identical circles - same idea as Slack/Discord's per-channel color.
+	const PALETTE = ['#ff6fa8', '#7c6fee', '#4fd6d0', '#f0b429', '#7fd8a8', '#6fa8ff'];
+	function colorFor(id: string): string {
+		let hash = 0;
+		for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+		return PALETTE[hash % PALETTE.length];
+	}
 </script>
 
 <nav class="rail" aria-label="Primary">
@@ -15,16 +31,36 @@
 		<img src="/logo.png" alt="" />
 	</div>
 
-	<a class="rail-btn active" href="/" title="Chats" aria-current="page">
+	<button
+		class="rail-btn list-toggle"
+		class:active={listOpen}
+		type="button"
+		onclick={onToggleList}
+		title={listOpen ? 'Hide chat list' : 'Show chat list'}
+		aria-expanded={listOpen}
+	>
 		<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-			<path
-				d="M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v8a2.5 2.5 0 01-2.5 2.5H9l-4 4v-4H6.5A2.5 2.5 0 014 13.5v-8z"
-				stroke="currentColor"
-				stroke-width="1.7"
-				stroke-linejoin="round"
-			/>
+			<path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
 		</svg>
-	</a>
+	</button>
+
+	<div class="chat-stack">
+		{#each chats as chat (chat.id)}
+			<button
+				class="chat-avatar"
+				class:active={chat.id === activeChatId}
+				type="button"
+				onclick={() => onSelectChat(chat.id)}
+				title={`#${chat.name}`}
+				style={`background: ${colorFor(chat.id)}`}
+			>
+				{chat.name.charAt(0).toUpperCase()}
+				{#if unreadMap[chat.id]}
+					<span class="unread-dot" aria-label="Unread messages"></span>
+				{/if}
+			</button>
+		{/each}
+	</div>
 
 	<button class="rail-btn" type="button" disabled aria-disabled="true" title="Contacts (coming soon)">
 		<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -44,8 +80,6 @@
 			<path d="M9.5 18.5a2.5 2.5 0 005 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
 		</svg>
 	</button>
-
-	<div class="rail-spacer"></div>
 
 	<button class="rail-btn" type="button" disabled aria-disabled="true" title="Settings (coming soon)">
 		<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -80,7 +114,7 @@
 		height: 30px;
 		border-radius: 9px;
 		overflow: hidden;
-		margin-bottom: 8px;
+		margin-bottom: 4px;
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
@@ -131,8 +165,61 @@
 		color: var(--rail-icon-color-active, #000);
 	}
 
-	.rail-spacer {
+	.chat-stack {
+		width: 100%;
 		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 0;
+		scrollbar-width: none;
+	}
+
+	.chat-stack::-webkit-scrollbar {
+		display: none;
+	}
+
+	.chat-avatar {
+		position: relative;
+		width: var(--rail-icon-size, 36px);
+		height: var(--rail-icon-size, 36px);
+		flex-shrink: 0;
+		border: none;
+		border-radius: 10px;
+		color: #fff;
+		font-size: 0.8rem;
+		font-weight: 700;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		opacity: 0.6;
+		transition: opacity var(--duration-base, 0.15s) var(--ease-standard, ease),
+			border-radius var(--duration-base, 0.15s) var(--ease-standard, ease);
+	}
+
+	.chat-avatar:hover {
+		opacity: 0.85;
+	}
+
+	.chat-avatar.active {
+		opacity: 1;
+		border-radius: 999px;
+		box-shadow: 0 0 0 2px var(--rail-bg, #000), 0 0 0 4px var(--rail-icon-bg-active, #fff);
+	}
+
+	.unread-dot {
+		position: absolute;
+		top: -2px;
+		right: -2px;
+		width: 9px;
+		height: 9px;
+		border-radius: 999px;
+		background: var(--accent, #7c6fee);
+		border: 2px solid var(--rail-bg, #000);
 	}
 
 	.rail-avatar {
@@ -147,5 +234,6 @@
 		font-weight: 700;
 		color: var(--accent-contrast, #fff);
 		background: var(--accent, #7c6fee);
+		margin-top: 4px;
 	}
 </style>
