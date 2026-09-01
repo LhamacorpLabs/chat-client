@@ -10,8 +10,8 @@ on:
         required: true
         default: 'main'
         type: string
-      skip_electron:
-        description: 'Skip Electron builds - just build/push the Docker image and deploy (no GitHub release)'
+      build_electron:
+        description: 'Also build Electron clients + a GitHub release (default: Docker build/deploy only). Only takes effect on a manual run - pushes to main never build Electron regardless of this box.'
         required: false
         default: false
         type: boolean
@@ -120,7 +120,7 @@ jobs:
   create-release:
     name: Create Release
     needs: [version, deploy]
-    if: ${{ inputs.skip_electron != true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_electron == true }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -139,7 +139,7 @@ jobs:
   electron-release:
     name: Electron Release
     needs: [version, create-release]
-    if: ${{ inputs.skip_electron != true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_electron == true }}
     permissions:
       contents: write
     strategy:
@@ -203,7 +203,7 @@ jobs:
   publish-release:
     name: Publish Release
     needs: [version, electron-release]
-    if: ${{ inputs.skip_electron != true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_electron == true }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
