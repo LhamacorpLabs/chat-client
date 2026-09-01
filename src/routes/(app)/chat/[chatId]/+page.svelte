@@ -1446,6 +1446,7 @@
 					<div class="chat-title">
 						<img src="/logo.png" alt="Lhama Chat Logo" class="chat-logo" />
 						<h1>#{chatName}</h1>
+						<span class="member-count">{currentChat.members.length} member{currentChat.members.length === 1 ? '' : 's'}</span>
 					</div>
 				</div>
 
@@ -1941,6 +1942,7 @@
 	}
 
 	.back-btn {
+		display: none;
 		padding: 0.375rem 0.625rem;
 		font-size: 0.875rem;
 	}
@@ -1951,6 +1953,12 @@
 		font-weight: 600;
 		color: var(--text-primary);
 		letter-spacing: -0.01em;
+	}
+
+	.member-count {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--text-muted);
 	}
 
 	.header-actions {
@@ -2541,6 +2549,7 @@
 		}
 
 		.back-btn {
+			display: inline-flex;
 			padding: 0.375rem 0.5rem;
 			font-size: 0.8rem;
 		}
@@ -2756,13 +2765,17 @@
 		}
 	}
 
-	/* Very small screens - truncate group name */
+	/* Very small screens - truncate group name, drop the member count */
 	@media (max-width: 428px) {
 		.header-content h1 {
 			max-width: 14ch;
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
+		}
+
+		.member-count {
+			display: none;
 		}
 	}
 
