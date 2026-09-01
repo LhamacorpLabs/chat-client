@@ -1,13 +1,6 @@
 <!-- Shown in the main column when no chat is open (desktop only - on
      mobile the sidebar is the whole screen while on this route, so this
-     panel never actually becomes visible there).
-
-     While there's an incomplete onboarding step, this is a real "Get
-     Started" checklist (not the reference mockup's placeholder model
-     cards, which don't map to anything here) - each step reflects
-     actual app state, not a canned/always-done demo. Once every step
-     is done it steps aside for the plain "select a chat" placeholder,
-     same as before this existed. -->
+     panel never actually becomes visible there). -->
 <script lang="ts">
 	import { chatStore } from '$lib/stores/chat';
 
@@ -104,10 +97,6 @@
 		background: var(--glass-bg, var(--panel-bg));
 		border: 1px solid var(--glass-border, var(--border));
 		box-shadow: var(--glass-shadow, var(--shadow-md));
-		/* -webkit- listed first: the production CSS minifier collapses
-		   identical-value backdrop-filter declarations into one and keeps
-		   whichever is declared last - the standards property needs to be
-		   second or it silently gets dropped. */
 		-webkit-backdrop-filter: blur(var(--glass-blur, 0px));
 		backdrop-filter: blur(var(--glass-blur, 0px));
 	}
