@@ -30,6 +30,7 @@
 	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 	import EmojiAutocomplete from '$lib/components/EmojiAutocomplete.svelte';
 	import { searchEmojis } from '$lib/utils/emojis';
+	import { colorForChat } from '$lib/utils/chatAvatar';
 	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
 	import { mergeMessagesWithPerMessageReactions, messagesReactionsChanged, getUserReactionForMessage } from '$lib/utils/reactionUtils';
 	import type { ReactionSummary } from '$lib/types/chat';
@@ -1440,12 +1441,17 @@
 		<header class="chat-header">
 			<div class="header-content">
 				<div class="header-left">
-					<button onclick={goBack} class="btn btn-ghost back-btn">
-						←
+					<button onclick={goBack} class="btn btn-ghost back-btn" title="Back">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+							<path d="M15 18l-6-6 6-6" />
+						</svg>
 					</button>
+					<div class="chat-avatar" style={`background: ${colorForChat(chatId)}`}>
+						{chatName.charAt(0).toUpperCase()}
+					</div>
 					<div class="chat-title">
-						<img src="/logo.png" alt="Lhama Chat Logo" class="chat-logo" />
 						<h1>#{chatName}</h1>
+						<span class="title-dot" aria-hidden="true"></span>
 						<span class="member-count">{currentChat.members.length} member{currentChat.members.length === 1 ? '' : 's'}</span>
 					</div>
 				</div>
@@ -1457,7 +1463,12 @@
 							class="btn btn-ghost invite-btn"
 							disabled={isCreatingInvite}
 						>
-							{isCreatingInvite ? 'Creating...' : '+ Invite'}
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+								<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+								<circle cx="9" cy="7" r="4" />
+								<path d="M19 8v6M22 11h-6" />
+							</svg>
+							<span>{isCreatingInvite ? 'Creating...' : 'Invite'}</span>
 						</button>
 					{/if}
 
@@ -1469,8 +1480,13 @@
 								class="btn btn-ghost actions-toggle"
 								disabled={$chatStore.isDeleting}
 								type="button"
+								title="More actions"
 							>
-								⋮
+								<svg viewBox="0 0 24 24" width="16" height="16">
+									<circle cx="12" cy="5" r="1.6" fill="currentColor" />
+									<circle cx="12" cy="12" r="1.6" fill="currentColor" />
+									<circle cx="12" cy="19" r="1.6" fill="currentColor" />
+								</svg>
 							</button>
 						{/snippet}
 						{#snippet children({ close })}
@@ -1940,36 +1956,78 @@
 	.header-left {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: 0.625rem;
+		min-width: 0;
+	}
+
+	/* Circular chip around the logo, like a channel/group avatar rather
+	   than a flat inline icon. */
+	/* Same colored-circle-with-initial avatar as the chat's icon in the
+	   rail (colorForChat gives it the same color there and here), so the
+	   header reads as "this chat" rather than showing the generic app
+	   logo. */
+	.chat-avatar {
+		flex-shrink: 0;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #fff;
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		font-weight: 700;
+		box-shadow: 0 0 0 1px var(--glass-border, var(--border));
 	}
 
 	.chat-title {
 		display: flex;
-		align-items: center;
+		align-items: baseline;
 		gap: 0.5rem;
+		min-width: 0;
 	}
 
-	.chat-logo {
-		width: 22px;
-		height: 22px;
-		object-fit: contain;
-	}
-
-	.back-btn {
+	/* Icon-only circular button, shared look for back/actions controls in
+	   the header - matches the composer's icon buttons. */
+	.back-btn,
+	.actions-toggle {
 		display: none;
-		padding: 0.375rem 0.625rem;
-		font-size: 0.875rem;
+		flex-shrink: 0;
+		width: 34px;
+		height: 34px;
+		padding: 0;
+		border-radius: 50%;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.actions-toggle {
+		display: inline-flex;
 	}
 
 	.header-content h1 {
 		margin: 0;
+		min-width: 0;
 		font-size: 1.125rem;
-		font-weight: 600;
+		font-weight: 700;
 		color: var(--text-primary);
 		letter-spacing: -0.01em;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.title-dot {
+		flex-shrink: 0;
+		width: 3px;
+		height: 3px;
+		border-radius: 50%;
+		background: var(--text-muted);
 	}
 
 	.member-count {
+		flex-shrink: 0;
 		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		color: var(--text-muted);
@@ -2579,19 +2637,20 @@
 			gap: 0.5rem;
 		}
 
+		.back-btn,
+		.actions-toggle {
+			width: 30px;
+			height: 30px;
+		}
+
 		.back-btn {
 			display: inline-flex;
-			padding: 0.375rem 0.5rem;
-			font-size: 0.8rem;
 		}
 
-		.chat-title {
-			gap: 0.25rem;
-		}
-
-		.chat-logo {
-			width: 18px;
-			height: 18px;
+		.chat-avatar {
+			width: 28px;
+			height: 28px;
+			font-size: 0.75rem;
 		}
 
 		.header-content h1 {
@@ -2810,11 +2869,9 @@
 	@media (max-width: 428px) {
 		.header-content h1 {
 			max-width: 14ch;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
 		}
 
+		.title-dot,
 		.member-count {
 			display: none;
 		}
@@ -2822,20 +2879,26 @@
 
 	/* Invitation Button */
 	.invite-btn {
-		font-size: 0.8125rem;
-		padding: 0.375rem 0.5rem;
+		font-size: 0.75rem;
+		padding: 0.4375rem 0.875rem 0.4375rem 0.75rem;
 		line-height: 1;
+		transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+	}
+
+	.invite-btn:hover:not(:disabled) {
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 
 	/* Chat header's "..." actions menu is now the shared DropdownMenu
 	   component; the delete/leave/link-confirm modals are now the shared
 	   Modal component. The rules below only style content this page
 	   passes into those components. */
-	.actions-toggle {
-		font-size: 1rem;
-		padding: 0.375rem 0.5rem;
-		font-weight: bold;
-		line-height: 1;
+	.back-btn:hover:not(:disabled),
+	.actions-toggle:hover:not(:disabled) {
+		border-color: var(--border-hover);
+		background: var(--surface-hover);
+		color: var(--text-primary);
 	}
 
 	.modal-description {
