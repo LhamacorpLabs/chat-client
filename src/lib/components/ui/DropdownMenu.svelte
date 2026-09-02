@@ -16,9 +16,21 @@
 
 	let open = $state(false);
 	let rootEl: HTMLDivElement | undefined = $state();
+	// 'right' placement is positioned in JS (fixed to the viewport) rather
+	// than via ancestor-relative CSS: a rail avatar sits inside a
+	// `.rail` that clips overflow for its width-collapse transition, so a
+	// CSS-absolute popover popping out sideways would be clipped by it.
+	let fixedPos = $state('');
 
 	function toggle() {
 		open = !open;
+		if (open && placement === 'right') positionFixedMenu();
+	}
+
+	function positionFixedMenu() {
+		if (!rootEl) return;
+		const rect = rootEl.getBoundingClientRect();
+		fixedPos = `position: fixed; top: auto; right: auto; left: ${rect.right + 8}px; bottom: ${window.innerHeight - rect.bottom}px;`;
 	}
 
 	function close() {
@@ -56,7 +68,7 @@
 			class="dropdown-menu"
 			class:align-left={align === 'left'}
 			class:placement-right={placement === 'right'}
-			style="min-width: {width}"
+			style="min-width: {width}; {placement === 'right' ? fixedPos : ''}"
 		>
 			{@render children({ close })}
 		</div>
