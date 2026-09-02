@@ -2532,6 +2532,11 @@
 
 	.message-input:focus {
 		outline: none;
+		/* The global textarea:focus rule (global.css) adds its own
+		   border-color/box-shadow ring - override it here so focus shows
+		   as a single ring on the composer, not a second one around the
+		   textarea itself. */
+		box-shadow: none;
 	}
 
 	.message-input:disabled {
