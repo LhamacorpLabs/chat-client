@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	requestNotificationPermission,
 	showMessageNotification,
-	canShowNotifications,
-	getNotificationPermission,
 	cleanupAllNotifications
 } from '$lib/utils/osNotification';
 
@@ -118,20 +116,5 @@ describe('osNotification', () => {
 		});
 
 		expect(instances.length).toBe(0);
-	});
-
-	it('canShowNotifications returns true when permission granted', () => {
-		MockNotification.permission = 'granted';
-		expect(canShowNotifications()).toBe(true);
-	});
-
-	it('canShowNotifications returns false when permission denied', () => {
-		MockNotification.permission = 'denied';
-		expect(canShowNotifications()).toBe(false);
-	});
-
-	it('getNotificationPermission returns current permission', () => {
-		MockNotification.permission = 'denied';
-		expect(getNotificationPermission()).toBe('denied');
 	});
 });
