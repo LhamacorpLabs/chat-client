@@ -16,21 +16,46 @@
 
 	let open = $state(false);
 	let rootEl: HTMLDivElement | undefined = $state();
-	// 'right' placement is positioned in JS (fixed to the viewport) rather
-	// than via ancestor-relative CSS: a rail avatar sits inside a
-	// `.rail` that clips overflow for its width-collapse transition, so a
-	// CSS-absolute popover popping out sideways would be clipped by it.
+	let menuEl: HTMLDivElement | undefined = $state();
+	// Always positioned in JS (fixed to the viewport) and portaled to
+	// <body> (see `portal` below) rather than left as an absolute-
+	// positioned DOM descendant: a trigger can sit inside an ancestor
+	// that establishes its own containing block for fixed-position
+	// descendants too - not just `overflow: hidden` (a `.rail` clipped
+	// for its width-collapse transition), but `backdrop-filter` (the
+	// chat header's glass panel) and `transform`/`filter`/`will-change`
+	// all do this per spec. Inside such an ancestor, `position: fixed`
+	// does NOT escape to the viewport, so a popover popping out past the
+	// ancestor's own box gets covered by whatever paints after it in the
+	// DOM - a high z-index doesn't help, since it only ranks the popover
+	// within the trapping ancestor's stacking context, not the page's.
+	// Moving the node itself to <body> sidesteps the trap entirely.
 	let fixedPos = $state('');
+
+	function portal(node: HTMLElement) {
+		document.body.appendChild(node);
+		return {
+			destroy() {
+				node.remove();
+			}
+		};
+	}
 
 	function toggle() {
 		open = !open;
-		if (open && placement === 'right') positionFixedMenu();
+		if (open) positionFixedMenu();
 	}
 
 	function positionFixedMenu() {
 		if (!rootEl) return;
 		const rect = rootEl.getBoundingClientRect();
-		fixedPos = `position: fixed; top: auto; right: auto; left: ${rect.right + 8}px; bottom: ${window.innerHeight - rect.bottom}px;`;
+		if (placement === 'right') {
+			fixedPos = `position: fixed; top: auto; right: auto; left: ${rect.right + 8}px; bottom: ${window.innerHeight - rect.bottom}px;`;
+		} else if (align === 'left') {
+			fixedPos = `position: fixed; bottom: auto; right: auto; top: ${rect.bottom + 4}px; left: ${rect.left}px;`;
+		} else {
+			fixedPos = `position: fixed; bottom: auto; left: auto; top: ${rect.bottom + 4}px; right: ${window.innerWidth - rect.right}px;`;
+		}
 	}
 
 	function close() {
@@ -41,9 +66,12 @@
 		if (!open) return;
 
 		function handleClickOutside(event: MouseEvent) {
-			if (rootEl && !rootEl.contains(event.target as Node)) {
-				close();
-			}
+			const target = event.target as Node;
+			// The menu itself is portaled to <body> (see `portal`), so it's
+			// no longer a DOM descendant of rootEl - check both.
+			if (rootEl?.contains(target)) return;
+			if (menuEl?.contains(target)) return;
+			close();
 		}
 
 		function handleKeydown(event: KeyboardEvent) {
@@ -68,7 +96,9 @@
 			class="dropdown-menu"
 			class:align-left={align === 'left'}
 			class:placement-right={placement === 'right'}
-			style="min-width: {width}; {placement === 'right' ? fixedPos : ''}"
+			style="min-width: {width}; {fixedPos}"
+			bind:this={menuEl}
+			use:portal
 		>
 			{@render children({ close })}
 		</div>
