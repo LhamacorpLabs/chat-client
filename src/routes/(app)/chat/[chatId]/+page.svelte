@@ -1782,14 +1782,13 @@
 					type="submit"
 					class="btn btn-primary send-btn"
 					disabled={(isSending || isUploadingImages) || (!newMessage.trim() && selectedImages.length === 0)}
+					title="Send"
 				>
-					{#if !isSending && !isUploadingImages}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
-							<path d="M22 2 11 13" />
-							<path d="M22 2 15 22 11 13 2 9 22 2Z" />
-						</svg>
-					{/if}
-					<span>{isUploadingImages ? 'Uploading...' : isSending ? 'Sending...' : 'Send'}</span>
+					<svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+						<path d="M22 2 11 13" />
+						<path d="M22 2 15 22 11 13 2 9 22 2Z" />
+					</svg>
+					<span class="send-label">{isUploadingImages ? 'Uploading...' : isSending ? 'Sending...' : 'Send'}</span>
 				</button>
 			</form>
 		</footer>
@@ -2755,19 +2754,27 @@
 		}
 
 		.composer-icon-btn {
-			width: 32px;
-			height: 32px;
+			width: 36px;
+			height: 36px;
 		}
 
+		/* Icon-only on phones - a fixed-width text pill next to the "SEND"
+		   label ate too much of the row's width, leaving the message
+		   input cramped on narrow screens. */
 		.send-btn {
+			width: 40px;
 			height: 40px;
-			padding: 0 0.75rem;
-			font-size: 0.75rem;
+			padding: 0;
+			border-radius: 50%;
+		}
+
+		.send-btn .send-label {
+			display: none;
 		}
 
 		.message-input {
-			height: 32px;
-			min-height: 32px;
+			height: 36px;
+			min-height: 36px;
 			font-size: 0.875rem;
 		}
 
