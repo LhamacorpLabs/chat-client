@@ -577,6 +577,11 @@
 		color: var(--rail-text-secondary);
 	}
 
+	.rail :global(.theme-toggle svg) {
+		width: 20px;
+		height: 20px;
+	}
+
 	.rail :global(.theme-toggle:hover) {
 		border-color: transparent;
 		background: var(--rail-icon-bg-hover, rgba(255, 255, 255, 0.08));
