@@ -160,37 +160,6 @@
 		{/if}
 	</div>
 
-	<button class="rail-btn" type="button" disabled aria-disabled="true" title="Contacts (coming soon)">
-		<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-			<circle cx="12" cy="8.5" r="3.2" stroke="currentColor" stroke-width="1.7" />
-			<path d="M5 20c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-		</svg>
-	</button>
-
-	<button class="rail-btn" type="button" disabled aria-disabled="true" title="Notifications (coming soon)">
-		<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-			<path
-				d="M6 10a6 6 0 1112 0c0 4 1.5 5.5 1.5 5.5h-15S6 14 6 10z"
-				stroke="currentColor"
-				stroke-width="1.7"
-				stroke-linejoin="round"
-			/>
-			<path d="M9.5 18.5a2.5 2.5 0 005 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-		</svg>
-	</button>
-
-	<button class="rail-btn" type="button" disabled aria-disabled="true" title="Settings (coming soon)">
-		<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-			<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7" />
-			<path
-				d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
-				stroke="currentColor"
-				stroke-width="1.3"
-				stroke-linejoin="round"
-			/>
-		</svg>
-	</button>
-
 	{#if expanded}
 		<div class="rail-footer">
 			<button class="nav-item" onclick={onLogout} type="button">
@@ -210,7 +179,38 @@
 			</div>
 		</div>
 	{:else}
-		<div class="rail-avatar" title={$authStore.user?.username ?? ''} aria-hidden="true">{initial}</div>
+		<div class="rail-bottom">
+			<ThemeToggle />
+			<DropdownMenu placement="right" width="180px">
+				{#snippet trigger({ toggle })}
+					<button
+						class="rail-avatar"
+						type="button"
+						onclick={toggle}
+						title={$authStore.user?.username ?? ''}
+						aria-label="Account menu"
+					>
+						{initial}
+					</button>
+				{/snippet}
+				{#snippet children({ close })}
+					<div class="dropdown-header">@{$authStore.user?.username}</div>
+					<div class="dropdown-separator"></div>
+					<button
+						onclick={() => { onLogout(); close(); }}
+						class="dropdown-item"
+						type="button"
+					>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+							<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+							<path d="M16 17l5-5-5-5" />
+							<path d="M21 12H9" />
+						</svg>
+						<span>Sign Out</span>
+					</button>
+				{/snippet}
+			</DropdownMenu>
+		</div>
 	{/if}
 </nav>
 
@@ -227,6 +227,28 @@
 		background: var(--rail-bg, #000);
 		overflow: hidden;
 		transition: width 0.18s ease;
+
+		/* The rail is deliberately theme-invariant chrome - pitch black in
+		   both themes, per the design tokens' own --rail-* comment - but
+		   generic tokens like --text-primary/--border/--surface flip to
+		   light-theme (dark-on-white) values in [data-theme='light'], which
+		   are unreadable against a black background. Declare rail-local
+		   equivalents pinned to their dark values, and use those (not the
+		   ambient tokens) below for anything painted directly on the rail.
+		   Deliberately NOT touching --text-primary etc. themselves: the
+		   account/create-join dropdowns rendered inside the rail are
+		   separate floating panels on their own (correctly theme-following)
+		   --panel-bg surface, and shadowing the ambient tokens here would
+		   make their text invisible too. */
+		--rail-text-primary: #f2f2f5;
+		--rail-text-secondary: #a8a8b3;
+		--rail-text-muted: #6f6f7a;
+		--rail-border-color: rgba(255, 255, 255, 0.08);
+		--rail-border-color-hover: rgba(255, 255, 255, 0.14);
+		--rail-surface: #151518;
+		--rail-surface-hover: #1c1c20;
+		--rail-accent: #7c6fee;
+		--rail-accent-subtle: rgba(124, 111, 238, 0.14);
 	}
 
 	.rail.expanded {
@@ -251,7 +273,7 @@
 		align-items: center;
 		gap: 0.625rem;
 		padding: 1rem 1.25rem;
-		border-bottom: 1px solid var(--border);
+		border-bottom: 1px solid var(--rail-border-color);
 	}
 
 	.rail-mark {
@@ -263,7 +285,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--accent-subtle, rgba(255, 255, 255, 0.08));
+		background: var(--rail-accent-subtle, rgba(255, 255, 255, 0.08));
 	}
 
 	.rail-mark img {
@@ -277,7 +299,7 @@
 		min-width: 0;
 		font-size: 1.0625rem;
 		font-weight: 700;
-		color: var(--text-primary);
+		color: var(--rail-text-primary);
 		letter-spacing: -0.02em;
 	}
 
@@ -285,9 +307,9 @@
 		width: 28px;
 		height: 28px;
 		border-radius: var(--radius-sm);
-		border: 1px solid var(--border);
+		border: 1px solid var(--rail-border-color);
 		background: transparent;
-		color: var(--text-secondary);
+		color: var(--rail-text-secondary);
 		font-size: 1rem;
 		font-weight: 700;
 		line-height: 1;
@@ -299,8 +321,8 @@
 	}
 
 	.icon-btn:hover {
-		background: var(--surface-hover);
-		color: var(--text-primary);
+		background: var(--rail-surface-hover);
+		color: var(--rail-text-primary);
 	}
 
 	.rail-btn {
@@ -309,7 +331,7 @@
 		border-radius: var(--rail-icon-radius, 999px);
 		border: none;
 		background: transparent;
-		color: var(--rail-icon-color, var(--text-secondary));
+		color: var(--rail-text-secondary);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -320,23 +342,14 @@
 			color var(--duration-base, 0.15s) var(--ease-standard, ease);
 	}
 
-	.rail.expanded .rail-btn:not(.toggle-btn) {
-		display: none;
-	}
-
 	.rail-btn svg {
 		width: 16px;
 		height: 16px;
 	}
 
-	.rail-btn:hover:not(:disabled) {
+	.rail-btn:hover {
 		background: var(--rail-icon-bg-hover, rgba(255, 255, 255, 0.08));
-		color: var(--text-primary);
-	}
-
-	.rail-btn:disabled {
-		opacity: 0.35;
-		cursor: default;
+		color: var(--rail-text-primary);
 	}
 
 	.rail-btn.active {
@@ -373,7 +386,7 @@
 		align-items: center;
 		justify-content: center;
 		padding: 2rem 0.5rem;
-		color: var(--text-muted);
+		color: var(--rail-text-muted);
 	}
 
 	/* Collapsed: icon-only chat stack */
@@ -421,7 +434,7 @@
 		width: 9px;
 		height: 9px;
 		border-radius: 999px;
-		background: var(--accent, #7c6fee);
+		background: var(--rail-accent, #7c6fee);
 		border: 2px solid var(--rail-bg, #000);
 	}
 
@@ -438,18 +451,18 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		border: 1px solid var(--border);
+		border: 1px solid var(--rail-border-color);
 		border-radius: var(--radius-md);
 		transition: all 0.2s ease;
-		background: var(--surface);
+		background: var(--rail-surface);
 		cursor: pointer;
 		user-select: none;
 		text-align: left;
 	}
 
 	.chat-item:hover {
-		background: var(--surface-hover);
-		border-color: var(--border-hover);
+		background: var(--rail-surface-hover);
+		border-color: var(--rail-border-color-hover);
 		box-shadow: var(--shadow-sm);
 	}
 
@@ -468,7 +481,7 @@
 
 	.chat-name {
 		margin: 0;
-		color: var(--text-primary);
+		color: var(--rail-text-primary);
 		font-size: 0.9375rem;
 		font-weight: 600;
 		white-space: nowrap;
@@ -479,14 +492,14 @@
 	.unread-indicator {
 		width: 7px;
 		height: 7px;
-		background: var(--accent);
+		background: var(--rail-accent);
 		border-radius: 50%;
 		flex-shrink: 0;
 	}
 
 	.chat-meta {
 		margin: 0;
-		color: var(--text-muted);
+		color: var(--rail-text-muted);
 		font-size: 0.75rem;
 		white-space: nowrap;
 		overflow: hidden;
@@ -494,51 +507,92 @@
 	}
 
 	.chat-chevron {
-		color: var(--text-muted);
+		color: var(--rail-text-muted);
 		font-size: 1rem;
 		opacity: 0.4;
 		transition: all 0.15s ease;
 	}
 
 	.chat-item:hover .chat-chevron {
-		color: var(--accent);
+		color: var(--rail-accent);
 		opacity: 1;
 		transform: translateX(2px);
 	}
 
 	.chat-item.selected,
 	.chat-item.open {
-		border-color: var(--accent);
-		background: var(--accent-subtle);
+		border-color: var(--rail-accent);
+		background: var(--rail-accent-subtle);
 	}
 
 	.chat-item.selected .chat-chevron,
 	.chat-item.open .chat-chevron {
-		color: var(--accent);
+		color: var(--rail-accent);
 		opacity: 1;
 	}
 
 	/* ---- Bottom: account footer ---- */
+	.rail-bottom {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+	}
+
 	.rail-avatar {
 		width: 28px;
 		height: 28px;
 		border-radius: 999px;
+		border: none;
+		padding: 0;
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		font-size: 0.7rem;
 		font-weight: 700;
+		font-family: inherit;
 		color: var(--accent-contrast, #fff);
-		background: var(--accent, #7c6fee);
+		background: var(--rail-accent, #7c6fee);
+		cursor: pointer;
 		margin-top: 4px;
+		transition: transform var(--duration-base, 0.15s) var(--ease-standard, ease);
+	}
+
+	.rail-avatar:hover {
+		transform: scale(1.06);
+	}
+
+	/* ThemeToggle has no styles of its own - it relies on the global
+	   .theme-toggle class (static/global.css), whose border/background/
+	   color are the same theme-following tokens responsible for the
+	   sign-out/chat-name legibility bug above. Override it here (both the
+	   collapsed .rail-bottom and expanded .rail-user place one) so it
+	   reads correctly against the black rail in light theme. */
+	.rail :global(.theme-toggle) {
+		width: var(--rail-icon-size, 36px);
+		height: var(--rail-icon-size, 36px);
+		border: none;
+		background: transparent;
+		color: var(--rail-text-secondary);
+	}
+
+	.rail :global(.theme-toggle svg) {
+		width: 20px;
+		height: 20px;
+	}
+
+	.rail :global(.theme-toggle:hover) {
+		border-color: transparent;
+		background: var(--rail-icon-bg-hover, rgba(255, 255, 255, 0.08));
+		color: var(--rail-text-primary);
 	}
 
 	.rail-footer {
 		width: 100%;
 		flex-shrink: 0;
 		padding: 0.75rem;
-		border-top: 1px solid var(--border);
+		border-top: 1px solid var(--rail-border-color);
 		display: flex;
 		flex-direction: column;
 		gap: 0.375rem;
@@ -553,7 +607,7 @@
 		border: none;
 		background: transparent;
 		border-radius: var(--radius-sm);
-		color: var(--text-secondary);
+		color: var(--rail-text-secondary);
 		font-family: var(--font-mono);
 		font-size: 0.8125rem;
 		font-weight: 600;
@@ -568,8 +622,8 @@
 	}
 
 	.nav-item:hover {
-		background: var(--surface-hover);
-		color: var(--text-primary);
+		background: var(--rail-surface-hover);
+		color: var(--rail-text-primary);
 	}
 
 	.rail-user {
@@ -583,8 +637,8 @@
 		width: 30px;
 		height: 30px;
 		border-radius: 50%;
-		background: var(--accent-subtle);
-		color: var(--accent);
+		background: var(--rail-accent-subtle);
+		color: var(--rail-accent);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -599,7 +653,7 @@
 	}
 
 	.user-name {
-		color: var(--text-primary);
+		color: var(--rail-text-primary);
 		font-size: 0.8125rem;
 		font-weight: 600;
 		white-space: nowrap;
