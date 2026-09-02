@@ -179,7 +179,35 @@
 			</div>
 		</div>
 	{:else}
-		<div class="rail-avatar" title={$authStore.user?.username ?? ''} aria-hidden="true">{initial}</div>
+		<DropdownMenu placement="right" width="180px">
+			{#snippet trigger({ toggle })}
+				<button
+					class="rail-avatar"
+					type="button"
+					onclick={toggle}
+					title={$authStore.user?.username ?? ''}
+					aria-label="Account menu"
+				>
+					{initial}
+				</button>
+			{/snippet}
+			{#snippet children({ close })}
+				<div class="dropdown-header">@{$authStore.user?.username}</div>
+				<div class="dropdown-separator"></div>
+				<button
+					onclick={() => { onLogout(); close(); }}
+					class="dropdown-item"
+					type="button"
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+						<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+						<path d="M16 17l5-5-5-5" />
+						<path d="M21 12H9" />
+					</svg>
+					<span>Sign Out</span>
+				</button>
+			{/snippet}
+		</DropdownMenu>
 	{/if}
 </nav>
 
@@ -483,15 +511,24 @@
 		width: 28px;
 		height: 28px;
 		border-radius: 999px;
+		border: none;
+		padding: 0;
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		font-size: 0.7rem;
 		font-weight: 700;
+		font-family: inherit;
 		color: var(--accent-contrast, #fff);
 		background: var(--accent, #7c6fee);
+		cursor: pointer;
 		margin-top: 4px;
+		transition: transform var(--duration-base, 0.15s) var(--ease-standard, ease);
+	}
+
+	.rail-avatar:hover {
+		transform: scale(1.06);
 	}
 
 	.rail-footer {

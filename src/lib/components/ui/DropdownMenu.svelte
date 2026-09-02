@@ -3,12 +3,16 @@
 
 	interface Props {
 		align?: 'left' | 'right';
+		/** 'bottom' drops the menu below the trigger (default); 'right' pops
+		 *  it out to the trigger's side, bottom-anchored - for triggers that
+		 *  sit at the bottom edge of the viewport, like a rail avatar. */
+		placement?: 'bottom' | 'right';
 		width?: string;
 		trigger: Snippet<[{ toggle: () => void; open: boolean }]>;
 		children: Snippet<[{ close: () => void }]>;
 	}
 
-	let { align = 'right', width = '180px', trigger, children }: Props = $props();
+	let { align = 'right', placement = 'bottom', width = '180px', trigger, children }: Props = $props();
 
 	let open = $state(false);
 	let rootEl: HTMLDivElement | undefined = $state();
@@ -48,7 +52,12 @@
 <div class="dropdown-root" bind:this={rootEl}>
 	{@render trigger({ toggle, open })}
 	{#if open}
-		<div class="dropdown-menu" class:align-left={align === 'left'} style="min-width: {width}">
+		<div
+			class="dropdown-menu"
+			class:align-left={align === 'left'}
+			class:placement-right={placement === 'right'}
+			style="min-width: {width}"
+		>
 			{@render children({ close })}
 		</div>
 	{/if}
@@ -74,6 +83,26 @@
 	.dropdown-menu.align-left {
 		right: auto;
 		left: 0;
+	}
+
+	.dropdown-menu.placement-right {
+		top: auto;
+		bottom: 0;
+		left: calc(100% + 8px);
+		right: auto;
+	}
+
+	:global(.dropdown-menu .dropdown-header) {
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--font-sm);
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	:global(.dropdown-menu .dropdown-separator) {
+		height: 1px;
+		margin: var(--space-1) 0;
+		background: var(--border);
 	}
 
 	:global(.dropdown-menu .dropdown-item) {
