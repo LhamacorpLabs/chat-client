@@ -1717,64 +1717,78 @@
 			{/if}
 
 			<form onsubmit={handleMessageSubmit} class="input-container">
-				<button
-					type="button"
-					class="btn btn-secondary image-btn"
-					onclick={toggleImageUpload}
-					disabled={isSending || isUploadingImages}
-					title="Add images"
-				>
-					+
-				</button>
-				<div class="textarea-wrapper">
-					{#if showEmojiAutocomplete}
-						<EmojiAutocomplete
-							query={emojiQuery}
-							onSelect={insertEmojiFromAutocomplete}
-							selectedIndex={emojiAutocompleteIndex}
-						/>
-					{/if}
-					{#if showEmojiPicker}
-						<EmojiPicker
-							onSelect={insertEmojiFromPicker}
-							onClose={() => showEmojiPicker = false}
-						/>
-					{/if}
-					<textarea
-						rows="1"
-						bind:value={newMessage}
-						bind:this={messageInputElement}
-						onkeydown={handleKeyPress}
-						oninput={handleMessageInput}
-						onfocus={() => {
-							selectedMessageIndex = -1;
-							// Only jump to bottom on focus if we're already pinned
-							// there - don't yank the view away from scrollback the
-							// user is reading just because they tapped the input.
-							if (isPinnedToBottom) {
-								setTimeout(() => scrollToBottom(), FOCUS_SCROLL_DELAY_MS);
-							}
-						}}
-						placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
+				<div class="composer">
+					<button
+						type="button"
+						class="composer-icon-btn image-btn"
+						onclick={toggleImageUpload}
 						disabled={isSending || isUploadingImages}
-						class="message-input"
-					></textarea>
+						title="Add images"
+					>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+							<path d="M12 5v14M5 12h14" />
+						</svg>
+					</button>
+					<div class="textarea-wrapper">
+						{#if showEmojiAutocomplete}
+							<EmojiAutocomplete
+								query={emojiQuery}
+								onSelect={insertEmojiFromAutocomplete}
+								selectedIndex={emojiAutocompleteIndex}
+							/>
+						{/if}
+						{#if showEmojiPicker}
+							<EmojiPicker
+								onSelect={insertEmojiFromPicker}
+								onClose={() => showEmojiPicker = false}
+							/>
+						{/if}
+						<textarea
+							rows="1"
+							bind:value={newMessage}
+							bind:this={messageInputElement}
+							onkeydown={handleKeyPress}
+							oninput={handleMessageInput}
+							onfocus={() => {
+								selectedMessageIndex = -1;
+								// Only jump to bottom on focus if we're already pinned
+								// there - don't yank the view away from scrollback the
+								// user is reading just because they tapped the input.
+								if (isPinnedToBottom) {
+									setTimeout(() => scrollToBottom(), FOCUS_SCROLL_DELAY_MS);
+								}
+							}}
+							placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
+							disabled={isSending || isUploadingImages}
+							class="message-input"
+						></textarea>
+					</div>
+					<button
+						type="button"
+						class="composer-icon-btn emoji-btn"
+						onclick={() => showEmojiPicker = !showEmojiPicker}
+						disabled={isSending || isUploadingImages}
+						title="Emojis"
+					>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+							<circle cx="12" cy="12" r="9" />
+							<path d="M8.5 14s1.3 1.75 3.5 1.75S15.5 14 15.5 14" />
+							<circle cx="9" cy="10" r="0.9" fill="currentColor" stroke="none" />
+							<circle cx="15" cy="10" r="0.9" fill="currentColor" stroke="none" />
+						</svg>
+					</button>
 				</div>
 				<button
-					type="button"
-					class="btn btn-secondary emoji-btn"
-					onclick={() => showEmojiPicker = !showEmojiPicker}
-					disabled={isSending || isUploadingImages}
-					title="Emojis"
-				>
-					☺
-				</button>
-				<button
 					type="submit"
-					class="btn btn-primary"
+					class="btn btn-primary send-btn"
 					disabled={(isSending || isUploadingImages) || (!newMessage.trim() && selectedImages.length === 0)}
+					title="Send"
 				>
-					{isUploadingImages ? 'Uploading...' : isSending ? 'Sending...' : 'Send'}
+					<svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+						<path d="M22 2 11 13" />
+						<path d="M22 2 15 22 11 13 2 9 22 2Z" />
+					</svg>
+					<span class="send-label">{isUploadingImages ? 'Uploading...' : isSending ? 'Sending...' : 'Send'}</span>
 				</button>
 			</form>
 		</footer>
@@ -2393,13 +2407,47 @@
 		margin: 0 auto;
 		display: flex;
 		gap: 0.5rem;
-		align-items: center;
+		align-items: flex-end;
 	}
 
-	.input-container .btn {
-		height: 40px;
-		padding: 0 1rem;
+	/* Composer - unified glass-panel surface for the icon buttons and
+	   textarea, matching the header's floating-panel treatment instead of
+	   leaving each control as a separate floating shape. */
+	.composer {
+		flex: 1;
+		display: flex;
+		align-items: flex-end;
+		gap: 0.125rem;
+		min-width: 0;
+		background: var(--glass-bg, var(--panel-bg));
+		border: 1.5px solid var(--glass-border, var(--border));
+		border-radius: var(--radius-lg);
+		box-shadow: var(--glass-shadow, var(--shadow-sm));
+		-webkit-backdrop-filter: blur(var(--glass-blur, 0px));
+		backdrop-filter: blur(var(--glass-blur, 0px));
+		padding: 0.375rem;
+		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	}
+
+	.composer:focus-within {
+		border-color: var(--border-focus);
+		box-shadow: 0 0 0 3px var(--focus-ring);
+	}
+
+	.send-btn {
+		height: 44px;
+		padding: 0 1.125rem;
 		font-size: 0.8125rem;
+		box-shadow: var(--shadow-sm);
+		transition: transform 0.1s ease, box-shadow 0.15s ease, background 0.15s ease;
+	}
+
+	.send-btn:hover:not(:disabled) {
+		transform: translateY(-1px);
+	}
+
+	.send-btn:active:not(:disabled) {
+		transform: translateY(0) scale(0.97);
 	}
 
 	.image-upload-section {
@@ -2411,56 +2459,33 @@
 		padding: 0.75rem;
 	}
 
-	.image-btn {
+	.composer-icon-btn {
 		flex-shrink: 0;
-		width: 40px;
-		height: 40px;
+		width: 36px;
+		height: 36px;
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 14px;
 		padding: 0;
-		background: var(--surface-hover);
-		border: 1.5px solid var(--border);
+		background: transparent;
+		border: none;
 		color: var(--text-secondary);
-		transition: all 0.15s ease;
+		cursor: pointer;
+		transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 		box-sizing: border-box;
 	}
 
-	.image-btn:hover:not(:disabled) {
-		border-color: var(--accent);
-		color: var(--accent);
-	}
-
-	.image-btn:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.emoji-btn {
-		flex-shrink: 0;
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 16px;
-		padding: 0;
+	.composer-icon-btn:hover:not(:disabled) {
 		background: var(--surface-hover);
-		border: 1.5px solid var(--border);
-		color: var(--text-secondary);
-		transition: all 0.15s ease;
-		box-sizing: border-box;
-	}
-
-	.emoji-btn:hover:not(:disabled) {
-		border-color: var(--accent);
 		color: var(--accent);
 	}
 
-	.emoji-btn:disabled {
+	.composer-icon-btn:active:not(:disabled) {
+		transform: scale(0.92);
+	}
+
+	.composer-icon-btn:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
 	}
@@ -2468,6 +2493,9 @@
 	.textarea-wrapper {
 		position: relative;
 		flex: 1;
+		min-width: 0;
+		display: flex;
+		align-items: center;
 	}
 
 	.message-gifs {
@@ -2479,23 +2507,23 @@
 
 	.message-input {
 		width: 100%;
-		padding: 0.5rem 0.875rem;
-		border-radius: var(--radius-md);
-		border: 1.5px solid var(--border);
-		background: var(--input-bg);
+		padding: 0.5rem 0.5rem;
+		border-radius: 0;
+		border: none;
+		background: transparent;
 		color: var(--text-primary);
 		font-family: inherit;
 		font-size: 0.9375rem;
 		resize: none;
 		overflow-y: auto;
-		height: 40px;
-		min-height: 40px;
+		height: 36px;
+		min-height: 36px;
 		max-height: 120px;
 		line-height: 1.5;
 		scrollbar-width: none;
 		-ms-overflow-style: none;
 		box-sizing: border-box;
-		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+		transition: none;
 	}
 
 	.message-input::-webkit-scrollbar {
@@ -2504,8 +2532,11 @@
 
 	.message-input:focus {
 		outline: none;
-		border-color: var(--border-focus);
-		box-shadow: 0 0 0 3px var(--focus-ring);
+		/* The global textarea:focus rule (global.css) adds its own
+		   border-color/box-shadow ring - override it here so focus shows
+		   as a single ring on the composer, not a second one around the
+		   textarea itself. */
+		box-shadow: none;
 	}
 
 	.message-input:disabled {
@@ -2719,21 +2750,31 @@
 			gap: 0.375rem;
 		}
 
+		.composer {
+			padding: 0.25rem;
+		}
+
 		.image-upload-section {
 			padding: 0.625rem;
 		}
 
-		.image-btn,
-		.emoji-btn {
+		.composer-icon-btn {
 			width: 36px;
 			height: 36px;
-			font-size: 13px;
 		}
 
-		.input-container .btn {
-			height: 36px;
-			padding: 0 0.75rem;
-			font-size: 0.75rem;
+		/* Icon-only on phones - a fixed-width text pill next to the "SEND"
+		   label ate too much of the row's width, leaving the message
+		   input cramped on narrow screens. */
+		.send-btn {
+			width: 40px;
+			height: 40px;
+			padding: 0;
+			border-radius: 50%;
+		}
+
+		.send-btn .send-label {
+			display: none;
 		}
 
 		.message-input {
