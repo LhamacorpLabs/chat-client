@@ -162,8 +162,6 @@
 
 			// If we cleaned up older messages, we have more to load
 			hasMoreMessages = true;
-
-			console.log(`Cleaned up messages: kept ${newMessages.length} out of ${messages.length + (CLEANUP_THRESHOLD - newMessages.length)}`);
 		}
 	}
 
@@ -443,8 +441,6 @@
 
 			// Subscribe to this chat's messages
 			websocketUnsubscribe = webSocketService.subscribeToChat(chatId, handleWebSocketMessage);
-
-			console.log(`Connected to WebSocket and subscribed to chat: ${chatId}`);
 		} catch (error) {
 			console.error('Failed to connect WebSocket:', error);
 			websocketError = error instanceof Error ? error.message : 'WebSocket connection failed';
@@ -483,13 +479,11 @@
 	function startPolling() {
 		if (pollingInterval) return;
 
-		console.log('Starting message polling (REST mode)');
 		pollingInterval = setInterval(pollForNewMessages, POLLING_INTERVAL_MS);
 	}
 
 	function stopPolling() {
 		if (pollingInterval) {
-			console.log('Stopping message polling');
 			clearInterval(pollingInterval);
 			pollingInterval = null;
 		}

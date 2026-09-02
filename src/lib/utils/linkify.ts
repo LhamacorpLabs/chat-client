@@ -123,10 +123,3 @@ export function linkify(text: string, includePreviews = false): string | Linkify
     return result;
 }
 
-/**
- * Clear the linkify cache (useful for memory management)
- */
-export function clearLinkifyCache(): void {
-    linkifyCache.clear();
-}
-

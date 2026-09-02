@@ -109,14 +109,3 @@ export function cleanupAllNotifications(): void {
 	}
 	activeNotifications.clear();
 }
-
-export function canShowNotifications(): boolean {
-	return 'Notification' in window && Notification.permission === 'granted';
-}
-
-export function getNotificationPermission(): NotificationPermission {
-	if (!('Notification' in window)) {
-		return 'denied';
-	}
-	return Notification.permission;
-}

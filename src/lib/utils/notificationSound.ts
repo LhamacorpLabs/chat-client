@@ -11,16 +11,6 @@ function getAudioContext(): AudioContext {
 }
 
 /**
- * Closes the AudioContext to free memory (call on app shutdown)
- */
-export function closeAudioContext(): void {
-	if (audioContext && audioContext.state !== 'closed') {
-		audioContext.close();
-		audioContext = null;
-	}
-}
-
-/**
  * Plays a notification sound using Web Audio API
  * Creates a simple beep sound (800Hz, 0.1 seconds)
  * Uses a singleton AudioContext to prevent memory leaks

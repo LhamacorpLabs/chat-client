@@ -160,43 +160,7 @@ export function addMemberColor(chatId: string, memberId: string): string {
 	return color;
 }
 
-// Clear colors for a specific chat
-export function clearChatColors(chatId: string): void {
-	const currentState = get(memberColorsStore);
-
-	if (currentState[chatId]) {
-		delete currentState[chatId];
-		memberColorsStore.set(currentState);
-		saveMemberColors(currentState);
-	}
-}
-
 // Check if a chat should use member colors (more than 2 people)
 export function shouldUseMemberColors(members: ChatMember[]): boolean {
 	return members.length > 2;
-}
-
-// Get all colors assigned to a chat
-export function getChatColors(chatId: string): MemberColors {
-	const currentState = get(memberColorsStore);
-	return currentState[chatId] || {};
-}
-
-// Cleanup old chat colors (optional utility for maintenance)
-export function cleanupOldColors(activeChatIds: string[]): void {
-	const currentState = get(memberColorsStore);
-	let hasChanges = false;
-
-	// Remove colors for chats that are no longer active
-	Object.keys(currentState).forEach(chatId => {
-		if (!activeChatIds.includes(chatId)) {
-			delete currentState[chatId];
-			hasChanges = true;
-		}
-	});
-
-	if (hasChanges) {
-		memberColorsStore.set(currentState);
-		saveMemberColors(currentState);
-	}
 }
