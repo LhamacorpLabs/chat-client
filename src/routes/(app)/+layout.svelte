@@ -29,38 +29,19 @@
 
 	// Whether the rail is expanded into the full chat list (desktop only -
 	// on mobile, visibility is still driven purely by the route, see
-	// isChatRoute below). The rail's own toggle button drives this; it
-	// also collapses on chat selection and on an outside click.
+	// isChatRoute below). This is a user preference, not transient UI
+	// state: it's driven solely by the rail's own toggle button and
+	// persisted to localStorage, so it stays how the user left it across
+	// selecting a chat, clicking into the conversation, and reloads -
+	// nothing else here collapses or expands it automatically.
 	let listOpen = $state(
 		typeof window === 'undefined' || localStorage.getItem('chatListOpen') !== 'false'
 	);
-	let railWrapperEl: HTMLElement | undefined = $state();
 
 	$effect(() => {
 		if (typeof window !== 'undefined') {
 			localStorage.setItem('chatListOpen', String(listOpen));
 		}
-	});
-
-	$effect(() => {
-		if (!listOpen) return;
-
-		function handleClickOutside(event: MouseEvent) {
-			const target = event.target as Node;
-			if (railWrapperEl?.contains(target)) return;
-			listOpen = false;
-		}
-
-		function handleEscape(event: KeyboardEvent) {
-			if (event.key === 'Escape') listOpen = false;
-		}
-
-		document.addEventListener('click', handleClickOutside);
-		document.addEventListener('keydown', handleEscape);
-		return () => {
-			document.removeEventListener('click', handleClickOutside);
-			document.removeEventListener('keydown', handleEscape);
-		};
 	});
 
 	// The currently open chat, if any - drives both the mobile show/hide
@@ -167,7 +148,6 @@
 
 	function openChat(chatId: string) {
 		goto(`/chat/${chatId}`);
-		listOpen = false;
 	}
 
 	async function handleJoinChat() {
@@ -294,7 +274,7 @@
 		     against the top/bottom/left edges - matching the reference's
 		     edge-to-edge nav rail. It IS the chat list now too (expanded
 		     in place, no separate flyout panel) - see Rail.svelte. -->
-		<div class="rail-wrapper" bind:this={railWrapperEl}>
+		<div class="rail-wrapper">
 			<Rail
 				chats={$chatStore.chats}
 				activeChatId={openChatId}
