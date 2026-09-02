@@ -30,6 +30,7 @@
 	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 	import EmojiAutocomplete from '$lib/components/EmojiAutocomplete.svelte';
 	import { searchEmojis } from '$lib/utils/emojis';
+	import { colorForChat } from '$lib/utils/chatAvatar';
 	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
 	import { mergeMessagesWithPerMessageReactions, messagesReactionsChanged, getUserReactionForMessage } from '$lib/utils/reactionUtils';
 	import type { ReactionSummary } from '$lib/types/chat';
@@ -1445,8 +1446,8 @@
 							<path d="M15 18l-6-6 6-6" />
 						</svg>
 					</button>
-					<div class="chat-avatar">
-						<img src="/logo.png" alt="" class="chat-logo" />
+					<div class="chat-avatar" style={`background: ${colorForChat(chatId)}`}>
+						{chatName.charAt(0).toUpperCase()}
 					</div>
 					<div class="chat-title">
 						<h1>#{chatName}</h1>
@@ -1961,23 +1962,23 @@
 
 	/* Circular chip around the logo, like a channel/group avatar rather
 	   than a flat inline icon. */
+	/* Same colored-circle-with-initial avatar as the chat's icon in the
+	   rail (colorForChat gives it the same color there and here), so the
+	   header reads as "this chat" rather than showing the generic app
+	   logo. */
 	.chat-avatar {
 		flex-shrink: 0;
 		width: 32px;
 		height: 32px;
 		border-radius: 50%;
-		background: var(--accent-subtle);
-		border: 1px solid var(--glass-border, var(--border));
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		overflow: hidden;
-	}
-
-	.chat-logo {
-		width: 18px;
-		height: 18px;
-		object-fit: contain;
+		color: #fff;
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		font-weight: 700;
+		box-shadow: 0 0 0 1px var(--glass-border, var(--border));
 	}
 
 	.chat-title {
@@ -2649,11 +2650,7 @@
 		.chat-avatar {
 			width: 28px;
 			height: 28px;
-		}
-
-		.chat-logo {
-			width: 16px;
-			height: 16px;
+			font-size: 0.75rem;
 		}
 
 		.header-content h1 {

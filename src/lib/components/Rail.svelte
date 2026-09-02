@@ -5,6 +5,7 @@
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import { colorForChat } from '$lib/utils/chatAvatar';
 
 	interface Props {
 		chats: Chat[];
@@ -37,16 +38,6 @@
 	}: Props = $props();
 
 	const initial = $derived(($authStore.user?.username ?? '?').charAt(0).toUpperCase());
-
-	// Deterministic-but-varied avatar color per chat (collapsed state only),
-	// so the icon stack reads as distinct destinations rather than a wall
-	// of identical circles - same idea as Slack/Discord's per-channel color.
-	const PALETTE = ['#ff6fa8', '#7c6fee', '#4fd6d0', '#f0b429', '#7fd8a8', '#6fa8ff'];
-	function colorFor(id: string): string {
-		let hash = 0;
-		for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-		return PALETTE[hash % PALETTE.length];
-	}
 </script>
 
 <nav class="rail" class:expanded aria-label="Primary">
@@ -139,7 +130,7 @@
 							type="button"
 							onclick={() => onSelectChat(chat.id)}
 							title={`#${chat.name}`}
-							style={`background: ${colorFor(chat.id)}`}
+							style={`background: ${colorForChat(chat.id)}`}
 						>
 							{chat.name.charAt(0).toUpperCase()}
 							{#if unreadMap[chat.id]}
