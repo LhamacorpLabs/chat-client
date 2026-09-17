@@ -143,10 +143,13 @@ one item (or small related group) per session/PR — not all at once.
 - [ ] `stores/websocket.ts` and `stores/mqtt.ts` are near-duplicate transport
       classes (connect/disconnect/subscribeToChat), and both are always
       bundled (stompjs + sockjs-client + mqtt.js shipped regardless of which
-      mode is active at runtime). Extract a shared transport interface; if
-      the realtime mode is actually fixed per deployment (check
-      `PUBLIC_REALTIME_MODE` usage), consider making it a build-time choice
-      instead so the unused transport isn't shipped.
+      mode is active at runtime). Extract a shared transport interface.
+      **Confirmed**: `PUBLIC_REALTIME_MODE` is in fact fixed per deployment —
+      it's a Dockerfile `ARG`/`ENV` baked in at image build time (`Dockerfile`,
+      also hardcoded to `mqtt` in both `.github/workflows/*.yml`), never
+      changed at runtime. So the "make it a build-time choice" option is
+      viable, not just theoretical — the unused transport really could be
+      excluded from the bundle entirely for a given deployment.
 - [ ] `stores/chatNotifications.ts`, `stores/chatMute.ts`, and
       `stores/memberColors.ts` each hand-roll the same
       try/catch-JSON-load/save-to-localStorage pattern instead of reusing
@@ -154,20 +157,57 @@ one item (or small related group) per session/PR — not all at once.
 
 ## Tooling / CI
 
-- [ ] `eslint` + `@typescript-eslint/*` + `prettier` are devDependencies but
-      there's no config file for any of them and no `lint`/`format` npm
-      script. Either wire them up (add `eslint.config.js`, a `lint` script,
-      run it in CI) or remove the dead dependencies — currently neither.
-- [ ] `.github/workflows/*.yml` runs `npm test` + `npm run build` but never
-      `npm run check` (svelte-check/tsc) — type errors can land on `main`
-      unchecked. Add the `check` step.
+- [x] `eslint` + `@typescript-eslint/*` + `prettier` were devDependencies with
+      no config file and no `lint`/`format` script. Fixed on
+      `chore/lint-and-ci`: added `eslint.config.js` (flat config; also added
+      `eslint-plugin-svelte` + `svelte-eslint-parser`, which weren't
+      installed — without them ESLint can't parse `.svelte` files at all)
+      and `.prettierrc.json` matching the codebase's actual style (tabs,
+      single quotes, no trailing comma, `arrowParens: avoid` — added that
+      last one specifically because Prettier's default wraps single-arg
+      arrows in parens, which isn't this codebase's convention, and doing so
+      repo-wide would've been a huge unrelated diff). Added `lint`,
+      `format`, `format:check` npm scripts.
+      **Note**: `npm run lint` currently reports 79 real findings (35
+      errors, 44 warnings) — several overlap with backlog items already
+      tracked above (the `{@html}` XSS spots). `npm run format:check`
+      reports 54 files with style drift. Neither was auto-fixed here — both
+      are their own separate, reviewable changes (see the two new items
+      right below), not something to bundle silently into "add the config."
+      `electron/**/*.cjs` and `electron/mac-update/**` are excluded from
+      ESLint: the former because `eslint-plugin-svelte`'s recommended flat
+      config applies some rules with no file restriction, and
+      `svelte/no-inner-declarations` crashes on plain CommonJS files
+      (`TypeError: Cannot read properties of null (reading 'isStrict')`) -
+      an eslint-plugin-svelte bug, not something to work around by touching
+      those files.
+- [ ] **New**: run `npm run lint`, triage the 35 errors / 44 warnings, fix or
+      explicitly suppress each. Don't do this as a drive-by — several
+      (`svelte/no-navigation-without-resolve`, `svelte/prefer-svelte-
+      reactivity`) touch actual runtime behavior (SvelteKit's `resolve()`
+      API, Svelte 5 reactivity primitives) and deserve real testing, not a
+      blanket `--fix`.
+- [ ] **New**: run `npm run format:check`, then `npm run format` once
+      reviewed — 54 files currently drift from the new `.prettierrc.json`.
+      This will be a large, purely-cosmetic diff; do it as its own commit
+      with nothing else in it; so `git blame` isn't muddied.
+- [x] `.github/workflows/build.yml` ran `npm test` + `npm run build` but
+      never `npm run check`/`npm run lint`. Fixed on `chore/lint-and-ci`:
+      added both as steps in the `test` job, but with
+      `continue-on-error: true` — both commands currently fail on this repo
+      as-is (11 pre-existing check errors, 79 lint findings, see above), and
+      making them hard gates right now would turn every future PR red
+      regardless of what it touches. Remove `continue-on-error` once the two
+      items above are cleared.
 - [ ] `package.json` pins `@lhamacorplabs/design-tokens` to
       `github:LhamacorpLabs/design-system#claude/design-system-evolution-25shdd`
       — a mutable feature branch, not a tag/SHA/npm release. If that branch
       is ever deleted or force-pushed, fresh installs break. Pin to a commit
       SHA, or get it published as a versioned package.
-- [ ] CI uses `npm install` instead of `npm ci` — lockfile-exact installs are
-      recommended for reproducible CI.
+- [x] CI used `npm install` instead of `npm ci`. Fixed on
+      `chore/lint-and-ci`: swapped every `npm install` for `npm ci` across
+      `build.yml` and `deploy.yml` (all install steps, including the
+      electron-release matrix job).
 
 ## Testing
 

@@ -54,7 +54,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run tests
         run: npm test
@@ -76,7 +76,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build the application
         run: npm run build
@@ -166,7 +166,7 @@ jobs:
           cache: "npm"
 
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci
 
       - name: Set version
         run: node -e "const f=require('fs');const p=JSON.parse(f.readFileSync('package.json','utf8'));p.version='${{ needs.version.outputs.version }}';f.writeFileSync('package.json',JSON.stringify(p,null,2));"
