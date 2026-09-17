@@ -313,7 +313,7 @@
 		width: 28px;
 		height: 28px;
 		border-radius: var(--radius-sm);
-		border: 1px solid var(--rail-border-color);
+		border: 1px solid var(--rail-border-color-hover);
 		background: transparent;
 		color: var(--rail-text-secondary);
 		font-size: 1rem;
@@ -331,11 +331,14 @@
 		color: var(--rail-text-primary);
 	}
 
+	/* Bordered rounded-square rather than a borderless pill - matches the
+	   "+" icon-btn next to it (both read as one family of chrome buttons),
+	   per the design exploration. */
 	.rail-btn {
 		width: var(--rail-icon-size, 36px);
 		height: var(--rail-icon-size, 36px);
-		border-radius: var(--rail-icon-radius, 999px);
-		border: none;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--rail-border-color-hover);
 		background: transparent;
 		color: var(--rail-text-secondary);
 		display: flex;
@@ -419,17 +422,17 @@
 		justify-content: center;
 		cursor: pointer;
 		opacity: 0.6;
-		transition: opacity var(--duration-base, 0.15s) var(--ease-standard, ease),
-			border-radius var(--duration-base, 0.15s) var(--ease-standard, ease);
+		transition: opacity var(--duration-base, 0.15s) var(--ease-standard, ease);
 	}
 
 	.chat-avatar:hover {
 		opacity: 0.85;
 	}
 
+	/* Stays the same rounded-square shape when active - just gains a ring -
+	   rather than morphing into a circle, per the design exploration. */
 	.chat-avatar.active {
 		opacity: 1;
-		border-radius: 999px;
 		box-shadow: 0 0 0 2px var(--rail-accent, #7c6fee), 0 0 0 4px var(--rail-bg, #000);
 	}
 
@@ -654,12 +657,15 @@
 		padding: 0.375rem 0.625rem;
 	}
 
+	/* Solid-filled, matching .rail-avatar (the same account trigger in the
+	   collapsed rail) - was a subtle tinted style, needlessly different
+	   from its own collapsed-state counterpart. */
 	.user-avatar {
 		width: 30px;
 		height: 30px;
 		border-radius: 50%;
-		background: var(--rail-accent-subtle);
-		color: var(--rail-accent);
+		background: var(--rail-accent, #7c6fee);
+		color: var(--accent-contrast, #fff);
 		display: flex;
 		align-items: center;
 		justify-content: center;

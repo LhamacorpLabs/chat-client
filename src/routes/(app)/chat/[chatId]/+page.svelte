@@ -1965,8 +1965,8 @@
 	.header-content h1 {
 		margin: 0;
 		min-width: 0;
-		font-size: 1.125rem;
-		font-weight: 700;
+		font-size: 1rem;
+		font-weight: 500;
 		color: var(--text-primary);
 		letter-spacing: -0.01em;
 		overflow: hidden;
@@ -2592,24 +2592,12 @@
 			gap: 0.5rem;
 		}
 
-		.back-btn,
-		.actions-toggle {
-			width: 30px;
-			height: 30px;
-		}
-
 		.back-btn {
 			display: inline-flex;
 		}
 
 		.chat-avatar {
-			width: 28px;
-			height: 28px;
 			font-size: 0.75rem;
-		}
-
-		.header-content h1 {
-			font-size: 1rem;
 		}
 
 		.message-item {
