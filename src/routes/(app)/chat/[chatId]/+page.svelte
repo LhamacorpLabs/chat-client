@@ -548,7 +548,7 @@
 		refreshReactions();
 
 		// Handle notifications for messages from other users
-		if (newMsg.userId !== $authStore.user?.id && !isWindowFocused()) {
+		if (newMsg.username !== $authStore.user?.username && !isWindowFocused()) {
 			hasUnreadMessages = true;
 
 			const isChatMuted = chatMuteStore.isMuted(data.chatId);
@@ -566,7 +566,7 @@
 		}
 
 		// Update colors if needed
-		if (shouldUseColors && newMsg.userId !== $authStore.user?.id) {
+		if (shouldUseColors && newMsg.username !== $authStore.user?.username) {
 			addMemberColor(chatId, newMsg.userId);
 		}
 
@@ -708,7 +708,7 @@
 		if (messageIndex === -1) return;
 
 		const currentMessage = messages[messageIndex];
-		const currentUserReaction = getUserReactionForMessage(currentMessage, user.id);
+		const currentUserReaction = getUserReactionForMessage(currentMessage, user.username);
 
 		// Create optimistic update
 		let newReactions: ReactionSummary[] = [...(currentMessage.reactions || [])];
@@ -716,7 +716,7 @@
 		if (currentUserReaction) {
 			newReactions = newReactions.map(reaction => {
 				if (reaction.type === currentUserReaction) {
-					const updatedUsers = reaction.users.filter(u => u.userId !== user.id);
+					const updatedUsers = reaction.users.filter(u => u.username !== user.username);
 					return {
 						...reaction,
 						count: updatedUsers.length,
@@ -731,7 +731,7 @@
 			const existingReactionIndex = newReactions.findIndex(r => r.type === reactionType);
 			if (existingReactionIndex >= 0) {
 				const existingReaction = newReactions[existingReactionIndex];
-				if (!existingReaction.users.some(u => u.userId === user.id)) {
+				if (!existingReaction.users.some(u => u.username === user.username)) {
 					newReactions[existingReactionIndex] = {
 						...existingReaction,
 						count: existingReaction.count + 1,
@@ -1573,7 +1573,7 @@
 					{/if}
 
 					{#each messages as message, index (message.id)}
-						{@const isOwnMessage = message.userId === $authStore.user?.id}
+						{@const isOwnMessage = message.username === $authStore.user?.username}
 						{@const memberColor = shouldUseColors && !isOwnMessage ? getMemberColor(chatId, message.userId) : null}
 						{@const linkifyResult = linkify(message.message, true)}
 						<div class="message-item {isOwnMessage ? 'own-message' : 'other-message'}"
@@ -1584,7 +1584,7 @@
 							<div class="message-header">
 								<span class="message-user"
 								      style={memberColor ? `color: ${memberColor}` : ''}>
-									{message.userId === $authStore.user?.id ? 'You' : message.username}
+									{message.username === $authStore.user?.username ? 'You' : message.username}
 									{#if favoriteMessageIds.has(message.id)}
 										<span class="favorite-indicator">★</span>
 									{/if}
@@ -1602,17 +1602,17 @@
 												<div class="action-dropdown">
 													<div class="sheet-reactions">
 														<button class="sheet-reaction-btn"
-														        class:active={message.reactions?.some(r => r.type === 'FUNNY' && r.users.some(u => u.userId === $authStore.user?.id))}
+														        class:active={message.reactions?.some(r => r.type === 'FUNNY' && r.users.some(u => u.username === $authStore.user?.username))}
 														        onclick={() => { updateMessageReaction(message.id, 'FUNNY'); closeActionMenu(); }}>
 															😂
 														</button>
 														<button class="sheet-reaction-btn"
-														        class:active={message.reactions?.some(r => r.type === 'LIKE' && r.users.some(u => u.userId === $authStore.user?.id))}
+														        class:active={message.reactions?.some(r => r.type === 'LIKE' && r.users.some(u => u.username === $authStore.user?.username))}
 														        onclick={() => { updateMessageReaction(message.id, 'LIKE'); closeActionMenu(); }}>
 															👍
 														</button>
 														<button class="sheet-reaction-btn"
-														        class:active={message.reactions?.some(r => r.type === 'LOVE' && r.users.some(u => u.userId === $authStore.user?.id))}
+														        class:active={message.reactions?.some(r => r.type === 'LOVE' && r.users.some(u => u.username === $authStore.user?.username))}
 														        onclick={() => { updateMessageReaction(message.id, 'LOVE'); closeActionMenu(); }}>
 															❤️
 														</button>

@@ -66,9 +66,19 @@ export const load: PageLoad = async ({ params }) => {
 		throw redirect(302, '/');
 	}
 
+	// createdBy is a userId, and backend ids aren't guaranteed stable across
+	// environments/resets - resolve it to the creator's username (via the
+	// member list, which already doubles as the id->username map elsewhere
+	// in this app) and compare that, falling back to the raw id check only
+	// if the creator isn't in the current member list.
+	const creator = chat.members.find(member => member.id === chat.createdBy);
+	const isOwner = creator
+		? creator.name === auth.user?.username
+		: chat.createdBy === auth.user?.id;
+
 	return {
 		chatId,
 		chat,
-		isOwner: chat.createdBy === auth.user?.id
+		isOwner
 	};
 };

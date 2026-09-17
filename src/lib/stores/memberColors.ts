@@ -72,24 +72,23 @@ function saveMemberColors(colors: MemberColorsState) {
 // Get assigned color for a member, or assign a new one if needed
 export function getMemberColor(chatId: string, memberId: string): string {
 	const currentState = get(memberColorsStore);
-
-	// Check if chat colors exist
-	if (!currentState[chatId]) {
-		currentState[chatId] = {};
-	}
+	const chatColors = currentState[chatId] ?? {};
 
 	// Check if member already has a color
-	if (currentState[chatId][memberId]) {
-		return currentState[chatId][memberId];
+	if (chatColors[memberId]) {
+		return chatColors[memberId];
 	}
 
 	// Assign new color
 	const color = getColorForMember(memberId);
-	currentState[chatId][memberId] = color;
+	const newState: MemberColorsState = {
+		...currentState,
+		[chatId]: { ...chatColors, [memberId]: color }
+	};
 
 	// Update store and save to localStorage
-	memberColorsStore.set(currentState);
-	saveMemberColors(currentState);
+	memberColorsStore.set(newState);
+	saveMemberColors(newState);
 
 	return color;
 }
@@ -102,40 +101,37 @@ export function assignColorsForChat(chatId: string, members: ChatMember[]): void
 	}
 
 	const currentState = get(memberColorsStore);
-
-	// Initialize chat colors if not exists
-	if (!currentState[chatId]) {
-		currentState[chatId] = {};
-	}
+	const chatColors = { ...(currentState[chatId] ?? {}) };
 
 	let hasNewColors = false;
 
 	// Assign colors to members that don't have them
 	members.forEach(member => {
-		if (!currentState[chatId][member.id]) {
-			currentState[chatId][member.id] = getColorForMember(member.id);
+		if (!chatColors[member.id]) {
+			chatColors[member.id] = getColorForMember(member.id);
 			hasNewColors = true;
 		}
 	});
 
 	// Update store and save if there were new colors assigned
 	if (hasNewColors) {
-		memberColorsStore.set(currentState);
-		saveMemberColors(currentState);
+		const newState: MemberColorsState = { ...currentState, [chatId]: chatColors };
+		memberColorsStore.set(newState);
+		saveMemberColors(newState);
 	}
 }
 
 // Assign color to a single new member
 export function addMemberColor(chatId: string, memberId: string): string {
 	const currentState = get(memberColorsStore);
+	const chatColors = currentState[chatId] ?? {};
 
 	// Check if member already has a color
-	if (currentState[chatId]?.hasOwnProperty(memberId)) {
-		return currentState[chatId][memberId];
+	if (Object.prototype.hasOwnProperty.call(chatColors, memberId)) {
+		return chatColors[memberId];
 	}
 
 	// Get the chat's existing member count to determine if colors should be used
-	const chatColors = currentState[chatId] || {};
 	const memberCount = Object.keys(chatColors).length + 1; // +1 for the new member
 
 	// Skip color assignment for 2-person chats
@@ -145,17 +141,14 @@ export function addMemberColor(chatId: string, memberId: string): string {
 
 	// Assign new color
 	const color = getColorForMember(memberId);
-
-	// Initialize chat colors if not exists
-	if (!currentState[chatId]) {
-		currentState[chatId] = {};
-	}
-
-	currentState[chatId][memberId] = color;
+	const newState: MemberColorsState = {
+		...currentState,
+		[chatId]: { ...chatColors, [memberId]: color }
+	};
 
 	// Update store and save
-	memberColorsStore.set(currentState);
-	saveMemberColors(currentState);
+	memberColorsStore.set(newState);
+	saveMemberColors(newState);
 
 	return color;
 }

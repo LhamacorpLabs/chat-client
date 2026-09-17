@@ -103,17 +103,35 @@
 		}
 	}
 
+	const previewUrls = new Map<File, string>();
+
 	function getFilePreviewUrl(file: File): string {
-		return URL.createObjectURL(file);
+		let url = previewUrls.get(file);
+		if (!url) {
+			url = URL.createObjectURL(file);
+			previewUrls.set(file, url);
+		}
+		return url;
 	}
 
-	// Cleanup object URLs when component is destroyed
+	// Revoke URLs for files that are no longer selected
+	$effect(() => {
+		const currentFiles = new Set(selectedFiles);
+		for (const [file, url] of previewUrls) {
+			if (!currentFiles.has(file)) {
+				URL.revokeObjectURL(url);
+				previewUrls.delete(file);
+			}
+		}
+	});
+
+	// Revoke any remaining object URLs when component is destroyed
 	$effect(() => {
 		return () => {
-			selectedFiles.forEach(file => {
-				const url = getFilePreviewUrl(file);
+			for (const url of previewUrls.values()) {
 				URL.revokeObjectURL(url);
-			});
+			}
+			previewUrls.clear();
 		};
 	});
 </script>

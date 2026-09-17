@@ -111,22 +111,23 @@ export function cleanupChatNotifications(activeChatIds: string[]): void {
  */
 export function cleanupChatMutes(activeChatIds: string[]): void {
 	try {
-		const muteData = localStorage.getItem('chat_mutes');
+		const muteData = localStorage.getItem('chat-mute-settings');
 		if (!muteData) return;
 
-		const mutes = JSON.parse(muteData);
+		const parsed = JSON.parse(muteData);
+		const mutedChats = parsed.mutedChats || {};
 		let hasChanges = false;
 
-		Object.keys(mutes).forEach(chatId => {
+		Object.keys(mutedChats).forEach(chatId => {
 			if (!activeChatIds.includes(chatId)) {
-				delete mutes[chatId];
+				delete mutedChats[chatId];
 				hasChanges = true;
 			}
 		});
 
 		if (hasChanges) {
-			localStorage.setItem('chat_mutes', JSON.stringify(mutes));
-					}
+			localStorage.setItem('chat-mute-settings', JSON.stringify({ ...parsed, mutedChats }));
+		}
 	} catch (error) {
 		console.warn('Failed to cleanup chat mute settings:', error);
 	}

@@ -22,7 +22,7 @@
 	let isUpdating = $state(false);
 
 	let currentUserReaction = $derived(
-		$authStore.user ? getUserReactionForMessage(message, $authStore.user.id) : null
+		$authStore.user ? getUserReactionForMessage(message, $authStore.user.username) : null
 	);
 	let hasReactions = $derived(messageHasReactions(message));
 

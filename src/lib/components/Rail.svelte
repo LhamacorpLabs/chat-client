@@ -270,18 +270,17 @@
 	.rail-mark {
 		width: 30px;
 		height: 30px;
-		border-radius: 9px;
+		border-radius: 7px;
 		overflow: hidden;
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--rail-accent-subtle, rgba(255, 255, 255, 0.08));
 	}
 
 	.rail-mark img {
-		width: 20px;
-		height: 20px;
+		width: 100%;
+		height: 100%;
 		object-fit: contain;
 	}
 
