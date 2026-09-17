@@ -83,13 +83,18 @@ one item (or small related group) per session/PR — not all at once.
       XSS in chat messages has zero test coverage (see Testing section).
       Preferred fix: render links via a Svelte `{#each}` over parsed segments
       with a real `onclick` handler, drop `{@html}` for this path entirely.
-- [ ] `nginx.conf:11-14` marks every `*.png|*.ico|*.svg|...` as
-      `Cache-Control: public, immutable` with `expires 1y`. Fine for
-      content-hashed build assets, but `logo.png`, `favicon.ico` etc. keep a
-      stable filename — any visitor who's loaded the page once will never see
-      icon/logo updates again for a year on redeploy. Either exclude those
-      specific filenames from the immutable rule, or (better long-term)
-      content-hash them at build time.
+- [x] `nginx.conf:11-14` marked every `*.png|*.ico|*.svg|...` as
+      `Cache-Control: public, immutable` with `expires 1y` — fine for
+      content-hashed build assets, but `logo.png`/`favicon.ico`/etc keep a
+      stable filename, so a redeployed icon would never reach a returning
+      visitor. Fixed on `fix/nginx-immutable-cache-headers`: added a
+      `location ^~ /_app/` block (SvelteKit's content-hashed build output)
+      that keeps the 1y immutable cache, checked before the general
+      extension-matching rule, which now gives everything else (the
+      stable-name files actually under `static/`) `expires 1h` +
+      `must-revalidate` instead. Verified both syntax (`nginx -t`) and actual
+      response headers against a real build using the `nginx:1.27-alpine`
+      image locally.
 
 ## Architecture
 
