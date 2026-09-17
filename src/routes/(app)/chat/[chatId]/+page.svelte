@@ -1401,7 +1401,7 @@
 					</div>
 					<div class="chat-title">
 						<h1>#{chatName}</h1>
-						<span class="title-dot" aria-hidden="true"></span>
+						<span class="title-divider" aria-hidden="true"></span>
 						<span class="member-count">{currentChat.members.length} member{currentChat.members.length === 1 ? '' : 's'}</span>
 					</div>
 				</div>
@@ -1881,27 +1881,31 @@
 	/* Header - floating glass panel, same treatment as the rail's chat
 	   list and the Get Started card. Falls back to the old opaque
 	   --panel-bg cleanly on v1, since --glass-* doesn't exist there. */
+	/* The header used to be its own edge-to-edge glass panel, matching the
+	   composer's --glass-* treatment. That token tier is calibrated for a
+	   translucent surface floating over an app-supplied photo/gradient
+	   backdrop (--bg-image) - this app never sets one, so blurring the flat
+	   --bg-gradient did nothing visible, and a 5% white tint on near-black
+	   read as barely-there. Dropped the glass surface for an opaque inset
+	   card instead: .chat-header is now just the inset (padding, no chrome
+	   of its own) and .header-content is the actual visible card, sized and
+	   colored like the composer so header/content/composer read as one
+	   column instead of three different surface treatments. */
 	.chat-header {
-		background: var(--glass-bg, var(--panel-bg));
-		border: 1px solid var(--glass-border, var(--border));
-		border-radius: var(--radius-lg);
-		box-shadow: var(--glass-shadow, var(--shadow-md));
-		/* -webkit- listed first: the production CSS minifier collapses
-		   identical-value backdrop-filter declarations into one and keeps
-		   whichever is declared last - the standards property needs to be
-		   second or it silently gets dropped. */
-		-webkit-backdrop-filter: blur(var(--glass-blur, 0px));
-		backdrop-filter: blur(var(--glass-blur, 0px));
 		flex-shrink: 0;
+		padding: 0.875rem 1.5rem 0;
 	}
 
 	.header-content {
 		max-width: 900px;
 		margin: 0 auto;
-		padding: 0.75rem 1.5rem;
+		padding: 0.625rem 0.75rem 0.625rem 0.875rem;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		background: var(--panel-bg);
+		border: 1px solid var(--border-hover);
+		border-radius: var(--radius-md);
 	}
 
 	.header-left {
@@ -1913,15 +1917,16 @@
 
 	/* Circular chip around the logo, like a channel/group avatar rather
 	   than a flat inline icon. */
-	/* Same colored-circle-with-initial avatar as the chat's icon in the
-	   rail (colorForChat gives it the same color there and here), so the
-	   header reads as "this chat" rather than showing the generic app
-	   logo. */
+	/* Same colored avatar chip as the chat's icon in the rail (colorForChat
+	   gives it the same color there and here, and the same rounded-square
+	   shape the rail uses at rest - only the rail's own avatar goes fully
+	   circular to signal "selected"), so the header reads as "this chat"
+	   rather than showing the generic app logo. */
 	.chat-avatar {
 		flex-shrink: 0;
-		width: 32px;
-		height: 32px;
-		border-radius: 50%;
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-sm);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -1939,16 +1944,16 @@
 		min-width: 0;
 	}
 
-	/* Icon-only circular button, shared look for back/actions controls in
-	   the header - matches the composer's icon buttons. */
+	/* Icon-only button, shared look for back/actions controls in the
+	   header. */
 	.back-btn,
 	.actions-toggle {
 		display: none;
 		flex-shrink: 0;
-		width: 34px;
-		height: 34px;
+		width: 30px;
+		height: 30px;
 		padding: 0;
-		border-radius: 50%;
+		border-radius: var(--radius-sm);
 		align-items: center;
 		justify-content: center;
 	}
@@ -1960,8 +1965,8 @@
 	.header-content h1 {
 		margin: 0;
 		min-width: 0;
-		font-size: 1.125rem;
-		font-weight: 700;
+		font-size: 1rem;
+		font-weight: 500;
 		color: var(--text-primary);
 		letter-spacing: -0.01em;
 		overflow: hidden;
@@ -1969,12 +1974,11 @@
 		white-space: nowrap;
 	}
 
-	.title-dot {
+	.title-divider {
 		flex-shrink: 0;
-		width: 3px;
-		height: 3px;
-		border-radius: 50%;
-		background: var(--text-muted);
+		width: 1px;
+		height: 16px;
+		background: var(--border-hover);
 	}
 
 	.member-count {
@@ -2588,24 +2592,12 @@
 			gap: 0.5rem;
 		}
 
-		.back-btn,
-		.actions-toggle {
-			width: 30px;
-			height: 30px;
-		}
-
 		.back-btn {
 			display: inline-flex;
 		}
 
 		.chat-avatar {
-			width: 28px;
-			height: 28px;
 			font-size: 0.75rem;
-		}
-
-		.header-content h1 {
-			font-size: 1rem;
 		}
 
 		.message-item {
@@ -2822,23 +2814,29 @@
 			max-width: 14ch;
 		}
 
-		.title-dot,
+		.title-divider,
 		.member-count {
 			display: none;
 		}
 	}
 
-	/* Invitation Button */
+	/* Invitation button: accent-outlined at rest (not the shared
+	   .btn-ghost's neutral border), since inviting someone is the one
+	   header action worth calling out. */
 	.invite-btn {
 		font-size: 0.75rem;
 		padding: 0.4375rem 0.875rem 0.4375rem 0.75rem;
 		line-height: 1;
+		background: transparent;
+		border-color: var(--accent-shadow);
+		color: var(--accent);
 		transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 	}
 
 	.invite-btn:hover:not(:disabled) {
+		background: var(--accent-subtle);
 		border-color: var(--accent);
-		color: var(--accent);
+		color: var(--accent-hover);
 	}
 
 	/* Chat header's "..." actions menu is now the shared DropdownMenu
