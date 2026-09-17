@@ -78,12 +78,17 @@ one item (or small related group) per session/PR — not all at once.
       is now `mqtt` (was `websocket` in `.env.example`, meaning a fresh
       local clone never received a single real-time message without a
       manual refresh).
-- [ ] `stores/mqtt.ts:36-37` — token used as both MQTT username *and*
-      password. Unusual and doubles exposure if the broker logs auth
-      attempts. **Not done** — genuinely needs backend/broker-config
-      confirmation of which field is actually validated before touching
-      this; guessing wrong risks breaking MQTT auth silently in a way I
-      can't test from here.
+- [x] `stores/mqtt.ts:36-37` — token used as both MQTT username *and*
+      password. **Reviewed against the backend, confirmed intentional and
+      required — not a bug.** `chat-server` is a Mosquitto-style HTTP
+      auth-plugin backend with two separate broker hooks
+      (`MqttAuthController.java`): `/api/mqtt/auth` (CONNECT) validates the
+      token from `password` only; `/api/mqtt/acl` (SUBSCRIBE/PUBLISH)
+      validates it from `username` only — that hook doesn't even receive a
+      `password` param, the broker never sends one to it. Dropping either
+      field would silently break one of the two checks (no connection, or
+      connects fine but every subscribe/publish gets ACL-rejected). No
+      change needed.
 - [x] `stores/mqtt.ts:56-65` — on `reconnect`, mqtt.js can send that
       attempt's CONNECT packet before the async `getValidToken()` call
       resolves, so a just-rotated token went out stale on the first retry
