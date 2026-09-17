@@ -310,8 +310,8 @@
 	}
 
 	.icon-btn {
-		width: 28px;
-		height: 28px;
+		width: var(--rail-icon-size, 36px);
+		height: var(--rail-icon-size, 36px);
 		border-radius: var(--radius-sm);
 		border: 1px solid var(--rail-border-color-hover);
 		background: transparent;
