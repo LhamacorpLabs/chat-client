@@ -2,6 +2,7 @@
 	import { parseImageMessage, type ParsedMessage } from '../utils/imageMessages';
 	import { parseReplyMessage } from '../utils/replyMessages';
 	import { linkify } from '../utils/linkify';
+	import LinkifiedText from './LinkifiedText.svelte';
 	import MessageImage from './MessageImage.svelte';
 	import ReplyPreview from './ReplyPreview.svelte';
 	import LoadingSpinner from './ui/LoadingSpinner.svelte';
@@ -13,9 +14,10 @@
 		content: string;
 		messages?: Message[];
 		onReplyClick?: (messageId: string) => void;
+		onLinkClick: (url: string) => void;
 	}
 
-	let { content, messages = [], onReplyClick }: Props = $props();
+	let { content, messages = [], onReplyClick, onLinkClick }: Props = $props();
 
 	// Parse message content (derived, no side effects)
 	let parsedMessage = $derived(parseImageMessage(content));
@@ -24,11 +26,11 @@
 		parsedReply.replyToId ? messages.find((m) => m.id === parsedReply.replyToId) : null
 	);
 	// Apply linkify to reply text for emoji translation and link processing
-	let processedReplyText = $derived(
-		parsedReply.text ? linkify(parsedReply.text) : ''
+	let replyTextSegments = $derived(
+		parsedReply.text ? linkify(parsedReply.text) : []
 	);
 	// Process fallback content as well
-	let processedFallbackContent = $derived(linkify(content));
+	let fallbackSegments = $derived(linkify(content));
 
 	// State for image loading - keyed by content to avoid loops
 	let loadState = $state<{
@@ -103,7 +105,7 @@
 {#if loadState.loadingFailed}
 	<!-- Fallback: display processed message when loading failed -->
 	<div class="message-text">
-		{@html processedFallbackContent}
+		<LinkifiedText segments={fallbackSegments} {onLinkClick} />
 	</div>
 {:else}
 	<!-- Normal parsed message display -->
@@ -120,7 +122,7 @@
 	<!-- Render text content if any -->
 	{#if parsedReply.text}
 		<div class="message-text">
-			{@html processedReplyText}
+			<LinkifiedText segments={replyTextSegments} {onLinkClick} />
 		</div>
 	{/if}
 
