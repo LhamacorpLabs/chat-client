@@ -1,8 +1,8 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import mqtt, { type MqttClient } from 'mqtt';
 import type { Message } from '$lib/types/chat';
 import { PUBLIC_MQTT_BROKER_URL } from '$env/static/public';
-import { getValidToken } from '$lib/stores/auth';
+import { authStore, getValidToken } from '$lib/stores/auth';
 
 const MQTT_BROKER_URL = PUBLIC_MQTT_BROKER_URL || 'ws://localhost:9001';
 
@@ -55,11 +55,25 @@ class MqttService {
 
             this.client.on('reconnect', async () => {
                 mqttStore.update(state => ({ ...state, connecting: true }));
+
+                // mqtt.js can kick off this reconnect attempt's CONNECT
+                // packet before the async getValidToken() below resolves,
+                // which otherwise means a token rotated right before a
+                // disconnect goes out stale on the first retry (only fixed
+                // on the *next* automatic reconnect). Apply whatever token
+                // we already have synchronously first, so this attempt gets
+                // the best available credentials immediately.
+                const cachedToken = get(authStore).token;
+                if (cachedToken && this.client) {
+                    this.client.options.username = cachedToken;
+                    this.client.options.password = cachedToken;
+                }
+
                 const freshToken = await getValidToken();
                 if (freshToken && this.client) {
                     this.client.options.username = freshToken;
                     this.client.options.password = freshToken;
-                } else {
+                } else if (!freshToken) {
                     this.disconnect();
                 }
             });

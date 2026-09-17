@@ -49,17 +49,28 @@ class WebSocketService {
             this.currentToken = token;
             websocketStore.update(state => ({ ...state, connecting: true }));
 
-            const wsUrl = `${WS_BASE_URL}/ws?token=${encodeURIComponent(token)}`;
-
             this.client = new Client({
-                webSocketFactory: () => {
-                    const currentWsUrl = `${WS_BASE_URL}/ws?token=${encodeURIComponent(this.currentToken!)}`;
-                    return new SockJS(currentWsUrl);
+                webSocketFactory: () => new SockJS(`${WS_BASE_URL}/ws`),
+                // Sent as a header on the STOMP CONNECT frame rather than a
+                // URL query param, so the token doesn't end up in server
+                // access logs, intermediate proxy logs, or browser history.
+                // Requires the backend's STOMP CONNECT handling to read the
+                // Authorization header (the standard approach for JWT-over-
+                // STOMP, since SockJS's own handshake can't carry it) -
+                // verify against the backend before relying on this in
+                // production.
+                connectHeaders: {
+                    Authorization: `Bearer ${this.currentToken}`
                 },
                 beforeConnect: async () => {
                     const freshToken = await getValidToken();
                     if (freshToken) {
                         this.currentToken = freshToken;
+                        if (this.client) {
+                            this.client.connectHeaders = {
+                                Authorization: `Bearer ${freshToken}`
+                            };
+                        }
                     } else {
                         this.client?.deactivate();
                     }
