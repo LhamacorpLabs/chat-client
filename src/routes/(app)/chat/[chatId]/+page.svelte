@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { authStore, getValidToken } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
-	import { webSocketService, websocketStore } from '$lib/stores/websocket';
 	import { mqttService } from '$lib/stores/mqtt';
 	import { fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage, toggleMessageFavorite, fetchFavoriteMessages, reactToMessage, fetchMultipleMessageReactions } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
@@ -40,8 +39,8 @@
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
 
-	// Realtime mode: 'websocket' or 'polling'
-	const realtimeMode = PUBLIC_REALTIME_MODE || 'websocket';
+	// Realtime mode: 'mqtt' or 'polling'
+	const realtimeMode = PUBLIC_REALTIME_MODE || 'mqtt';
 
 	interface PageData {
 		chatId: string;
@@ -86,10 +85,7 @@
 	let emojiAutocompleteIndex = $state(0);
 	let showEmojiAutocomplete = $state(false);
 
-	let websocketUnsubscribe: (() => void) | null = null;
 	let mqttUnsubscribe: (() => void) | null = null;
-	let isConnectingWebSocket = false;
-	let websocketError = $state<string | null>(null);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 	const POLLING_INTERVAL_MS = 1000;
 	let reactionPollingInterval: ReturnType<typeof setInterval> | null = null;
@@ -176,10 +172,8 @@
 			loadFavoriteMessages();
 			startReactionPolling(); // Start polling reactions on initial load
 
-			// Use WebSocket, MQTT, or polling based on realtime mode
-			if (realtimeMode === 'websocket') {
-				connectWebSocket();
-			} else if (realtimeMode === 'mqtt') {
+			// Use MQTT or polling based on realtime mode
+			if (realtimeMode === 'mqtt') {
 				connectMqtt();
 			} else {
 				startPolling();
@@ -187,9 +181,7 @@
 		}
 
 		return () => {
-			if (realtimeMode === 'websocket') {
-				disconnectWebSocket();
-			} else if (realtimeMode === 'mqtt') {
+			if (realtimeMode === 'mqtt') {
 				disconnectMqtt();
 			} else {
 				stopPolling();
@@ -429,39 +421,11 @@
 		}
 	});
 
-	async function connectWebSocket() {
-		const token = $authStore.token;
-		if (!token || isConnectingWebSocket) return;
-
-		try {
-			isConnectingWebSocket = true;
-			websocketError = null;
-
-			await webSocketService.connect(token);
-
-			// Subscribe to this chat's messages
-			websocketUnsubscribe = webSocketService.subscribeToChat(chatId, handleWebSocketMessage);
-		} catch (error) {
-			console.error('Failed to connect WebSocket:', error);
-			websocketError = error instanceof Error ? error.message : 'WebSocket connection failed';
-		} finally {
-			isConnectingWebSocket = false;
-		}
-	}
-
-	function disconnectWebSocket() {
-		if (websocketUnsubscribe) {
-			websocketUnsubscribe();
-			websocketUnsubscribe = null;
-		}
-		webSocketService.disconnect();
-	}
-
 	async function connectMqtt() {
 		if (!$authStore.token) return;
 		try {
 			await mqttService.connect($authStore.token);
-			mqttUnsubscribe = mqttService.subscribeToChat(chatId, handleWebSocketMessage);
+			mqttUnsubscribe = mqttService.subscribeToChat(chatId, handleRealtimeMessage);
 		} catch (error) {
 			console.error('Failed to connect MQTT:', error);
 		}
@@ -511,7 +475,7 @@
 				const trulyNewMessages = newMessages.filter(m => !existingIds.has(m.id));
 
 				if (trulyNewMessages.length > 0) {
-					// Process each new message similar to WebSocket handler
+					// Process each new message similar to the realtime handler
 					for (const msg of trulyNewMessages) {
 						handleNewMessage(msg);
 					}
@@ -574,7 +538,7 @@
 		cleanupMessages();
 	}
 
-	function handleWebSocketMessage(newMessage: Message) {
+	function handleRealtimeMessage(newMessage: Message) {
 		handleNewMessage(newMessage);
 
 		const token = $authStore.token;
@@ -883,7 +847,7 @@
 
 
 	function goBack() {
-		disconnectWebSocket();
+		disconnectMqtt();
 		goto('/');
 	}
 
