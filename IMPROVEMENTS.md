@@ -56,19 +56,31 @@ one item (or small related group) per session/PR — not all at once.
 
 ## Security
 
-- [ ] `stores/websocket.ts:52,56` — auth token passed as a SockJS URL query
-      param (`/ws?token=...`). Ends up in server access logs, intermediate
-      proxy logs, and browser history for that request. Move it to the STOMP
-      CONNECT frame header instead (stompjs supports `connectHeaders`).
+- [x] `stores/websocket.ts:52,56` — auth token was passed as a SockJS URL
+      query param (`/ws?token=...`). Fixed on `fix/realtime-token-exposure`:
+      moved to the STOMP CONNECT frame via `connectHeaders`
+      (`Authorization: Bearer <token>`), refreshed on every (re)connect
+      attempt through the existing `beforeConnect` hook. **Needs backend
+      verification before merging**: this assumes the backend's STOMP
+      CONNECT handling reads the `Authorization` native header (the standard
+      approach for JWT-over-STOMP, since SockJS's handshake itself can't
+      carry custom headers) — if it currently only checks the URL query
+      param, this change will break realtime auth until the backend is
+      updated to match.
 - [ ] `stores/mqtt.ts:36-37` — token used as both MQTT username *and*
       password. Unusual and doubles exposure if the broker logs auth
-      attempts. Confirm with backend which field it actually validates and
-      drop the redundant one.
-- [ ] `stores/mqtt.ts:56-65` — on `reconnect`, a fresh token is fetched and
-      set on `client.options`, but the reconnect attempt already in flight
-      still uses the old credentials — always one cycle behind on token
-      rotation. Fetch the token *before* attaching connect handlers, or force
-      a fresh reconnect after updating credentials.
+      attempts. **Not done** — genuinely needs backend/broker-config
+      confirmation of which field is actually validated before touching
+      this; guessing wrong risks breaking MQTT auth silently in a way I
+      can't test from here.
+- [x] `stores/mqtt.ts:56-65` — on `reconnect`, mqtt.js can send that
+      attempt's CONNECT packet before the async `getValidToken()` call
+      resolves, so a just-rotated token went out stale on the first retry
+      (fixed itself on the next automatic reconnect 5s later, but still a
+      real gap). Fixed on `fix/realtime-token-exposure`: apply whatever
+      token is already in `authStore` synchronously first, then upgrade to
+      the freshly-validated one — no backend dependency, purely a client-
+      side timing fix.
 - [ ] `electron/main.cjs:141` — `ipcMain.handle('shell:open-external', ...)`
       calls `shell.openExternal(url)` with no scheme check, and it's dead
       code (no call sites in `src` — `LinkPreview.svelte` uses `window.open`
