@@ -59,17 +59,25 @@ one item (or small related group) per session/PR — not all at once.
 
 ## Security
 
-- [x] `stores/websocket.ts:52,56` — auth token was passed as a SockJS URL
-      query param (`/ws?token=...`). Fixed on `fix/realtime-token-exposure`:
-      moved to the STOMP CONNECT frame via `connectHeaders`
-      (`Authorization: Bearer <token>`), refreshed on every (re)connect
-      attempt through the existing `beforeConnect` hook. **Needs backend
-      verification before merging**: this assumes the backend's STOMP
-      CONNECT handling reads the `Authorization` native header (the standard
-      approach for JWT-over-STOMP, since SockJS's handshake itself can't
-      carry custom headers) — if it currently only checks the URL query
-      param, this change will break realtime auth until the backend is
-      updated to match.
+- [x] `stores/websocket.ts:52,56` — auth token passed as a SockJS URL query
+      param. **Superseded, not fixed as originally planned**: PR #75's
+      `fix/realtime-token-exposure` moved it to a STOMP `connectHeaders`
+      instead, flagged as needing backend verification. That verification
+      turned up something bigger — checked the chat-server backend and
+      found the WebSocket/STOMP transport this lived in delivered zero
+      real-time messages in any environment: nothing on the backend ever
+      publishes to `/topic/chat/{chatId}` (real-time delivery is exclusively
+      via MQTT), and every real deployment already hardcodes
+      `PUBLIC_REALTIME_MODE=mqtt`. Also, the backend's auth interceptor only
+      reads the token from the URL at the HTTP handshake anyway — it has no
+      STOMP CONNECT header support, so the `connectHeaders` fix would have
+      broken the handshake outright if it ever ran. Removed the whole
+      transport instead, on `chore/remove-dead-websocket-transport`: deleted
+      `stores/websocket.ts`, `@stomp/stompjs`, `sockjs-client`, and the dead
+      `'websocket'` branch in the chat page. Default `PUBLIC_REALTIME_MODE`
+      is now `mqtt` (was `websocket` in `.env.example`, meaning a fresh
+      local clone never received a single real-time message without a
+      manual refresh).
 - [ ] `stores/mqtt.ts:36-37` — token used as both MQTT username *and*
       password. Unusual and doubles exposure if the broker logs auth
       attempts. **Not done** — genuinely needs backend/broker-config
@@ -115,14 +123,16 @@ one item (or small related group) per session/PR — not all at once.
 ## Architecture
 
 - [ ] `routes/(app)/chat/[chatId]/+page.svelte` is a 3060-line god-component:
-      WS/MQTT/polling transport selection, message CRUD, image upload
+      MQTT/polling transport selection, message CRUD, image upload
       orchestration, reactions, emoji autocomplete, keyboard shortcuts,
       notifications, and all the markup, in one file. This is the highest-
       value refactor in the repo but also the riskiest — don't attempt it as
       a single session. Suggested breakdown, each extractable independently:
   - [ ] Extract realtime transport selection/connect/disconnect into a
         composable (`useRealtimeConnection` or similar), covering the
-        websocket/mqtt/polling three-way branch currently inline.
+        mqtt/polling branch currently inline (was a three-way
+        websocket/mqtt/polling branch; the websocket transport was removed
+        entirely — see the Security section above).
   - [ ] Extract the "refetch chat + markChatAsRead" logic duplicated ~6x
         (search `markChatAsRead` in the file) into one `refreshReadStatus(token)`
         helper.
@@ -140,16 +150,16 @@ one item (or small related group) per session/PR — not all at once.
       unchanged (`"<action>: <status>"`, preserved via a per-call
       `errorMessage` prefix) since both a test suite and the chat page's
       413-detection logic match on the exact string.
-- [ ] `stores/websocket.ts` and `stores/mqtt.ts` are near-duplicate transport
-      classes (connect/disconnect/subscribeToChat), and both are always
-      bundled (stompjs + sockjs-client + mqtt.js shipped regardless of which
-      mode is active at runtime). Extract a shared transport interface.
-      **Confirmed**: `PUBLIC_REALTIME_MODE` is in fact fixed per deployment —
-      it's a Dockerfile `ARG`/`ENV` baked in at image build time (`Dockerfile`,
-      also hardcoded to `mqtt` in both `.github/workflows/*.yml`), never
-      changed at runtime. So the "make it a build-time choice" option is
-      viable, not just theoretical — the unused transport really could be
-      excluded from the bundle entirely for a given deployment.
+- [x] `stores/websocket.ts` and `stores/mqtt.ts` were near-duplicate transport
+      classes, both always bundled regardless of which mode was active.
+      **Resolved by deletion**, not extraction: `stores/websocket.ts` is
+      gone (see Security section above) — turned out to be genuinely dead
+      code, not just a duplicate worth merging. Only `stores/mqtt.ts`
+      remains, so there's no duplication left to extract an interface for.
+      (`PUBLIC_REALTIME_MODE` is confirmed fixed per deployment — a
+      Dockerfile `ARG`/`ENV` baked in at image build time, also hardcoded to
+      `mqtt` in both `.github/workflows/*.yml` — but that's moot now too,
+      since there's only one transport left to choose between.)
 - [ ] `stores/chatNotifications.ts`, `stores/chatMute.ts`, and
       `stores/memberColors.ts` each hand-roll the same
       try/catch-JSON-load/save-to-localStorage pattern instead of reusing
