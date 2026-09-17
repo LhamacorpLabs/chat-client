@@ -92,54 +92,70 @@
 			</div>
 		{/if}
 
-		{#if !isLoading && chats.length > 0}
-			{#if expanded}
-				<div class="chats-list">
-					{#each chats as chat, index (chat.id)}
-						<button
-							class="chat-item"
-							class:selected={index === selectedChatIndex}
-							class:open={chat.id === activeChatId}
-							onclick={() => onSelectChat(chat.id)}
-							type="button"
-						>
-							<div class="chat-info">
-								<div class="chat-name-container">
-									<h3 class="chat-name">#{chat.name}</h3>
-									{#if unreadMap[chat.id]}
-										<div class="unread-indicator" title="New messages"></div>
-									{/if}
-								</div>
-								<p class="chat-meta">
-									Created {new Date(chat.createdAt).toLocaleDateString()}
-									{#if chat.members.length > 0}
-										• {chat.members.length} member{chat.members.length === 1 ? '' : 's'}
-									{/if}
-								</p>
+		{#if !isLoading && expanded && chats.length > 0}
+			<div class="chats-list">
+				{#each chats as chat, index (chat.id)}
+					<button
+						class="chat-item"
+						class:selected={index === selectedChatIndex}
+						class:open={chat.id === activeChatId}
+						onclick={() => onSelectChat(chat.id)}
+						type="button"
+					>
+						<div class="chat-info">
+							<div class="chat-name-container">
+								<h3 class="chat-name">#{chat.name}</h3>
+								{#if unreadMap[chat.id]}
+									<div class="unread-indicator" title="New messages"></div>
+								{/if}
 							</div>
-							<div class="chat-chevron">→</div>
+							<p class="chat-meta">
+								Created {new Date(chat.createdAt).toLocaleDateString()}
+								{#if chat.members.length > 0}
+									• {chat.members.length} member{chat.members.length === 1 ? '' : 's'}
+								{/if}
+							</p>
+						</div>
+						<div class="chat-chevron">→</div>
+					</button>
+				{/each}
+			</div>
+		{/if}
+
+		{#if !isLoading && !expanded}
+			<!-- Collapsed: icon avatars, plus a persistent add button - unlike
+			     the expanded "+" (in .rail-top, only rendered when expanded),
+			     this is the only way to create/join a chat while collapsed. -->
+			<div class="chat-stack">
+				{#each chats as chat (chat.id)}
+					<button
+						class="chat-avatar"
+						class:active={chat.id === activeChatId}
+						type="button"
+						onclick={() => onSelectChat(chat.id)}
+						title={`#${chat.name}`}
+						style={`background: ${colorForChat(chat.id)}`}
+					>
+						{chat.name.charAt(0).toUpperCase()}
+						{#if unreadMap[chat.id]}
+							<span class="unread-dot" aria-label="Unread messages"></span>
+						{/if}
+					</button>
+				{/each}
+				<DropdownMenu placement="right" width="120px">
+					{#snippet trigger({ toggle })}
+						<button onclick={toggle} class="chat-avatar add-chat-btn" title="Create or join a chat" type="button">+</button>
+					{/snippet}
+					{#snippet children({ close })}
+						<button onclick={() => { onOpenCreateModal(); close(); }} class="dropdown-item" type="button">
+							<span>Create</span>
 						</button>
-					{/each}
-				</div>
-			{:else}
-				<div class="chat-stack">
-					{#each chats as chat (chat.id)}
-						<button
-							class="chat-avatar"
-							class:active={chat.id === activeChatId}
-							type="button"
-							onclick={() => onSelectChat(chat.id)}
-							title={`#${chat.name}`}
-							style={`background: ${colorForChat(chat.id)}`}
-						>
-							{chat.name.charAt(0).toUpperCase()}
-							{#if unreadMap[chat.id]}
-								<span class="unread-dot" aria-label="Unread messages"></span>
-							{/if}
+						<button onclick={() => { onOpenJoinModal(); close(); }} class="dropdown-item" type="button">
+							<span>Join</span>
 						</button>
-					{/each}
-				</div>
-			{/if}
+					{/snippet}
+				</DropdownMenu>
+			</div>
 		{/if}
 
 		{#if !isLoading && chats.length === 0 && !error && expanded}
@@ -414,7 +430,22 @@
 	.chat-avatar.active {
 		opacity: 1;
 		border-radius: 999px;
-		box-shadow: 0 0 0 2px var(--rail-bg, #000), 0 0 0 4px var(--rail-icon-bg-active, #fff);
+		box-shadow: 0 0 0 2px var(--rail-accent, #7c6fee), 0 0 0 4px var(--rail-bg, #000);
+	}
+
+	.chat-avatar.add-chat-btn {
+		background: transparent;
+		border: 1px dashed var(--rail-border-color-hover);
+		color: var(--rail-text-muted);
+		opacity: 1;
+		font-size: 1rem;
+		font-weight: 700;
+	}
+
+	.chat-avatar.add-chat-btn:hover {
+		opacity: 1;
+		color: var(--rail-accent);
+		border-color: var(--rail-accent);
 	}
 
 	.unread-dot {
