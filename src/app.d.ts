@@ -15,7 +15,6 @@ declare global {
 	interface Window {
 		electronAPI?: {
 			isElectron: true;
-			openExternal: (url: string) => Promise<void>;
 			store: {
 				get: <T = unknown>(key: string) => Promise<T | undefined>;
 				set: (key: string, value: unknown) => Promise<void>;

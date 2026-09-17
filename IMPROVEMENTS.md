@@ -84,12 +84,13 @@ one item (or small related group) per session/PR — not all at once.
       token is already in `authStore` synchronously first, then upgrade to
       the freshly-validated one — no backend dependency, purely a client-
       side timing fix.
-- [ ] `electron/main.cjs:141` — `ipcMain.handle('shell:open-external', ...)`
-      calls `shell.openExternal(url)` with no scheme check, and it's dead
-      code (no call sites in `src` — `LinkPreview.svelte` uses `window.open`
-      instead, intercepted by `will-navigate`). Either remove the channel +
-      its `preload.cjs`/`app.d.ts` entries, or add an `http:`/`https:`
-      allowlist if something ends up using it.
+- [x] `electron/main.cjs:141` — `ipcMain.handle('shell:open-external', ...)`
+      had no scheme check and was dead code (no call sites in `src` —
+      `LinkPreview.svelte` uses `window.open` instead, already intercepted by
+      `will-navigate`/`setWindowOpenHandler`). Fixed on
+      `fix/electron-dead-open-external-ipc`: removed the channel and its
+      `preload.cjs`/`app.d.ts` entries rather than adding an allowlist to
+      code nothing calls.
 - [ ] `utils/linkify.ts:108` builds a raw HTML string with an inline
       `onclick="window.showLinkConfirmation(...)"`, bridged via a global
       `(window as any).showLinkConfirmation` set/deleted per-mount in the

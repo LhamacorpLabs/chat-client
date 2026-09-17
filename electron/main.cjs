@@ -138,8 +138,6 @@ ipcMain.handle('store:delete', (_event, key) => {
 	writeStore(data);
 });
 
-ipcMain.handle('shell:open-external', (_event, url) => shell.openExternal(url));
-
 ipcMain.handle('badge:set', (_event, count) => {
 	const unread = typeof count === 'number' && count > 0 ? count : 0;
 
