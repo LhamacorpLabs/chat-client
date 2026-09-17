@@ -7,6 +7,8 @@ import { get } from 'svelte/store';
 const CHAT_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/chats`;
 const IMAGE_API_URL = `${PUBLIC_CHAT_API_URL || 'http://localhost:8080'}/api/images`;
 
+const DEFAULT_TIMEOUT_MS = 15000;
+
 /**
  * A single 401 from the chat backend isn't reliable proof the session is
  * dead - it can happen from backend cold-start lag, clock skew, or a
@@ -28,54 +30,82 @@ async function handleUnauthorized(response: Response): Promise<void> {
 	}
 }
 
-export async function fetchChats(token: string): Promise<ChatsResponse> {
-	const response = await fetch(CHAT_API_URL, {
-		method: 'GET',
-		headers: {
-			'Authorization': `Bearer ${token}`
+interface ApiFetchOptions {
+	method?: string;
+	headers?: Record<string, string>;
+	body?: BodyInit;
+	/** Prefix used in the thrown error, e.g. "Failed to fetch chats" -> "Failed to fetch chats: 404" */
+	errorMessage: string;
+	timeoutMs?: number;
+	/** Set false for endpoints with no response body (204s, PUT/DELETE acks). */
+	parseJson?: boolean;
+}
+
+/**
+ * Shared fetch wrapper for the chat/image API: attaches the bearer token,
+ * enforces a timeout (a hung request used to never resolve or reject),
+ * routes non-ok responses through handleUnauthorized, and throws a
+ * consistently-formatted error. `errorMessage` intentionally stays a plain
+ * caller-supplied prefix so existing `"<action>: <status>"` error strings
+ * (asserted on in tests and matched on in the UI) don't change.
+ */
+async function apiFetch<T>(token: string, url: string, options: ApiFetchOptions): Promise<T> {
+	const { method = 'GET', headers, body, errorMessage, timeoutMs = DEFAULT_TIMEOUT_MS, parseJson = true } = options;
+
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+	let response: Response;
+	try {
+		response = await fetch(url, {
+			method,
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				...headers
+			},
+			body,
+			signal: controller.signal
+		});
+	} catch (error) {
+		if (error instanceof DOMException && error.name === 'AbortError') {
+			throw new Error(`${errorMessage}: timed out`);
 		}
-	});
+		throw error;
+	} finally {
+		clearTimeout(timeoutId);
+	}
 
 	if (!response.ok) {
 		await handleUnauthorized(response);
-		throw new Error(`Failed to fetch chats: ${response.status}`);
+		throw new Error(`${errorMessage}: ${response.status}`);
+	}
+
+	if (!parseJson) {
+		return undefined as T;
 	}
 
 	return response.json();
+}
+
+export async function fetchChats(token: string): Promise<ChatsResponse> {
+	return apiFetch<ChatsResponse>(token, CHAT_API_URL, {
+		errorMessage: 'Failed to fetch chats'
+	});
 }
 
 export async function fetchChatMetadata(token: string, chatId: string): Promise<ChatMetadata> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/metadata`, {
-		method: 'GET',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+	return apiFetch<ChatMetadata>(token, `${CHAT_API_URL}/${chatId}/metadata`, {
+		errorMessage: 'Failed to fetch chat metadata'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to fetch chat metadata: ${response.status}`);
-	}
-
-	return response.json();
 }
 
 export async function createChat(token: string, chatData: CreateChatRequest): Promise<Chat> {
-	const response = await fetch(CHAT_API_URL, {
+	return apiFetch<Chat>(token, CHAT_API_URL, {
 		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'Authorization': `Bearer ${token}`
-		},
-		body: JSON.stringify(chatData)
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(chatData),
+		errorMessage: 'Failed to create chat'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to create chat: ${response.status}`);
-	}
-
-	return response.json();
 }
 
 /**
@@ -104,99 +134,50 @@ export async function fetchMessagesPaginated(
 		params.append('after', after);
 	}
 
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages?${params.toString()}`, {
-		method: 'GET',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+	return apiFetch<PagedMessageResponse>(token, `${CHAT_API_URL}/${chatId}/messages?${params.toString()}`, {
+		errorMessage: 'Failed to fetch paginated messages'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to fetch paginated messages: ${response.status}`);
-	}
-
-	return response.json();
 }
 
 export async function sendMessage(token: string, chatId: string, messageData: SendMessageRequest): Promise<Message> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages`, {
+	return apiFetch<Message>(token, `${CHAT_API_URL}/${chatId}/messages`, {
 		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'Authorization': `Bearer ${token}`
-		},
-		body: JSON.stringify(messageData)
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(messageData),
+		errorMessage: 'Failed to send message'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to send message: ${response.status}`);
-	}
-
-	return response.json();
 }
 
 export async function createInvitation(token: string, chatId: string): Promise<Invitation> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/invitations`, {
+	return apiFetch<Invitation>(token, `${CHAT_API_URL}/${chatId}/invitations`, {
 		method: 'POST',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+		errorMessage: 'Failed to create invitation'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to create invitation: ${response.status}`);
-	}
-
-	return response.json();
 }
 
 export async function redeemInvitation(token: string, invitationData: RedeemInvitationRequest): Promise<any> {
-	const response = await fetch(`${CHAT_API_URL}/invitations/redeem`, {
+	return apiFetch<any>(token, `${CHAT_API_URL}/invitations/redeem`, {
 		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'Authorization': `Bearer ${token}`
-		},
-		body: JSON.stringify(invitationData)
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(invitationData),
+		errorMessage: 'Failed to redeem invitation'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to redeem invitation: ${response.status}`);
-	}
-
-	return response.json();
 }
 
 export async function deleteMessage(token: string, chatId: string, messageId: string): Promise<void> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/${messageId}`, {
+	return apiFetch<void>(token, `${CHAT_API_URL}/${chatId}/messages/${messageId}`, {
 		method: 'DELETE',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+		errorMessage: 'Failed to delete message',
+		parseJson: false
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to delete message: ${response.status}`);
-	}
 }
 
 export async function toggleMessageFavorite(token: string, chatId: string, messageId: string): Promise<void> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/${messageId}/favorites`, {
+	return apiFetch<void>(token, `${CHAT_API_URL}/${chatId}/messages/${messageId}/favorites`, {
 		method: 'PUT',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+		errorMessage: 'Failed to toggle message favorite',
+		parseJson: false
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to toggle message favorite: ${response.status}`);
-	}
 }
 
 export async function reactToMessage(token: string, chatId: string, messageId: string, reactionType?: 'FUNNY' | 'LIKE' | 'LOVE'): Promise<void> {
@@ -204,33 +185,17 @@ export async function reactToMessage(token: string, chatId: string, messageId: s
 		? `${CHAT_API_URL}/${chatId}/messages/${messageId}/reacts?type=${reactionType}`
 		: `${CHAT_API_URL}/${chatId}/messages/${messageId}/reacts`;
 
-	const response = await fetch(url, {
+	return apiFetch<void>(token, url, {
 		method: 'PUT',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+		errorMessage: 'Failed to react to message',
+		parseJson: false
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to react to message: ${response.status}`);
-	}
 }
 
 export async function fetchMessageReactions(token: string, chatId: string, messageId: string): Promise<MessageReaction[]> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/${messageId}/reacts`, {
-		method: 'GET',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+	return apiFetch<MessageReaction[]>(token, `${CHAT_API_URL}/${chatId}/messages/${messageId}/reacts`, {
+		errorMessage: 'Failed to fetch message reactions'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to fetch message reactions: ${response.status}`);
-	}
-
-	return response.json();
 }
 
 // Fetch reactions for multiple messages at once
@@ -257,47 +222,25 @@ export async function fetchMultipleMessageReactions(token: string, chatId: strin
 }
 
 export async function fetchFavoriteMessages(token: string, chatId: string): Promise<FavoriteMessagesResponse> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/messages/favorites`, {
-		method: 'GET',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+	return apiFetch<FavoriteMessagesResponse>(token, `${CHAT_API_URL}/${chatId}/messages/favorites`, {
+		errorMessage: 'Failed to fetch favorite messages'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to fetch favorite messages: ${response.status}`);
-	}
-
-	return response.json();
 }
 
 export async function deleteChat(token: string, chatId: string): Promise<void> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}`, {
+	return apiFetch<void>(token, `${CHAT_API_URL}/${chatId}`, {
 		method: 'DELETE',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+		errorMessage: 'Failed to delete chat',
+		parseJson: false
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to delete chat: ${response.status}`);
-	}
 }
 
 export async function leaveChat(token: string, chatId: string, userId: string): Promise<void> {
-	const response = await fetch(`${CHAT_API_URL}/${chatId}/members/${userId}/remove`, {
+	return apiFetch<void>(token, `${CHAT_API_URL}/${chatId}/members/${userId}/remove`, {
 		method: 'PUT',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+		errorMessage: 'Failed to leave chat',
+		parseJson: false
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to leave chat: ${response.status}`);
-	}
 }
 
 // Image-related API functions
@@ -312,23 +255,11 @@ export async function uploadImage(token: string, file: File): Promise<ImageAttac
 	const formData = new FormData();
 	formData.append('file', file);
 
-	const response = await fetch(IMAGE_API_URL, {
+	return apiFetch<ImageAttachment>(token, IMAGE_API_URL, {
 		method: 'POST',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		},
-		body: formData
+		body: formData,
+		errorMessage: 'Failed to upload image'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		if (response.status === 413) {
-			throw new Error(`Failed to upload image: 413`);
-		}
-		throw new Error(`Failed to upload image: ${response.status}`);
-	}
-
-	return response.json();
 }
 
 /**
@@ -338,17 +269,7 @@ export async function uploadImage(token: string, file: File): Promise<ImageAttac
  * @returns Image attachment data with base64 content
  */
 export async function getImage(token: string, imageId: string): Promise<ImageAttachment> {
-	const response = await fetch(`${IMAGE_API_URL}/${imageId}`, {
-		method: 'GET',
-		headers: {
-			'Authorization': `Bearer ${token}`
-		}
+	return apiFetch<ImageAttachment>(token, `${IMAGE_API_URL}/${imageId}`, {
+		errorMessage: 'Failed to get image'
 	});
-
-	if (!response.ok) {
-		await handleUnauthorized(response);
-		throw new Error(`Failed to get image: ${response.status}`);
-	}
-
-	return response.json();
 }

@@ -1,6 +1,7 @@
 import { PUBLIC_AUTH_API_URL } from '$env/static/public';
 
 const API_URL = `${PUBLIC_AUTH_API_URL || 'https://auth.lhamacorp.com'}/api`;
+const REFRESH_TIMEOUT_MS = 15000;
 
 /**
  * Thrown when a token refresh attempt fails.
@@ -22,18 +23,26 @@ export class TokenRefreshError extends Error {
 }
 
 export async function refreshToken(token: string): Promise<import('../types/auth').AuthResponse> {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+
 	let response: Response;
 	try {
 		response = await fetch(`${API_URL}/refresh`, {
 			method: 'POST',
 			headers: {
 				'Authorization': `Bearer ${token}`
-			}
+			},
+			signal: controller.signal
 		});
 	} catch (networkError) {
 		// fetch itself threw: no network, DNS not resolved yet, CORS preflight
-		// rejected, etc. We don't know whether the token is actually invalid.
+		// rejected, a hung request that hit our own timeout, etc. We don't
+		// know whether the token is actually invalid - treat the same as any
+		// other network failure (transient, see TokenRefreshError above).
 		throw new TokenRefreshError('Network error while refreshing token');
+	} finally {
+		clearTimeout(timeoutId);
 	}
 
 	if (!response.ok) {

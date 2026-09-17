@@ -28,7 +28,8 @@ describe('Chat API - Create Chat', () => {
 				'Content-Type': 'application/json',
 				'Authorization': 'Bearer my-token'
 			},
-			body: JSON.stringify({ name: 'New Chat' })
+			body: JSON.stringify({ name: 'New Chat' }),
+			signal: expect.any(AbortSignal)
 		});
 		expect(result).toEqual(mockChat);
 	});
@@ -74,7 +75,8 @@ describe('Chat API - Send Message', () => {
 				'Content-Type': 'application/json',
 				'Authorization': 'Bearer my-token'
 			},
-			body: JSON.stringify({ message: 'Hello!' })
+			body: JSON.stringify({ message: 'Hello!' }),
+			signal: expect.any(AbortSignal)
 		});
 		expect(result).toEqual(mockMessage);
 	});

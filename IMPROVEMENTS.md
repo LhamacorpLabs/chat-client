@@ -49,10 +49,13 @@ one item (or small related group) per session/PR — not all at once.
       `reactionUtils.ts` per the same instability issue. Fixed. **Caveat**:
       this assumes usernames are unique per account — if that's ever not
       true, two accounts sharing a username would render as the same person.
-- [ ] No `AbortController`/timeout on any `fetch` call in `api/chat.ts` or
-      `api/auth.ts`. A hung request never resolves or rejects. Add a shared
-      timeout wrapper (e.g. `fetchWithTimeout(url, opts, ms)`) and use it in
-      both files.
+- [x] No `AbortController`/timeout on any `fetch` call in `api/chat.ts` or
+      `api/auth.ts`. Fixed on `refactor/api-fetch-helper`: `api/chat.ts` now
+      routes every call through a shared `apiFetch<T>()` helper (15s default
+      timeout via `AbortController`), and `api/auth.ts`'s `refreshToken`
+      gets the same treatment, with an aborted request folded into the
+      existing "transient/network failure" path so it doesn't force a
+      logout.
 
 ## Security
 
@@ -111,10 +114,14 @@ one item (or small related group) per session/PR — not all at once.
         drifted regexes `/:([a-zA-Z]{1,})$/` vs `/:([a-zA-Z]*)$/` while at it).
   - [ ] Extract a single message-row into its own component (currently the
         `{#each messages as message}` body inline in the page).
-- [ ] `api/chat.ts` — every one of ~15 functions repeats identical
+- [x] `api/chat.ts` — every one of ~15 functions repeated identical
       fetch + auth-header + `handleUnauthorized` + error-throw boilerplate.
-      Extract one `apiFetch<T>(token, path, opts)` helper and rewrite each
-      function as a thin call to it.
+      Fixed on `refactor/api-fetch-helper` (same branch as the timeout fix
+      above, since it's the same code): extracted `apiFetch<T>()`, every
+      exported function is now a thin call to it. Error message strings are
+      unchanged (`"<action>: <status>"`, preserved via a per-call
+      `errorMessage` prefix) since both a test suite and the chat page's
+      413-detection logic match on the exact string.
 - [ ] `stores/websocket.ts` and `stores/mqtt.ts` are near-duplicate transport
       classes (connect/disconnect/subscribeToChat), and both are always
       bundled (stompjs + sockjs-client + mqtt.js shipped regardless of which
