@@ -18,7 +18,8 @@
 		shouldUseMemberColors,
 		loadMemberColors
 	} from '$lib/stores/memberColors';
-	import { linkify, type LinkifyResult } from '$lib/utils/linkify';
+	import { linkify } from '$lib/utils/linkify';
+	import LinkifiedText from '$lib/components/LinkifiedText.svelte';
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import { chatNotifications } from '$lib/stores/chatNotifications';
 	import { playNotificationSound, isWindowFocused } from '$lib/utils/notificationSound';
@@ -1299,15 +1300,6 @@
 		pendingUrl = null;
 	}
 
-	// Set up global function for link clicks
-	$effect(() => {
-		(window as any).showLinkConfirmation = handleLinkConfirmation;
-
-		return () => {
-			delete (window as any).showLinkConfirmation;
-		};
-	});
-
 	$effect(() => {
 		// Layout resize on keyboard open/close is handled declaratively by
 		// `100dvh` + the `interactive-widget=resizes-content` viewport meta
@@ -1620,10 +1612,11 @@
 										content={message.message}
 										messages={messages}
 										onReplyClick={handleReplyClick}
+										onLinkClick={handleLinkConfirmation}
 									/>
 								{:else}
 									<!-- Regular text message - use existing linkify logic -->
-									{@html linkifyResult.html}
+									<LinkifiedText segments={linkifyResult.segments} onLinkClick={handleLinkConfirmation} />
 
 									{#if linkifyResult.gifs && linkifyResult.gifs.length > 0}
 										<div class="message-gifs">

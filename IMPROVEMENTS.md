@@ -99,14 +99,24 @@ one item (or small related group) per session/PR — not all at once.
       `fix/electron-dead-open-external-ipc`: removed the channel and its
       `preload.cjs`/`app.d.ts` entries rather than adding an allowlist to
       code nothing calls.
-- [ ] `utils/linkify.ts:108` builds a raw HTML string with an inline
+- [x] `utils/linkify.ts:108` built a raw HTML string with an inline
       `onclick="window.showLinkConfirmation(...)"`, bridged via a global
       `(window as any).showLinkConfirmation` set/deleted per-mount in the
-      chat page. Safe today (escaping happens before URL substitution) but
-      fragile — CSP-incompatible, and the escaping logic that prevents stored
-      XSS in chat messages has zero test coverage (see Testing section).
-      Preferred fix: render links via a Svelte `{#each}` over parsed segments
-      with a real `onclick` handler, drop `{@html}` for this path entirely.
+      chat page. Fixed on `harden/linkify-drop-html-sink`: `linkify()` now
+      returns structured `LinkifySegment[]` data (`{type:'text',value}` /
+      `{type:'link',url}`) instead of an HTML string — manual escaping is
+      gone entirely, since there's no HTML string left to escape. A new
+      `LinkifiedText.svelte` component maps segments to real `<a>` elements
+      with a real `onclick` prop, used from both the chat page and
+      `ParsedMessage.svelte` (which had the same `{@html}` pattern for
+      reply/fallback text, not just the main message path). The global
+      `window.showLinkConfirmation` bridge and its per-mount `$effect` are
+      deleted — `onLinkClick` is now an ordinary callback prop, matching the
+      pattern `LinkPreview.svelte` already used. Added
+      `src/tests/linkify.test.ts` (12 cases) covering segment splitting,
+      emoji substitution, gif/preview extraction, and the actual security
+      property: a message containing markup-like text (`<script>...`) comes
+      back as an inert text segment, never HTML.
 - [x] `nginx.conf:11-14` marked every `*.png|*.ico|*.svg|...` as
       `Cache-Control: public, immutable` with `expires 1y` — fine for
       content-hashed build assets, but `logo.png`/`favicon.ico`/etc keep a
@@ -224,10 +234,10 @@ one item (or small related group) per session/PR — not all at once.
 ## Testing
 
 - [ ] Zero component tests exist in the repo — not even a smoke render for
-      any `.svelte` file. Highest-value target: `linkify.ts`'s escaping logic
-      (see Security section above) since it's the one thing standing between
-      chat messages and stored XSS, and a future refactor could silently
-      break it with no test to catch it.
+      any `.svelte` file. (The highest-value non-component target,
+      `linkify.ts`, is now covered — see Security section above and
+      `src/tests/linkify.test.ts` — but `LinkifiedText.svelte` and every
+      other component are still untested.)
 - [ ] Also untested: `linkPreview.ts` (500+ lines of platform-detection
       parsing), `fileValidation.ts`, `reactionUtils.ts`, `imageMessages.ts`,
       `replyMessages.ts`.
