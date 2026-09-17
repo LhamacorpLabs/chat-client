@@ -19,10 +19,22 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run tests
         run: npm test
+
+      # Non-blocking for now: the repo has pre-existing type/lint errors
+      # (see IMPROVEMENTS.md) that would otherwise turn every PR red
+      # regardless of what it actually changes. Remove continue-on-error
+      # once those are cleared, so these become real merge gates.
+      - name: Type check
+        run: npm run check
+        continue-on-error: true
+
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
 
   build:
     name: Build
@@ -39,7 +51,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build the application
         run: npm run build
