@@ -79,16 +79,20 @@ export function messagesReactionsChanged(previous: Message[], next: Message[]): 
 }
 
 /**
- * Gets the current user's reaction for a specific message
+ * Gets the current user's reaction for a specific message.
+ *
+ * Matched by username rather than userId: backend user ids aren't guaranteed
+ * stable across environments/resets, but username is what identifies "you"
+ * consistently in this app.
  */
 export function getUserReactionForMessage(
 	message: Message,
-	currentUserId: string
+	currentUsername: string
 ): ReactionType | null {
 	if (!message.reactions) return null;
 
 	for (const reaction of message.reactions) {
-		if (reaction.users.some(user => user.userId === currentUserId)) {
+		if (reaction.users.some(user => user.username === currentUsername)) {
 			return reaction.type;
 		}
 	}
