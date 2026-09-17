@@ -168,8 +168,10 @@ one item (or small related group) per session/PR — not all at once.
       arrows in parens, which isn't this codebase's convention, and doing so
       repo-wide would've been a huge unrelated diff). Added `lint`,
       `format`, `format:check` npm scripts.
-      **Note**: `npm run lint` currently reports 79 real findings (35
-      errors, 44 warnings) — several overlap with backlog items already
+      **Note**: `npm run lint` currently reports 80 real findings (36
+      errors, 44 warnings, after merging in the other branches from this
+      pass — one more `preserve-caught-error` hit in the new `apiFetch`
+      helper's timeout branch) — several overlap with backlog items already
       tracked above (the `{@html}` XSS spots). `npm run format:check`
       reports 54 files with style drift. Neither was auto-fixed here — both
       are their own separate, reviewable changes (see the two new items
@@ -181,7 +183,7 @@ one item (or small related group) per session/PR — not all at once.
       (`TypeError: Cannot read properties of null (reading 'isStrict')`) -
       an eslint-plugin-svelte bug, not something to work around by touching
       those files.
-- [ ] **New**: run `npm run lint`, triage the 35 errors / 44 warnings, fix or
+- [ ] **New**: run `npm run lint`, triage the 36 errors / 44 warnings, fix or
       explicitly suppress each. Don't do this as a drive-by — several
       (`svelte/no-navigation-without-resolve`, `svelte/prefer-svelte-
       reactivity`) touch actual runtime behavior (SvelteKit's `resolve()`
