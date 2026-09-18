@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 
 	const repo = 'LhamacorpLabs/chat-client';
 	const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
@@ -87,10 +88,13 @@
 			</a>
 		{:else}
 			<div class="platforms">
-				{#each platforms as platform}
+				{#each platforms as platform (platform.name)}
 					{#if platform.url}
-						<a href={platform.url} class="platform-card" download>
-							<span class="platform-icon">{@html platform.icon}</span>
+						<a href={platform.url} rel="external" class="platform-card" download>
+							<span class="platform-icon">
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -- platform.icon is fixed, developer-authored SVG markup from the platforms literal above, never user input -->
+								{@html platform.icon}
+							</span>
 							<div class="platform-info">
 								<span class="platform-name">{platform.name}</span>
 								<span class="platform-desc">{platform.desc}</span>
@@ -108,7 +112,7 @@
 			<code>xattr -r -d com.apple.quarantine /Applications/Chat.app</code>
 		</details>
 
-		<a href="/" class="back-link">← Back to Chat</a>
+		<a href={resolve('/')} class="back-link">← Back to Chat</a>
 	</div>
 </div>
 

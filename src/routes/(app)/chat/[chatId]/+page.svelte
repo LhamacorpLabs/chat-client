@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { authStore, getValidToken } from '$lib/stores/auth';
 	import { chatStore, deleteChat } from '$lib/stores/chat';
 	import { mqttService } from '$lib/stores/mqtt';
@@ -11,7 +13,6 @@
 	import MessageReactions from '$lib/components/MessageReactions.svelte';
 	import { hasImages } from '$lib/utils/imageMessages';
 	import {
-		memberColorsStore,
 		assignColorsForChat,
 		addMemberColor,
 		getMemberColor,
@@ -136,7 +137,7 @@
 	let selectedMessageIndex = $state(-1);
 
 	// Track favorited messages locally
-	let favoriteMessageIds = $state(new Set<string>());
+	let favoriteMessageIds = new SvelteSet<string>();
 
 	const chatId = $derived(data.chatId);
 	const currentChat = $derived(data.chat);
@@ -794,7 +795,8 @@
 		try {
 			const favorites = await fetchFavoriteMessages(token, chatId);
 			const favoriteIds = favorites.map(fav => fav.messageId);
-			favoriteMessageIds = new Set(favoriteIds);
+			favoriteMessageIds.clear();
+			for (const id of favoriteIds) favoriteMessageIds.add(id);
 		} catch (err) {
 			console.error('Failed to load favorite messages:', err);
 		}
@@ -849,7 +851,7 @@
 
 	function goBack() {
 		disconnectMqtt();
-		goto('/');
+		goto(resolve('/'));
 	}
 
 	async function handleSendMessage() {
@@ -890,9 +892,9 @@
 						errorMessage.includes('Failed to upload image: 413') ||
 						errorMessage.includes('NetworkError when attempting to fetch resource')) {
 						// 413 errors or network errors during upload are likely size-related
-						throw new Error('Image too large for server. Please use a smaller image (server has lower size limits than 1MB).');
+						throw new Error('Image too large for server. Please use a smaller image (server has lower size limits than 1MB).', { cause: uploadErr });
 					} else {
-						throw new Error('Failed to upload images: ' + (errorMessage || 'Unknown error'));
+						throw new Error('Failed to upload images: ' + (errorMessage || 'Unknown error'), { cause: uploadErr });
 					}
 				}
 			}
@@ -1156,7 +1158,6 @@
 			} else {
 				favoriteMessageIds.add(messageId);
 			}
-			favoriteMessageIds = new Set(favoriteMessageIds);
 			closeActionMenu();
 		} catch (err) {
 			console.error('Failed to toggle message favorite:', err);
@@ -1241,7 +1242,7 @@
 		const success = await deleteChat(token, chatId);
 		if (success) {
 			showDeleteModal = false;
-			goto('/');
+			goto(resolve('/'));
 		}
 	}
 
@@ -1254,7 +1255,7 @@
 		try {
 			await leaveChat(token, chatId, userId);
 			showLeaveModal = false;
-			goto('/');
+			goto(resolve('/'));
 		} catch (error) {
 			console.error('Failed to leave chat:', error);
 		} finally {
@@ -1707,7 +1708,6 @@
 						{#if showEmojiPicker}
 							<EmojiPicker
 								onSelect={insertEmojiFromPicker}
-								onClose={() => showEmojiPicker = false}
 							/>
 						{/if}
 						<textarea

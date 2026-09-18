@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { parseImageMessage, type ParsedMessage } from '../utils/imageMessages';
 	import { parseReplyMessage } from '../utils/replyMessages';
 	import { linkify } from '../utils/linkify';
 	import LinkifiedText from './LinkifiedText.svelte';
@@ -20,7 +19,6 @@
 	let { content, messages = [], onReplyClick, onLinkClick }: Props = $props();
 
 	// Parse message content (derived, no side effects)
-	let parsedMessage = $derived(parseImageMessage(content));
 	let parsedReply = $derived(parseReplyMessage(content));
 	let repliedMessage = $derived(
 		parsedReply.replyToId ? messages.find((m) => m.id === parsedReply.replyToId) : null
@@ -130,13 +128,13 @@
 	{#if parsedReply.imageIds.length > 0}
 		<div class="message-images">
 			{#if loadState.loadingImages}
-				{#each parsedReply.imageIds as imageId}
+				{#each parsedReply.imageIds as imageId (imageId)}
 					<div class="image-loading">
 						<LoadingSpinner size="sm" label="Loading image..." />
 					</div>
 				{/each}
 			{:else}
-				{#each loadState.loadedImages as image, index}
+				{#each loadState.loadedImages as image, index (image?.id ?? index)}
 					{#if image}
 						<MessageImage attachment={image} />
 					{/if}

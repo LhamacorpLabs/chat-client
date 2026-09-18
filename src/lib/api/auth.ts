@@ -35,7 +35,7 @@ export async function refreshToken(token: string): Promise<import('../types/auth
 			},
 			signal: controller.signal
 		});
-	} catch (networkError) {
+	} catch {
 		// fetch itself threw: no network, DNS not resolved yet, CORS preflight
 		// rejected, a hung request that hit our own timeout, etc. We don't
 		// know whether the token is actually invalid - treat the same as any

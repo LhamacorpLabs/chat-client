@@ -54,7 +54,7 @@ export async function loadAuth() {
 				});
 
 				await checkAndRefreshToken();
-			} catch (e) {
+			} catch {
 				localStorage.removeItem('auth_data');
 			}
 		}

@@ -18,7 +18,7 @@ export interface CreateChatRequest {
 	name: string;
 }
 
-export interface ChatsResponse extends Array<Chat> {}
+export type ChatsResponse = Chat[];
 
 // Chat metadata response for efficient polling
 export interface ChatMetadata {
@@ -72,7 +72,7 @@ export interface Message {
 	createdAt: string;
 }
 
-export interface MessagesResponse extends Array<Message> {}
+export type MessagesResponse = Message[];
 
 export interface PagedMessageResponse {
 	messages: Message[];
@@ -108,4 +108,4 @@ export interface FavoriteMessage {
 	createdAt: string;
 }
 
-export interface FavoriteMessagesResponse extends Array<FavoriteMessage> {}
+export type FavoriteMessagesResponse = FavoriteMessage[];

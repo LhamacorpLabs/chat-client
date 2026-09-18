@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Message, ReactionType, ReactionSummary } from '../types/chat';
+	import type { Message, ReactionType } from '../types/chat';
 	import { authStore } from '../stores/auth';
 	import { getUserReactionForMessage, messageHasReactions } from '../utils/reactionUtils';
 
@@ -65,7 +65,7 @@
 	{/if}
 
 	<div class="add-reactions">
-		{#each reactionTypes as reactionType}
+		{#each reactionTypes as reactionType (reactionType)}
 			{#if !message.reactions?.some(r => r.type === reactionType)}
 				<button
 					class="add-reaction-button"

@@ -1,4 +1,4 @@
-import type { Chat, CreateChatRequest, ChatsResponse, MessagesResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment, FavoriteMessagesResponse, MessageReaction } from '../types/chat';
+import type { Chat, CreateChatRequest, ChatsResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment, FavoriteMessagesResponse, MessageReaction } from '../types/chat';
 import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 import { authStore, refreshToken } from '../stores/auth';
 import { redirectToLogin } from '../utils/authRedirect';
@@ -68,7 +68,7 @@ async function apiFetch<T>(token: string, url: string, options: ApiFetchOptions)
 		});
 	} catch (error) {
 		if (error instanceof DOMException && error.name === 'AbortError') {
-			throw new Error(`${errorMessage}: timed out`);
+			throw new Error(`${errorMessage}: timed out`, { cause: error });
 		}
 		throw error;
 	} finally {

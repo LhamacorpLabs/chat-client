@@ -26,7 +26,7 @@ describe('Chat Store - Create Chat', () => {
 	it('sets isCreating while creating', async () => {
 		mockCreateChat.mockImplementation(() => new Promise(() => {}));
 
-		const promise = createChat('token', { name: 'Test Chat' });
+		createChat('token', { name: 'Test Chat' });
 
 		expect(get(chatStore).isCreating).toBe(true);
 		expect(get(chatStore).error).toBeNull();

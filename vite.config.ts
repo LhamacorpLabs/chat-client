@@ -1,6 +1,6 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import { execSync } from 'child_process';
 
 function getAppVersion(): string {

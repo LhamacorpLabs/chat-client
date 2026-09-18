@@ -3,15 +3,14 @@
 
 	interface Props {
 		onSelect: (code: string) => void;
-		onClose: () => void;
 	}
 
-	let { onSelect, onClose }: Props = $props();
+	let { onSelect }: Props = $props();
 </script>
 
 <div class="emoji-picker">
 	<div class="emoji-grid">
-		{#each emojis as entry}
+		{#each emojis as entry (entry.code)}
 			<button
 				type="button"
 				class="emoji-item"

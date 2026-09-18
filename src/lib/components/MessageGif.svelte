@@ -32,7 +32,7 @@
 			<div class="error-content">
 				<span class="error-icon">🎞️</span>
 				<span class="error-text">Failed to load GIF</span>
-				<a href={gif.url} target="_blank" rel="noopener noreferrer" class="gif-link">
+				<a href={gif.url} target="_blank" rel="external noopener noreferrer" class="gif-link">
 					{gif.url}
 				</a>
 			</div>

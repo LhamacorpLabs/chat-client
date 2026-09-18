@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { searchEmojis, type EmojiEntry } from '$lib/utils/emojis';
+	import { searchEmojis } from '$lib/utils/emojis';
 
 	interface Props {
 		query: string;
@@ -14,7 +14,7 @@
 
 {#if results.length > 0}
 	<div class="emoji-autocomplete">
-		{#each results as entry, i}
+		{#each results as entry, i (entry.code)}
 			<button
 				type="button"
 				class="autocomplete-item"

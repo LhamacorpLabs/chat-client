@@ -27,7 +27,7 @@ export const load: PageLoad = async ({ params }) => {
 					error: null
 				};
 				authStore.set(auth);
-			} catch (e) {
+			} catch {
 				localStorage.removeItem('auth_data');
 			}
 		}
@@ -56,7 +56,7 @@ export const load: PageLoad = async ({ params }) => {
 				isLoading: false,
 				error: null
 			}));
-		} catch (error) {
+		} catch {
 			throw redirect(302, '/');
 		}
 	}

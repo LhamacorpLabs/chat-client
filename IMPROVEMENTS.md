@@ -14,13 +14,13 @@ one item (or small related group) per session/PR — not all at once.
    npm run check
    npm test
    ```
-   **Known baseline noise:** `npm test` currently fails 29/74 tests with
+   **Known baseline noise:** `npm test` currently fails 29/86 tests with
    `TypeError: Cannot read properties of undefined (reading 'clear')` on
    `localStorage.clear()` — a pre-existing jsdom/vitest environment issue,
-   unrelated to this backlog. `npm run check` also has 11 pre-existing errors
-   in `vite.config.ts` and `electron/mac-update/*.cjs`. Neither is something
-   to fix as a side effect of an unrelated item — only worry about *new*
-   failures your change introduces.
+   unrelated to this backlog. Only worry about *new* failures your change
+   introduces. (`npm run check` and `npm run lint` are now both clean of
+   errors — see Tooling/CI below — so those two have no baseline noise left
+   to route around.)
 4. Check the box below and commit.
 5. Leave a one-line note under the item if the actual fix ended up differing
    from what's described here (future-you or another session reads this
@@ -175,10 +175,18 @@ one item (or small related group) per session/PR — not all at once.
       Dockerfile `ARG`/`ENV` baked in at image build time, also hardcoded to
       `mqtt` in both `.github/workflows/*.yml` — but that's moot now too,
       since there's only one transport left to choose between.)
-- [ ] `stores/chatNotifications.ts`, `stores/chatMute.ts`, and
-      `stores/memberColors.ts` each hand-roll the same
-      try/catch-JSON-load/save-to-localStorage pattern instead of reusing
-      `utils/persistentStore.ts`. Consolidate.
+- [x] `stores/chatNotifications.ts`, `stores/chatMute.ts`, and
+      `stores/memberColors.ts` each hand-rolled the same
+      try/catch-JSON-load/save-to-localStorage pattern. **Note**:
+      `utils/persistentStore.ts` (the file this item originally pointed at)
+      turned out to be Electron-auth-specific (hydrates `auth_data` from the
+      on-disk Electron store), not a generic localStorage JSON helper —
+      wrong reuse target. Added `utils/localJsonStore.ts` instead
+      (`loadPersisted`/`savePersisted`, with an optional `onError` callback
+      for `memberColors.ts`'s corrupt-data cleanup) and switched all three
+      stores to it. Behavior preserved exactly per store (chatMute's
+      `mutedChats || {}` reshape, chatNotifications' raw-object load,
+      memberColors' `removeItem` on parse failure).
 
 ## Tooling / CI
 
@@ -208,24 +216,69 @@ one item (or small related group) per session/PR — not all at once.
       (`TypeError: Cannot read properties of null (reading 'isStrict')`) -
       an eslint-plugin-svelte bug, not something to work around by touching
       those files.
-- [ ] **New**: run `npm run lint`, triage the 36 errors / 44 warnings, fix or
-      explicitly suppress each. Don't do this as a drive-by — several
-      (`svelte/no-navigation-without-resolve`, `svelte/prefer-svelte-
-      reactivity`) touch actual runtime behavior (SvelteKit's `resolve()`
-      API, Svelte 5 reactivity primitives) and deserve real testing, not a
-      blanket `--fix`.
+- [x] **New**: run `npm run lint`, triage the 36 errors / 44 warnings (71
+      by the time this was picked up — 34 errors, 37 warnings; the earlier
+      count included a few fixed alongside other backlog items in between).
+      All 34 errors fixed; the 21 remaining `@typescript-eslint/no-explicit-any`
+      warnings are left as-is per the eslint config's own comment (deliberate
+      "warn" for API-response/third-party-payload boundaries not worth
+      modeling), including in test mocks. Notable fixes, not blanket
+      `--fix`:
+  - `svelte/no-navigation-without-resolve` (11 sites across
+    `(app)/+layout.svelte`, the chat page, `auth/callback`, `login`,
+    `download`): internal routes (`/`, `/login`, `/download`,
+    `/(app)/chat/[chatId]` — note the route id needs the `(app)` group
+    prefix, `svelte-check` catches it if you get this wrong) now go through
+    `resolve()` from `$app/paths`. Genuinely external/arbitrary URLs
+    (linkified message links, GIF links, GitHub release download URLs) got
+    `rel="external"` instead — the rule's own documented escape hatch for
+    non-internal hrefs, not a suppression.
+  - `svelte/prefer-svelte-reactivity`: `ImageUpload.svelte`'s blob-URL cache
+    → `SvelteMap`. The chat page's `favoriteMessageIds` → `SvelteSet`, but
+    *without* `$state()` — a second lint rule
+    (`svelte/no-unnecessary-state-wrap`) flags that combination since
+    `SvelteSet` is already reactive on its own; the catch is that a plain
+    (non-`$state`) `let` binding doesn't track *reassignment* in runes mode,
+    only in-place mutation. `loadFavoriteMessages()` used to reassign a
+    fresh `Set` on every refresh — changed to `.clear()` + re-`.add()` in
+    place instead, so no reassignment is needed and no `$state` wrapper is
+    either.
+  - `svelte/require-each-key` (8 sites): keyed by the natural identity
+    available at each site (`entry.code`, `file` object reference,
+    `reaction.type`, etc.) — no schema changes needed.
+  - `svelte/no-at-html-tags` (`LinkPreview.svelte`, `download/+page.svelte`):
+    left as `{@html}` with an inline `eslint-disable-next-line` + reason —
+    both render fixed, developer-authored SVG strings from a switch/array
+    keyed by a known enum, never user input, unlike the already-fixed
+    `linkify.ts` message-rendering path.
+  - `preserve-caught-error` (3 sites in `api/chat.ts` and the chat page):
+    added `{ cause: error }` to the re-thrown `Error`s.
+  - `@typescript-eslint/no-empty-object-type` (3 in `types/chat.ts`):
+    `interface X extends Array<Y> {}` → `type X = Y[]`.
+  - Dropped `EmojiPicker.svelte`'s `onClose` prop entirely rather than
+    wiring it up — traced the call site and found the chat page already
+    closes the picker via its own outside-click `$effect`, never through
+    this prop; it was dead.
+  - Also fixed the 11 pre-existing `npm run check` errors while in here
+    (they were listed as baseline noise above, but were quick and adjacent):
+    `vite.config.ts` importing `defineConfig` from `'vitest/config'` instead
+    of `'vite'` (needed for the `test` key's types), and JSDoc `@param`
+    annotations on the three `electron/mac-update/*.cjs` files' implicit-any
+    params.
 - [ ] **New**: run `npm run format:check`, then `npm run format` once
       reviewed — 54 files currently drift from the new `.prettierrc.json`.
       This will be a large, purely-cosmetic diff; do it as its own commit
       with nothing else in it; so `git blame` isn't muddied.
 - [x] `.github/workflows/build.yml` ran `npm test` + `npm run build` but
       never `npm run check`/`npm run lint`. Fixed on `chore/lint-and-ci`:
-      added both as steps in the `test` job, but with
-      `continue-on-error: true` — both commands currently fail on this repo
-      as-is (11 pre-existing check errors, 79 lint findings, see above), and
-      making them hard gates right now would turn every future PR red
-      regardless of what it touches. Remove `continue-on-error` once the two
-      items above are cleared.
+      added both as steps in the `test` job, initially with
+      `continue-on-error: true` since both failed as-is at the time (11
+      pre-existing check errors, 79 lint findings). **Update**: now that
+      both are clean of errors (see the lint/check items above), removed
+      `continue-on-error` from both steps — they're real merge gates now.
+      The 21 remaining lint findings are all `@typescript-eslint/no-explicit-any`
+      warnings, which don't fail `eslint`'s exit code (no `--max-warnings`
+      set), so CI stays green.
 - [ ] `package.json` pins `@lhamacorplabs/design-tokens` to
       `github:LhamacorpLabs/design-system#claude/design-system-evolution-25shdd`
       — a mutable feature branch, not a tag/SHA/npm release. If that branch
