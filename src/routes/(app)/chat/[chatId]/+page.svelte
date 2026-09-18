@@ -2423,7 +2423,11 @@
 		margin: 0 auto;
 		display: flex;
 		gap: 0.5rem;
-		align-items: flex-end;
+		/* Stretch (not flex-end) so .send-btn always matches .composer's
+		   actual rendered height exactly, top and bottom - a fixed height
+		   on the button drifted out of sync with the composer whenever its
+		   padding/textarea height changed. */
+		align-items: stretch;
 	}
 
 	/* Composer - unified glass-panel surface for the icon buttons and
@@ -2451,7 +2455,6 @@
 	}
 
 	.send-btn {
-		height: 44px;
 		padding: 0 1.125rem;
 		font-size: 0.8125rem;
 		/* Override the shared .btn's pill radius (999px) - the reference
