@@ -2825,22 +2825,24 @@
 
 	/* Invitation button: accent-outlined at rest (not the shared
 	   .btn-ghost's neutral border), since inviting someone is the one
-	   header action worth calling out. Colors match the design mockup's
-	   own purple exactly (not the app's --accent token). */
+	   header action worth calling out. Token-driven (not hardcoded) -
+	   the app's dark --accent is now pinned to the design mockup's exact
+	   purple in global.css, so this matches the mockup in dark theme
+	   while still adapting correctly in light theme. */
 	.invite-btn {
 		font-size: 0.75rem;
 		padding: 0.4375rem 0.875rem 0.4375rem 0.75rem;
 		line-height: 1;
 		background: transparent;
-		border-color: #3b3550;
-		color: #b3a9e6;
+		border-color: var(--accent-shadow);
+		color: var(--accent);
 		transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 	}
 
 	.invite-btn:hover:not(:disabled) {
-		background: rgba(145, 132, 217, 0.1);
-		border-color: #9184d9;
-		color: #cfc8f2;
+		background: var(--accent-subtle);
+		border-color: var(--accent);
+		color: var(--accent-hover);
 	}
 
 	/* Chat header's "..." actions menu is now the shared DropdownMenu
