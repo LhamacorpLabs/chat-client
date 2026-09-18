@@ -2466,6 +2466,13 @@
 		transform: translateY(0) scale(0.97);
 	}
 
+	/* Stay at full brightness even when disabled (empty input) - the
+	   shared .btn:disabled dim reads as broken/washed-out against the
+	   redesign's accent fill, which the reference always shows solid. */
+	.send-btn:disabled {
+		opacity: 1;
+	}
+
 	.image-upload-section {
 		max-width: var(--chat-column-width);
 		margin: 0 auto 0.75rem auto;
