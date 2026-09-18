@@ -2454,6 +2454,10 @@
 		height: 44px;
 		padding: 0 1.125rem;
 		font-size: 0.8125rem;
+		/* Override the shared .btn's pill radius (999px) - the reference
+		   shows a rounded rectangle matching the composer bar's own
+		   radius, not a stadium shape. */
+		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-sm);
 		transition: transform 0.1s ease, box-shadow 0.15s ease, background 0.15s ease;
 	}
