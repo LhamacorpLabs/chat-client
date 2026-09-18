@@ -3,13 +3,18 @@ import type { Chat } from '../types/chat.js';
 import { playNotificationSound, isWindowFocused } from '../utils/notificationSound.js';
 import { showMessageNotification } from '../utils/osNotification.js';
 import { chatMuteStore } from './chatMute.js';
+import { loadPersisted, savePersisted } from '../utils/localJsonStore.js';
+
+const STORAGE_KEY = 'chat-notifications';
 
 async function updateBadgeCount(unreadMessages: Record<string, boolean>) {
 	if (typeof window === 'undefined' || !window.electronAPI) return;
 	try {
 		const count = Object.values(unreadMessages).filter(Boolean).length;
 		await window.electronAPI.badge.set(count);
-	} catch {}
+	} catch {
+		// Best-effort - badge count is a nicety, not worth surfacing a failure for.
+	}
 }
 
 interface ChatNotificationState {
@@ -46,24 +51,12 @@ function createChatNotificationStore(): ChatNotificationStore {
 
 	// Helper to save state to localStorage
 	function saveToStorage(state: ChatNotificationState) {
-		try {
-			localStorage.setItem('chat-notifications', JSON.stringify(state));
-		} catch (error) {
-			console.warn('Failed to save chat notifications to localStorage:', error);
-		}
+		savePersisted(STORAGE_KEY, state);
 	}
 
 	// Helper to load state from localStorage
 	function loadFromStorage(): ChatNotificationState {
-		try {
-			const stored = localStorage.getItem('chat-notifications');
-			if (stored) {
-				return JSON.parse(stored);
-			}
-		} catch (error) {
-			console.warn('Failed to load chat notifications from localStorage:', error);
-		}
-		return initialState;
+		return loadPersisted(STORAGE_KEY, initialState);
 	}
 
 	return {

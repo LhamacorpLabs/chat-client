@@ -1,5 +1,8 @@
 import { writable, get } from 'svelte/store';
 import type { ChatMember } from '../types/chat';
+import { loadPersisted, savePersisted } from '../utils/localJsonStore.js';
+
+const STORAGE_KEY = 'member_colors';
 
 // Member color interfaces
 export interface MemberColors {
@@ -44,29 +47,15 @@ function getColorForMember(memberId: string): string {
 
 // Load member colors from localStorage on app start
 export function loadMemberColors() {
-	if (typeof localStorage !== 'undefined') {
-		const saved = localStorage.getItem('member_colors');
-		if (saved) {
-			try {
-				const colors: MemberColorsState = JSON.parse(saved);
-				memberColorsStore.set(colors);
-			} catch (e) {
-				console.warn('Failed to load member colors from localStorage:', e);
-				localStorage.removeItem('member_colors');
-			}
-		}
-	}
+	const colors = loadPersisted<MemberColorsState | null>(STORAGE_KEY, null, () => {
+		if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
+	});
+	if (colors) memberColorsStore.set(colors);
 }
 
 // Save member colors to localStorage
 function saveMemberColors(colors: MemberColorsState) {
-	if (typeof localStorage !== 'undefined') {
-		try {
-			localStorage.setItem('member_colors', JSON.stringify(colors));
-		} catch (e) {
-			console.warn('Failed to save member colors to localStorage:', e);
-		}
-	}
+	savePersisted(STORAGE_KEY, colors);
 }
 
 // Get assigned color for a member, or assign a new one if needed

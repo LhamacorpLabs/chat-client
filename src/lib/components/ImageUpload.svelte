@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { validateImageFile, type FileValidationError, formatFileSize } from '../utils/fileValidation';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
 		onFilesSelected: (files: File[]) => void;
@@ -103,7 +104,7 @@
 		}
 	}
 
-	const previewUrls = new Map<File, string>();
+	const previewUrls = new SvelteMap<File, string>();
 
 	function getFilePreviewUrl(file: File): string {
 		let url = previewUrls.get(file);
@@ -151,7 +152,7 @@
 	{#if selectedFiles.length > 0}
 		<!-- File previews -->
 		<div class="file-previews">
-			{#each selectedFiles as file, index}
+			{#each selectedFiles as file, index (file)}
 				<div class="file-preview">
 					<div class="preview-image">
 						<img src={getFilePreviewUrl(file)} alt={file.name} />
@@ -201,7 +202,7 @@
 	<!-- Validation errors -->
 	{#if validationErrors.length > 0}
 		<div class="validation-errors">
-			{#each validationErrors as error}
+			{#each validationErrors as error, index (error.file + index)}
 				<div class="error-item">
 					<strong>{error.file}:</strong> {error.error.message}
 				</div>

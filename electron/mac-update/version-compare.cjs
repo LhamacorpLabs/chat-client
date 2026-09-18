@@ -1,3 +1,7 @@
+/**
+ * @param {string} a
+ * @param {string} b
+ */
 function compareVersions(a, b) {
 	const partsA = a.split('.').map(Number);
 	const partsB = b.split('.').map(Number);

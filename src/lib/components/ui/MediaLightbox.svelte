@@ -23,7 +23,6 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div class="lightbox-overlay" onclick={onClose} role="button" tabindex="-1" aria-label="Close preview">
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<img {src} {alt} class="lightbox-content" onclick={stopPropagation} />
 	<div class="lightbox-close-hint">ESC or click to close</div>

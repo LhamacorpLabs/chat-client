@@ -24,17 +24,17 @@ jobs:
       - name: Run tests
         run: npm test
 
-      # Non-blocking for now: the repo has pre-existing type/lint errors
-      # (see IMPROVEMENTS.md) that would otherwise turn every PR red
-      # regardless of what it actually changes. Remove continue-on-error
-      # once those are cleared, so these become real merge gates.
       - name: Type check
         run: npm run check
-        continue-on-error: true
+        env:
+          PUBLIC_CHAT_API_URL: https://chat-be.lhamacorp.com
+          PUBLIC_AUTH_API_URL: https://auth.lhamacorp.com
+          PUBLIC_AUTH_UI_URL: https://login.lhamacorp.com
+          PUBLIC_MQTT_BROKER_URL: wss://mqtt.lhamacorp.com
+          PUBLIC_REALTIME_MODE: mqtt
 
       - name: Lint
         run: npm run lint
-        continue-on-error: true
 
   build:
     name: Build

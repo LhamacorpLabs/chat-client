@@ -4,8 +4,8 @@
 	import { authStore, authLoaded, logout, getValidToken } from '$lib/stores/auth';
 	import { chatStore, fetchChats, createChat, clearChats } from '$lib/stores/chat';
 	import { redeemInvitation } from '$lib/api/chat';
-	import type { Chat } from '$lib/types/chat';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { chatNotifications } from '$lib/stores/chatNotifications';
 	import { metadataPollingService } from '$lib/services/metadataPolling';
 	import { PUBLIC_CHAT_API_URL } from '$env/static/public';
@@ -72,7 +72,7 @@
 	$effect(() => {
 		if ($authLoaded && !$authStore.token) {
 			clearChats();
-			goto('/login');
+			goto(resolve('/login'));
 		}
 	});
 
@@ -147,7 +147,7 @@
 	}
 
 	function openChat(chatId: string) {
-		goto(`/chat/${chatId}`);
+		goto(resolve('/(app)/chat/[chatId]', { chatId }));
 	}
 
 	async function handleJoinChat() {
@@ -311,7 +311,7 @@
 				</span>
 			{/if}
 			{#if !isElectron}
-				<a href="/download" class="download-link">• Download Client</a>
+				<a href={resolve('/download')} class="download-link">• Download Client</a>
 			{/if}
 		</footer>
 		</div>

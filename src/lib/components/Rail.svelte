@@ -162,7 +162,7 @@
 			<EmptyState
 				icon="💬"
 				title="No chats yet"
-				description={'Create your first chat or join one with an invitation code using the "+" button above!'}
+				description='Create your first chat or join one with an invitation code using the "+" button above!'
 			/>
 		{/if}
 	</div>

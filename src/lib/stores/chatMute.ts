@@ -1,4 +1,5 @@
 import { writable, get } from 'svelte/store';
+import { loadPersisted, savePersisted } from '../utils/localJsonStore.js';
 
 interface ChatMuteState {
 	// Map of chatId -> boolean (true = muted)
@@ -9,32 +10,13 @@ const STORAGE_KEY = 'chat-mute-settings';
 
 // Load initial state from localStorage
 function loadFromStorage(): ChatMuteState {
-	if (typeof window === 'undefined') return { mutedChats: {} };
-
-	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
-		if (stored) {
-			const parsed = JSON.parse(stored);
-			return {
-				mutedChats: parsed.mutedChats || {}
-			};
-		}
-	} catch (error) {
-		console.warn('Failed to load chat mute settings from localStorage:', error);
-	}
-
-	return { mutedChats: {} };
+	const stored = loadPersisted<Partial<ChatMuteState>>(STORAGE_KEY, {});
+	return { mutedChats: stored.mutedChats || {} };
 }
 
 // Save state to localStorage
 function saveToStorage(state: ChatMuteState): void {
-	if (typeof window === 'undefined') return;
-
-	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-	} catch (error) {
-		console.warn('Failed to save chat mute settings to localStorage:', error);
-	}
+	savePersisted(STORAGE_KEY, state);
 }
 
 // Create the store

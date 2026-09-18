@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { authStore, refreshToken } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import type { AuthResponse, User } from '$lib/types/auth';
 	import { persistAuthData } from '$lib/utils/persistentStore';
 
@@ -43,9 +44,9 @@
 			// Refresh to get full profile (id, email, roles)
 			await refreshToken();
 
-			goto('/');
+			goto(resolve('/'));
 		} else {
-			goto('/login');
+			goto(resolve('/login'));
 		}
 	});
 </script>

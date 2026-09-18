@@ -82,6 +82,7 @@
 	<div class="preview-content">
 		<div class="platform-header">
 			<div class="platform-logo" style="color: {preview.color}">
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -- getPlatformLogo returns fixed, developer-authored SVG markup from a switch on preview.platform, never user input -->
 				{@html getPlatformLogo(preview.platform)}
 			</div>
 			<div class="platform-info">
