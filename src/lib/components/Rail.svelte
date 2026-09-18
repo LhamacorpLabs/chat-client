@@ -254,6 +254,7 @@
 		   colors. --rail-accent-border is the selected chat item's border
 		   only - the mockup uses a muted purple there, distinct from the
 		   brighter --rail-accent used for icons/avatars/rings. */
+		--rail-bg: #101016;
 		--rail-text-primary: #e9e9ed;
 		--rail-text-secondary: #8a8a9c;
 		--rail-text-muted: #6f6f80;
