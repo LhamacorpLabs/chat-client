@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { validateImageFile, type FileValidationError, formatFileSize } from '../utils/fileValidation';
-	import { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
 		onFilesSelected: (files: File[]) => void;
@@ -104,7 +103,8 @@
 		}
 	}
 
-	const previewUrls = new SvelteMap<File, string>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const previewUrls = new Map<File, string>();
 
 	function getFilePreviewUrl(file: File): string {
 		let url = previewUrls.get(file);
