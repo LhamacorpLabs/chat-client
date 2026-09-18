@@ -57,6 +57,26 @@
 	color-scheme: dark;
 }
 
+/* App-specific dark accent override - the shared design-tokens package's
+   dark --accent (#7c6fee) is a slightly different, more saturated purple
+   than the one this app's chat header redesign was reviewed against.
+   Re-pin the accent family to that exact color here so every accent-driven
+   surface (buttons, own-message bubbles, chat list selection, focus rings,
+   the nav rail) matches consistently instead of drifting between two
+   purples. :root[data-theme='dark'] (specificity 0,2,0) intentionally
+   outranks the package's un-attributed :root dark defaults (0,1,0) so this
+   wins regardless of stylesheet load order. Light theme is untouched. */
+:root[data-theme='dark'] {
+	--accent: #9184d9;
+	--accent-hover: #b3a9e6;
+	--accent-contrast: #0b0b0f;
+	--accent-subtle: rgba(145, 132, 217, 0.1);
+	--accent-shadow: rgba(145, 132, 217, 0.18);
+	--accent-glow: 0 0 0 3px rgba(145, 132, 217, 0.32), 0 0 24px rgba(145, 132, 217, 0.22);
+	--border-focus: #9184d9;
+	--focus-ring: rgba(145, 132, 217, 0.3);
+}
+
 /* Reset and base styles */
 * {
 	box-sizing: border-box;

@@ -1870,6 +1870,9 @@
 
 <style>
 	.chat-page {
+		/* Shared column width for the header, message list and composer -
+		   declared once so the three can never drift apart. */
+		--chat-column-width: 900px;
 		display: flex;
 		flex-direction: column;
 		flex: 1;
@@ -1897,7 +1900,7 @@
 	}
 
 	.header-content {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 		padding: 0.625rem 0.75rem 0.625rem 0.875rem;
 		display: flex;
@@ -1905,7 +1908,7 @@
 		align-items: center;
 		background: var(--panel-bg);
 		border: 1px solid var(--border-hover);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius-lg);
 	}
 
 	.header-left {
@@ -2014,7 +2017,7 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 		color: var(--text-muted);
 	}
@@ -2025,7 +2028,7 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 		text-align: center;
 		color: var(--text-muted);
@@ -2037,7 +2040,7 @@
 		flex-direction: column;
 		gap: 0.375rem;
 		padding: 0.5rem 0;
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 	}
 
@@ -2406,21 +2409,25 @@
 	}
 
 	.send-error {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto 0.75rem auto;
 	}
 
 	.reply-composition-container {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto 0.5rem auto;
 	}
 
 	.input-container {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 		display: flex;
 		gap: 0.5rem;
-		align-items: flex-end;
+		/* Stretch (not flex-end) so .send-btn always matches .composer's
+		   actual rendered height exactly, top and bottom - a fixed height
+		   on the button drifted out of sync with the composer whenever its
+		   padding/textarea height changed. */
+		align-items: stretch;
 	}
 
 	/* Composer - unified glass-panel surface for the icon buttons and
@@ -2448,9 +2455,12 @@
 	}
 
 	.send-btn {
-		height: 44px;
 		padding: 0 1.125rem;
 		font-size: 0.8125rem;
+		/* Override the shared .btn's pill radius (999px) - the reference
+		   shows a rounded rectangle matching the composer bar's own
+		   radius, not a stadium shape. */
+		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-sm);
 		transition: transform 0.1s ease, box-shadow 0.15s ease, background 0.15s ease;
 	}
@@ -2463,8 +2473,15 @@
 		transform: translateY(0) scale(0.97);
 	}
 
+	/* Stay at full brightness even when disabled (empty input) - the
+	   shared .btn:disabled dim reads as broken/washed-out against the
+	   redesign's accent fill, which the reference always shows solid. */
+	.send-btn:disabled {
+		opacity: 1;
+	}
+
 	.image-upload-section {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto 0.75rem auto;
 		background: var(--surface-hover);
 		border-radius: var(--radius-md);
@@ -2822,7 +2839,10 @@
 
 	/* Invitation button: accent-outlined at rest (not the shared
 	   .btn-ghost's neutral border), since inviting someone is the one
-	   header action worth calling out. */
+	   header action worth calling out. Token-driven (not hardcoded) -
+	   the app's dark --accent is now pinned to the design mockup's exact
+	   purple in global.css, so this matches the mockup in dark theme
+	   while still adapting correctly in light theme. */
 	.invite-btn {
 		font-size: 0.75rem;
 		padding: 0.4375rem 0.875rem 0.4375rem 0.75rem;

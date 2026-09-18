@@ -474,6 +474,16 @@
 		color: var(--text-primary);
 	}
 
+	/* Dimmer than the shared --text-muted token in dark theme, matching
+	   the chat header redesign's mockup exactly - this footer line is
+	   meant to read as barely-there, not at the same muted level as
+	   in-app secondary text (timestamps, member counts, etc). */
+	:global([data-theme='dark']) .app-footer,
+	:global([data-theme='dark']) .version-info,
+	:global([data-theme='dark']) .download-link {
+		color: #4a4a5c;
+	}
+
 	/* Loading Screen - shown full-viewport while auth is still hydrating,
 	   before the shell itself renders */
 	.loading-screen {

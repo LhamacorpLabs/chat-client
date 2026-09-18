@@ -231,7 +231,7 @@
 		align-items: center;
 		gap: var(--rail-icon-gap, 4px);
 		padding: 12px 0;
-		background: var(--rail-bg, #000);
+		background: var(--rail-bg, #101016);
 		overflow: hidden;
 		transition: width 0.18s ease;
 
@@ -246,16 +246,26 @@
 		   account/create-join dropdowns rendered inside the rail are
 		   separate floating panels on their own (correctly theme-following)
 		   --panel-bg surface, and shadowing the ambient tokens here would
-		   make their text invisible too. */
-		--rail-text-primary: #f2f2f5;
-		--rail-text-secondary: #a8a8b3;
-		--rail-text-muted: #6f6f7a;
-		--rail-border-color: rgba(255, 255, 255, 0.08);
-		--rail-border-color-hover: rgba(255, 255, 255, 0.14);
-		--rail-surface: #151518;
-		--rail-surface-hover: #1c1c20;
-		--rail-accent: #7c6fee;
-		--rail-accent-subtle: rgba(124, 111, 238, 0.14);
+		   make their text invisible too.
+
+		   Values pinned to the chat header redesign's mockup exactly
+		   (matching --rail-bg and the --accent override in global.css)
+		   rather than the shared design-tokens package's own dark chrome
+		   colors. --rail-accent-border is the selected chat item's border
+		   only - the mockup uses a muted purple there, distinct from the
+		   brighter --rail-accent used for icons/avatars/rings. */
+		--rail-bg: #101016;
+		--rail-text-primary: #e9e9ed;
+		--rail-text-secondary: #8a8a9c;
+		--rail-text-muted: #6f6f80;
+		--rail-border-color: #1c1c25;
+		--rail-border-color-hover: #2b2b38;
+		--rail-surface: transparent;
+		--rail-surface-hover: #15151c;
+		--rail-accent: #9184d9;
+		--rail-accent-subtle: rgba(145, 132, 217, 0.1);
+		--rail-accent-border: #3b3550;
+		--rail-icon-bg-hover: #1c1c25;
 	}
 
 	.rail.expanded {
@@ -433,7 +443,7 @@
 	   rather than morphing into a circle, per the design exploration. */
 	.chat-avatar.active {
 		opacity: 1;
-		box-shadow: 0 0 0 2px var(--rail-accent, #7c6fee), 0 0 0 4px var(--rail-bg, #000);
+		box-shadow: 0 0 0 2px var(--rail-accent, #9184d9), 0 0 0 4px var(--rail-bg, #101016);
 	}
 
 	.chat-avatar.add-chat-btn {
@@ -458,8 +468,8 @@
 		width: 9px;
 		height: 9px;
 		border-radius: 999px;
-		background: var(--rail-accent, #7c6fee);
-		border: 2px solid var(--rail-bg, #000);
+		background: var(--rail-accent, #9184d9);
+		border: 2px solid var(--rail-bg, #101016);
 	}
 
 	/* Expanded: full chat-list rows (ported from the old .sidebar) */
@@ -545,7 +555,7 @@
 
 	.chat-item.selected,
 	.chat-item.open {
-		border-color: var(--rail-accent);
+		border-color: var(--rail-accent-border, var(--rail-accent));
 		background: var(--rail-accent-subtle);
 	}
 
@@ -577,7 +587,7 @@
 		font-weight: 700;
 		font-family: inherit;
 		color: var(--accent-contrast, #fff);
-		background: var(--rail-accent, #7c6fee);
+		background: var(--rail-accent, #9184d9);
 		cursor: pointer;
 		margin-top: 4px;
 		transition: transform var(--duration-base, 0.15s) var(--ease-standard, ease);
@@ -664,7 +674,7 @@
 		width: 30px;
 		height: 30px;
 		border-radius: 50%;
-		background: var(--rail-accent, #7c6fee);
+		background: var(--rail-accent, #9184d9);
 		color: var(--accent-contrast, #fff);
 		display: flex;
 		align-items: center;
