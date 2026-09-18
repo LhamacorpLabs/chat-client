@@ -1870,6 +1870,9 @@
 
 <style>
 	.chat-page {
+		/* Shared column width for the header, message list and composer -
+		   declared once so the three can never drift apart. */
+		--chat-column-width: 900px;
 		display: flex;
 		flex-direction: column;
 		flex: 1;
@@ -1897,7 +1900,7 @@
 	}
 
 	.header-content {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 		padding: 0.625rem 0.75rem 0.625rem 0.875rem;
 		display: flex;
@@ -1905,7 +1908,7 @@
 		align-items: center;
 		background: var(--panel-bg);
 		border: 1px solid var(--border-hover);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius-lg);
 	}
 
 	.header-left {
@@ -2014,7 +2017,7 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 		color: var(--text-muted);
 	}
@@ -2025,7 +2028,7 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 		text-align: center;
 		color: var(--text-muted);
@@ -2037,7 +2040,7 @@
 		flex-direction: column;
 		gap: 0.375rem;
 		padding: 0.5rem 0;
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 	}
 
@@ -2406,17 +2409,17 @@
 	}
 
 	.send-error {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto 0.75rem auto;
 	}
 
 	.reply-composition-container {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto 0.5rem auto;
 	}
 
 	.input-container {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto;
 		display: flex;
 		gap: 0.5rem;
@@ -2464,7 +2467,7 @@
 	}
 
 	.image-upload-section {
-		max-width: 900px;
+		max-width: var(--chat-column-width);
 		margin: 0 auto 0.75rem auto;
 		background: var(--surface-hover);
 		border-radius: var(--radius-md);
