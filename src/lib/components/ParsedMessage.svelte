@@ -126,17 +126,32 @@
 
 	<!-- Render images -->
 	{#if parsedReply.imageIds.length > 0}
-		<div class="message-images">
+		{@const count = parsedReply.imageIds.length}
+		<div class="message-images" class:grid={count > 1} class:odd={count > 2 && count % 2 === 1}>
 			{#if loadState.loadingImages}
 				{#each parsedReply.imageIds as imageId (imageId)}
-					<div class="image-loading">
-						<LoadingSpinner size="sm" label="Loading image..." />
-					</div>
+					{#if count === 1}
+						<div class="image-loading">
+							<LoadingSpinner size="sm" label="Loading image..." />
+						</div>
+					{:else}
+						<div class="tile">
+							<div class="image-loading">
+								<LoadingSpinner size="sm" label="Loading image..." />
+							</div>
+						</div>
+					{/if}
 				{/each}
 			{:else}
 				{#each loadState.loadedImages as image, index (image?.id ?? index)}
 					{#if image}
-						<MessageImage attachment={image} />
+						{#if count === 1}
+							<MessageImage attachment={image} />
+						{:else}
+							<div class="tile">
+								<MessageImage attachment={image} fill />
+							</div>
+						{/if}
 					{/if}
 				{/each}
 			{/if}
@@ -153,10 +168,28 @@
 	}
 
 	.message-images {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
 		margin-top: 8px;
+	}
+
+	/* Multiple images: 2-column grid of square tiles; with an odd count the
+	   first image spans the full row as a wide banner. */
+	.message-images.grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 4px;
+		max-width: 420px;
+	}
+
+	.tile {
+		aspect-ratio: 1 / 1;
+		min-width: 0;
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+	}
+
+	.message-images.odd .tile:first-child {
+		grid-column: 1 / -1;
+		aspect-ratio: 2 / 1;
 	}
 
 	.image-loading {
@@ -168,5 +201,12 @@
 		border-radius: var(--radius-sm);
 		border: 1px dashed var(--border);
 		min-width: 120px;
+	}
+
+	.tile .image-loading {
+		height: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+		justify-content: center;
 	}
 </style>

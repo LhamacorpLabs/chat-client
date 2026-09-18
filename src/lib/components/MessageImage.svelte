@@ -8,9 +8,11 @@
 	interface Props {
 		attachment: ImageAttachment;
 		isLoading?: boolean;
+		/** Fill the parent box (grid tile) and crop to cover, instead of natural sizing. */
+		fill?: boolean;
 	}
 
-	let { attachment, isLoading = false }: Props = $props();
+	let { attachment, isLoading = false, fill = false }: Props = $props();
 
 	let imageLoaded = $state(false);
 	let imageError = $state(false);
@@ -64,7 +66,7 @@
 	}
 </script>
 
-<div class="message-image-container">
+<div class="message-image-container" class:fill>
 	{#if imageError}
 		<div class="image-error">
 			<span class="error-icon">🖼️</span>
@@ -78,7 +80,7 @@
 			<span class="filename">{attachment.metadata.filename}</span>
 		</div>
 	{:else}
-		<button class="image-wrapper" onclick={openLightbox} type="button">
+		<button class="image-wrapper" class:fill onclick={openLightbox} type="button">
 			<img
 				src={getImageSrc()}
 				alt={attachment.metadata.filename}
@@ -116,6 +118,35 @@
 
 	.image-wrapper:hover {
 		transform: scale(1.02);
+	}
+
+	.message-image-container.fill {
+		margin: 0;
+		height: 100%;
+	}
+
+	.image-wrapper.fill {
+		display: block;
+		width: 100%;
+		height: 100%;
+		max-width: none;
+	}
+
+	.image-wrapper.fill:hover {
+		transform: none;
+	}
+
+	.image-wrapper.fill .message-image {
+		height: 100%;
+		max-height: none;
+	}
+
+	.message-image-container.fill .image-loading,
+	.message-image-container.fill .image-error {
+		height: 100%;
+		max-width: none;
+		justify-content: center;
+		box-sizing: border-box;
 	}
 
 	.message-image {
@@ -175,21 +206,21 @@
 
 	/* Mobile adjustments */
 	@media (max-width: 768px) {
-		.image-wrapper {
+		.image-wrapper:not(.fill) {
 			max-width: 250px;
 		}
 
-		.message-image {
+		.image-wrapper:not(.fill) .message-image {
 			max-height: 200px;
 		}
 	}
 
 	@media (max-width: 480px) {
-		.image-wrapper {
+		.image-wrapper:not(.fill) {
 			max-width: 200px;
 		}
 
-		.message-image {
+		.image-wrapper:not(.fill) .message-image {
 			max-height: 150px;
 		}
 	}
