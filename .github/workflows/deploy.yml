@@ -10,11 +10,6 @@ on:
         required: true
         default: 'main'
         type: string
-      skip_electron:
-        description: 'Skip Electron builds + the GitHub release (just Docker build/push and deploy). Defaults to true - pushes to main always skip regardless of this box, since it only takes effect on a manual run.'
-        required: false
-        default: true
-        type: boolean
 
 concurrency:
   group: deploy
@@ -26,17 +21,9 @@ jobs:
     runs-on: self-hosted
     outputs:
       version: ${{ steps.version.outputs.version }}
-      commit_message: ${{ steps.version.outputs.commit_message }}
     steps:
       - id: version
-        env:
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          echo "version=$(date -u +%-y).$(date -u +%-m).$(( ${{ github.run_number }} ))" >> $GITHUB_OUTPUT
-          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          echo "commit_message<<$EOF" >> $GITHUB_OUTPUT
-          echo "$COMMIT_MESSAGE" >> $GITHUB_OUTPUT
-          echo "$EOF" >> $GITHUB_OUTPUT
+        run: echo "version=$(date -u +%-y).$(date -u +%-m).${{ github.run_number }}" >> $GITHUB_OUTPUT
 
   test:
     name: Test
@@ -59,8 +46,8 @@ jobs:
       - name: Run tests
         run: npm test
 
-  build-and-release:
-    name: Build & Release
+  build-image:
+    name: Build & Push Image
     needs: [test, version]
     runs-on: self-hosted
     steps:
@@ -111,132 +98,8 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: build-and-release
+    needs: build-image
     runs-on: self-hosted
     steps:
       - name: Trigger Portainer Webhook
         run: curl --location --request POST '${{ secrets.DEPLOY_WEBHOOK }}'
-
-  create-release:
-    name: Create Release
-    needs: [version, deploy]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_electron == false }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Create release (draft)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMIT_MESSAGE: ${{ needs.version.outputs.commit_message }}
-        run: |
-          gh release create "v${{ needs.version.outputs.version }}" \
-            --repo ${{ github.repository }} \
-            --title "Chat v${{ needs.version.outputs.version }}" \
-            --notes "$COMMIT_MESSAGE" \
-            --draft
-
-  electron-release:
-    name: Electron Release
-    needs: [version, create-release]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_electron == false }}
-    permissions:
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: macos-latest
-            build-args: --mac --arm64 --x64
-          - platform: ubuntu-22.04
-            build-args: --linux --x64
-          - platform: windows-latest
-            build-args: --win --x64
-
-    runs-on: ${{ matrix.platform }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-
-      - name: Install npm dependencies
-        run: npm ci
-
-      - name: Set version
-        run: node -e "const f=require('fs');const p=JSON.parse(f.readFileSync('package.json','utf8'));p.version='${{ needs.version.outputs.version }}';f.writeFileSync('package.json',JSON.stringify(p,null,2));"
-
-      - name: Build the application
-        run: npm run build
-        env:
-          PUBLIC_CHAT_API_URL: https://chat-be.lhamacorp.com
-          PUBLIC_AUTH_API_URL: https://auth.lhamacorp.com
-          PUBLIC_AUTH_UI_URL: https://login.lhamacorp.com
-          PUBLIC_MQTT_BROKER_URL: wss://mqtt.lhamacorp.com
-          PUBLIC_REALTIME_MODE: mqtt
-          APP_VERSION: ${{ needs.version.outputs.version }}
-
-      - name: Build and publish Electron app
-        run: npx electron-builder ${{ matrix.build-args }} --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: Generate and sign mac update manifest
-        if: matrix.platform == 'macos-latest'
-        run: node scripts/publish-mac-manifest.cjs
-        env:
-          APP_VERSION: ${{ needs.version.outputs.version }}
-          MAC_UPDATE_SIGNING_KEY: ${{ secrets.MAC_UPDATE_SIGNING_KEY }}
-
-      - name: Upload update manifest to release
-        if: matrix.platform == 'macos-latest'
-        run: gh release upload "v${{ needs.version.outputs.version }}" release/latest-mac.json --clobber --repo ${{ github.repository }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-release:
-    name: Publish Release
-    needs: [version, electron-release]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_electron == false }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Publish release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release edit "v${{ needs.version.outputs.version }}" \
-            --repo ${{ github.repository }} \
-            --draft=false \
-            --latest
-
-  cleanup:
-    name: Cleanup
-    needs: [version, publish-release]
-    if: ${{ always() && needs.version.result == 'success' }}
-    runs-on: self-hosted
-    permissions:
-      contents: write
-    steps:
-      - name: Delete draft releases
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release list --repo ${{ github.repository }} --limit 100 --json tagName,isDraft --jq '.[] | select(.isDraft) | .tagName' | while read TAG; do
-            gh release delete "$TAG" --repo ${{ github.repository }} --yes --cleanup-tag
-          done
-
-      - name: Delete old releases (keep last 3)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release list --repo ${{ github.repository }} --limit 100 --json tagName --jq '.[].tagName' | tail -n +4 | while read TAG; do
-            gh release delete "$TAG" --repo ${{ github.repository }} --yes --cleanup-tag
-          done

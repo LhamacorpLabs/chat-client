@@ -1,0 +1,194 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or SHA to release'
+        required: true
+        default: 'main'
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  PUBLIC_CHAT_API_URL: https://chat-be.lhamacorp.com
+  PUBLIC_AUTH_API_URL: https://auth.lhamacorp.com
+  PUBLIC_AUTH_UI_URL: https://login.lhamacorp.com
+  PUBLIC_MQTT_BROKER_URL: wss://mqtt.lhamacorp.com
+  PUBLIC_REALTIME_MODE: mqtt
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      # Next YY.M.N, where N continues from the highest existing tag of this month,
+      # so versions only ever go up and electron-updater picks them up.
+      - id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREFIX="$(date -u +%-y).$(date -u +%-m)"
+          LAST=$(gh release list --repo ${{ github.repository }} --limit 100 --json tagName --jq '.[].tagName' \
+            | sed -n "s/^v${PREFIX//./\\.}\.\([0-9]\+\)$/\1/p" | sort -n | tail -1)
+          echo "version=${PREFIX}.$(( ${LAST:-0} + 1 ))" >> $GITHUB_OUTPUT
+
+  test:
+    name: Test
+    needs: version
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Type check
+        run: npm run check
+
+      - name: Lint
+        run: npm run lint
+
+  create-release:
+    name: Create Release
+    needs: [version, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create release (draft)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ needs.version.outputs.version }}" \
+            --repo ${{ github.repository }} \
+            --target ${{ needs.version.outputs.sha }} \
+            --title "Chat v${{ needs.version.outputs.version }}" \
+            --generate-notes \
+            --draft
+
+  electron:
+    name: Electron (${{ matrix.platform }})
+    needs: [version, create-release]
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            build-args: --mac --arm64 --x64
+          - platform: ubuntu-22.04
+            build-args: --linux --x64
+          - platform: windows-latest
+            build-args: --win --x64
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Set version
+        run: node -e "const f=require('fs');const p=JSON.parse(f.readFileSync('package.json','utf8'));p.version='${{ needs.version.outputs.version }}';f.writeFileSync('package.json',JSON.stringify(p,null,2));"
+
+      - name: Build the application
+        run: npm run build
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+
+      - name: Build and publish Electron app
+        run: npx electron-builder ${{ matrix.build-args }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Generate and sign mac update manifest
+        if: matrix.platform == 'macos-latest'
+        run: node scripts/publish-mac-manifest.cjs
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+          MAC_UPDATE_SIGNING_KEY: ${{ secrets.MAC_UPDATE_SIGNING_KEY }}
+
+      - name: Upload update manifest to release
+        if: matrix.platform == 'macos-latest'
+        run: gh release upload "v${{ needs.version.outputs.version }}" release/latest-mac.json --clobber --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-release:
+    name: Publish Release
+    needs: [version, electron]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "v${{ needs.version.outputs.version }}" \
+            --repo ${{ github.repository }} \
+            --draft=false \
+            --latest
+
+  cleanup:
+    name: Cleanup
+    needs: [version, publish-release]
+    if: ${{ always() && needs.version.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete draft releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --repo ${{ github.repository }} --limit 100 --json tagName,isDraft --jq '.[] | select(.isDraft) | .tagName' | while read TAG; do
+            gh release delete "$TAG" --repo ${{ github.repository }} --yes --cleanup-tag
+          done
+
+      - name: Delete old releases (keep last 3)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --repo ${{ github.repository }} --limit 100 --exclude-drafts --json tagName --jq '.[].tagName' | tail -n +4 | while read TAG; do
+            gh release delete "$TAG" --repo ${{ github.repository }} --yes --cleanup-tag
+          done
