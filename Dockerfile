@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 
 # Build arguments for environment variables
 ARG PUBLIC_CHAT_API_URL=https://chat-be.lhamacorp.com
