@@ -57,6 +57,15 @@
 	// track it by id so it still highlights the right row while filtering.
 	const selectedChatId = $derived(chats[selectedChatIndex]?.id);
 
+	let railEl: HTMLElement | undefined = $state();
+	// Keep the keyboard-selected chat visible in a long list.
+	$effect(() => {
+		if (!selectedChatId || !railEl) return;
+		railEl
+			.querySelector(`[data-chat-id="${CSS.escape(selectedChatId)}"]`)
+			?.scrollIntoView({ block: 'nearest' });
+	});
+
 	// Relative timestamps ("5m", "2h") need to tick on their own.
 	let now = $state(new Date());
 	$effect(() => {
@@ -130,7 +139,7 @@
 	</div>
 {/snippet}
 
-<nav class="rail" class:expanded aria-label="Chats">
+<nav class="rail" class:expanded aria-label="Chats" bind:this={railEl}>
 	<!-- ---- Header ---- -->
 	<div class="rail-top">
 		<div class="brand">
@@ -228,6 +237,7 @@
 								class="chat-item"
 								class:selected={chat.id === selectedChatId}
 								class:open={chat.id === activeChatId}
+								data-chat-id={chat.id}
 								class:unread
 								onclick={() => onSelectChat(chat.id)}
 								aria-current={chat.id === activeChatId ? 'page' : undefined}
@@ -280,6 +290,8 @@
 					<button
 						class="stack-avatar"
 						class:active={chat.id === activeChatId}
+						class:selected={chat.id === selectedChatId}
+						data-chat-id={chat.id}
 						type="button"
 						onclick={() => onSelectChat(chat.id)}
 						title={chat.name}
@@ -699,6 +711,10 @@
 
 	.stack-avatar.active {
 		box-shadow: 0 0 0 2px var(--sidebar-bg), 0 0 0 4px var(--avatar-color);
+	}
+
+	.stack-avatar.selected {
+		box-shadow: 0 0 0 2px var(--sidebar-bg), 0 0 0 4px var(--border-hover);
 	}
 
 	.stack-avatar.add-chat-btn {
