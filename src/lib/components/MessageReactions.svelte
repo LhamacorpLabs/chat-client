@@ -17,8 +17,6 @@
 		LOVE: '❤️'
 	};
 
-	const reactionTypes: ReactionType[] = ['FUNNY', 'LIKE', 'LOVE'];
-
 	let isUpdating = $state(false);
 
 	let currentUserReaction = $derived(
@@ -45,174 +43,85 @@
 	}
 </script>
 
-<div class="reactions-container" class:own-message={isOwnMessage} class:other-message={!isOwnMessage}>
-	{#if hasReactions}
-		<div class="reactions-display">
-			{#each message.reactions as reaction (reaction.type)}
-				<button
-					class="reaction-button"
-					class:user-reacted={currentUserReaction === reaction.type}
-					class:updating={isUpdating}
-					onclick={() => handleReactionClick(reaction.type)}
-					disabled={isUpdating}
-					title="{reaction.users.map(u => u.username).join(', ')}"
-				>
-					<span class="emoji">{reactionEmojis[reaction.type]}</span>
-					<span class="count">{reaction.count}</span>
-				</button>
-			{/each}
-		</div>
-	{/if}
-
-	<div class="add-reactions">
-		{#each reactionTypes as reactionType (reactionType)}
-			{#if !message.reactions?.some(r => r.type === reactionType)}
-				<button
-					class="add-reaction-button"
-					class:updating={isUpdating}
-					onclick={() => handleReactionClick(reactionType)}
-					disabled={isUpdating}
-				>
-					{reactionEmojis[reactionType]}
-				</button>
-			{/if}
+<!-- Adding a new reaction happens from the message's hover toolbar (or
+     the mobile action sheet); this row only shows existing reactions,
+     each clickable to toggle your own. -->
+{#if hasReactions}
+	<div class="reactions-container" class:own-message={isOwnMessage}>
+		{#each message.reactions as reaction (reaction.type)}
+			<button
+				class="reaction-button"
+				class:user-reacted={currentUserReaction === reaction.type}
+				class:updating={isUpdating}
+				onclick={() => handleReactionClick(reaction.type)}
+				disabled={isUpdating}
+				title={reaction.users.map(u => u.username).join(', ')}
+				aria-label={`${reaction.count} ${reaction.type.toLowerCase()} reaction${reaction.count === 1 ? '' : 's'}: ${reaction.users.map(u => u.username).join(', ')}`}
+				aria-pressed={currentUserReaction === reaction.type}
+			>
+				<span class="emoji">{reactionEmojis[reaction.type]}</span>
+				<span class="count">{reaction.count}</span>
+			</button>
 		{/each}
 	</div>
-</div>
+{/if}
 
 <style>
 	.reactions-container {
-		position: absolute;
 		display: flex;
-		gap: 8px;
+		gap: 4px;
 		flex-wrap: wrap;
-		align-items: center;
-		pointer-events: none;
+		margin-top: 4px;
+		padding: 0 0.25rem;
 	}
 
 	.reactions-container.own-message {
-		bottom: -25px;
-	}
-
-	.reactions-container.other-message {
-		bottom: -25px;
-	}
-
-	.reactions-container > * {
-		pointer-events: auto;
-	}
-
-	.reactions-display {
-		display: flex;
-		gap: 4px;
-		flex-wrap: wrap;
+		justify-content: flex-end;
 	}
 
 	.reaction-button {
-		display: flex;
+		display: inline-flex;
 		align-items: center;
-		gap: 4px;
-		padding: 2px 8px;
-		border: 1px solid var(--border);
+		gap: 5px;
+		height: 26px;
+		padding: 0 8px 0 7px;
+		border: 1px solid var(--border-hover);
 		border-radius: var(--radius-pill);
-		background: var(--surface-hover);
+		background: var(--panel-bg);
 		cursor: pointer;
-		transition: all 0.2s ease;
-		font-size: 12px;
-		min-height: 24px;
-		color: var(--text-primary);
+		transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+		color: var(--text-secondary);
+		font-family: inherit;
 	}
 
-	.reaction-button:hover {
-		background: var(--surface-alt);
-		transform: scale(1.05);
+	.reaction-button:hover:not(:disabled) {
+		background: var(--surface-hover);
+		border-color: color-mix(in srgb, var(--text-muted) 50%, transparent);
+	}
+
+	.reaction-button:active:not(:disabled) {
+		transform: scale(0.95);
 	}
 
 	.reaction-button.user-reacted {
 		background: var(--accent-subtle);
 		color: var(--accent);
-		border-color: var(--accent);
-	}
-
-	.reaction-button.user-reacted:hover {
-		background: var(--accent);
-		color: var(--accent-contrast);
+		border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 	}
 
 	.reaction-button.updating {
 		opacity: 0.6;
-		cursor: not-allowed;
+		cursor: progress;
 	}
 
 	.emoji {
-		font-size: 14px;
+		font-size: 13px;
 		line-height: 1;
 	}
 
 	.count {
-		font-size: 11px;
-		font-weight: 500;
-		min-width: 8px;
-		text-align: center;
-	}
-
-	.add-reactions {
-		display: flex;
-		gap: 2px;
-		opacity: 0;
-		transition: opacity 0.2s ease;
-	}
-
-	:global(.message-item:hover) .add-reactions {
-		opacity: 1;
-	}
-
-	@media (hover: none) {
-		.add-reactions {
-			display: none;
-		}
-	}
-
-	.add-reaction-button {
-		padding: 2px 4px;
-		border: 1px solid transparent;
-		border-radius: var(--radius-pill);
-		background: transparent;
-		cursor: pointer;
-		font-size: 12px;
-		transition: all 0.2s ease;
-		min-height: 24px;
-		min-width: 24px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.add-reaction-button:hover {
-		background: var(--surface-alt);
-		border-color: var(--border);
-		transform: scale(1.1);
-	}
-
-	.add-reaction-button.updating {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-
-	@media (max-width: 480px) {
-		.reactions-container {
-			position: static;
-			margin-top: 4px;
-		}
-
-		.reaction-button {
-			min-height: 28px;
-			padding: 4px 8px;
-		}
-
-		.add-reaction-button {
-			min-height: 28px;
-			min-width: 28px;
-		}
+		font-size: 11.5px;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
 	}
 </style>

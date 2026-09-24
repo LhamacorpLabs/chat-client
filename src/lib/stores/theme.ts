@@ -14,12 +14,12 @@ const defaultTheme: Theme = 'light';
 // Create the theme store
 export const theme = writable<Theme>(defaultTheme);
 
-// Matches the --bg-gradient start color in @lhamacorplabs/design-tokens
-// (v2) for each theme, so mobile browser chrome (Safari's status bar /
+// Matches the --app-bg color for each theme (static/global.css),
+// so mobile browser chrome (Safari's status bar /
 // toolbar) tints to match the page instead of defaulting to white.
 const THEME_COLORS: Record<Theme, string> = {
-	light: '#f5f5f7',
-	dark: '#0d0d10'
+	light: '#ffffff',
+	dark: '#0c0c10'
 };
 
 // Apply theme to document: data-theme attribute + localStorage persistence

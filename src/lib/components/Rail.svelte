@@ -1,11 +1,12 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { authStore } from '$lib/stores/auth';
+	import { theme, toggleTheme } from '$lib/stores/theme';
 	import type { Chat } from '$lib/types/chat';
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
-	import EmptyState from '$lib/components/ui/EmptyState.svelte';
-	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { colorForChat } from '$lib/utils/chatAvatar';
+	import { formatRelativeShort } from '$lib/utils/time';
 
 	interface Props {
 		chats: Chat[];
@@ -15,6 +16,8 @@
 		error: string | null;
 		selectedChatIndex: number;
 		expanded: boolean;
+		appVersion?: string;
+		showDownload?: boolean;
 		onToggleExpanded: () => void;
 		onSelectChat: (id: string) => void;
 		onOpenCreateModal: () => void;
@@ -30,6 +33,8 @@
 		error,
 		selectedChatIndex,
 		expanded,
+		appVersion = '',
+		showDownload = false,
 		onToggleExpanded,
 		onSelectChat,
 		onOpenCreateModal,
@@ -37,50 +42,172 @@
 		onLogout
 	}: Props = $props();
 
-	const initial = $derived(($authStore.user?.username ?? '?').charAt(0).toUpperCase());
+	const username = $derived($authStore.user?.username ?? '');
+	const initial = $derived((username || '?').charAt(0).toUpperCase());
+	// Release builds report a semver ("1.2.3" -> "v1.2.3"); dev builds a commit hash.
+	const versionLabel = $derived(/^\d/.test(appVersion) ? `v${appVersion}` : appVersion);
+
+	let query = $state('');
+	const filteredChats = $derived(
+		query.trim()
+			? chats.filter(chat => chat.name.toLowerCase().includes(query.trim().toLowerCase()))
+			: chats
+	);
+	// Keyboard selection (↑/↓ in the layout) indexes the unfiltered list -
+	// track it by id so it still highlights the right row while filtering.
+	const selectedChatId = $derived(chats[selectedChatIndex]?.id);
+
+	// Relative timestamps ("5m", "2h") need to tick on their own.
+	let now = $state(new Date());
+	$effect(() => {
+		const id = setInterval(() => (now = new Date()), 60_000);
+		return () => clearInterval(id);
+	});
+
+	function activityLabel(chat: Chat): string {
+		return formatRelativeShort(chat.lastMessageAt ?? chat.createdAt, now);
+	}
 </script>
 
-<nav class="rail" class:expanded aria-label="Primary">
+{#snippet createJoinItems(close: () => void)}
+	<button onclick={() => { onOpenCreateModal(); close(); }} class="dropdown-item" type="button">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+			<path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" />
+		</svg>
+		<span>Create a chat</span>
+		<kbd>C</kbd>
+	</button>
+	<button onclick={() => { onOpenJoinModal(); close(); }} class="dropdown-item" type="button">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+			<path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" /><path d="M10 17l5-5-5-5" /><path d="M15 12H3" />
+		</svg>
+		<span>Join with code</span>
+		<kbd>J</kbd>
+	</button>
+{/snippet}
+
+{#snippet accountMenu(close: () => void)}
+	<div class="dropdown-header">
+		<div class="account-avatar lg">{initial}</div>
+		<div class="account-meta">
+			<span class="account-name">{username}</span>
+			{#if $authStore.user?.email}
+				<span class="account-email">{$authStore.user.email}</span>
+			{/if}
+		</div>
+	</div>
+	<div class="dropdown-separator"></div>
+	<button onclick={() => toggleTheme()} class="dropdown-item" type="button">
+		{#if $theme === 'dark'}
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+				<circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+			</svg>
+			<span>Light mode</span>
+		{:else}
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+				<path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+			</svg>
+			<span>Dark mode</span>
+		{/if}
+	</button>
+	{#if showDownload}
+		<a href={resolve('/download')} class="dropdown-item" onclick={close}>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+				<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" />
+			</svg>
+			<span>Get the desktop app</span>
+		</a>
+	{/if}
+	<div class="dropdown-separator"></div>
+	<button onclick={() => { onLogout(); close(); }} class="dropdown-item danger" type="button">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+			<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" />
+		</svg>
+		<span>Sign out</span>
+	</button>
+	<div class="dropdown-footer">
+		© {new Date().getFullYear()} Lhamacorp{versionLabel ? ` · ${versionLabel}` : ''}
+	</div>
+{/snippet}
+
+<nav class="rail" class:expanded aria-label="Chats">
+	<!-- ---- Header ---- -->
 	<div class="rail-top">
-		<div class="rail-mark">
-			<img src="/logo.png" alt="" />
+		<div class="brand">
+			<img class="brand-mark" src="/logo.png" alt="" />
+			{#if expanded}
+				<span class="brand-name">Chat</span>
+			{/if}
 		</div>
 
 		{#if expanded}
-			<span class="rail-brand-name">Chat</span>
-			<DropdownMenu width="120px">
-				{#snippet trigger({ toggle })}
-					<button onclick={toggle} class="icon-btn add-btn" title="Create or join a chat" type="button">+</button>
-				{/snippet}
-				{#snippet children({ close })}
-					<button onclick={() => { onOpenCreateModal(); close(); }} class="dropdown-item" type="button">
-						<span>Create</span>
-					</button>
-					<button onclick={() => { onOpenJoinModal(); close(); }} class="dropdown-item" type="button">
-						<span>Join</span>
-					</button>
-				{/snippet}
-			</DropdownMenu>
+			<div class="top-actions">
+				<DropdownMenu width="200px">
+					{#snippet trigger({ toggle })}
+						<button onclick={toggle} class="icon-button" title="New chat" aria-label="New chat" type="button">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" aria-hidden="true">
+								<path d="M12 5v14M5 12h14" />
+							</svg>
+						</button>
+					{/snippet}
+					{#snippet children({ close })}
+						{@render createJoinItems(close)}
+					{/snippet}
+				</DropdownMenu>
+				<button
+					class="icon-button toggle-btn"
+					type="button"
+					onclick={onToggleExpanded}
+					title="Collapse sidebar"
+					aria-label="Collapse sidebar"
+					aria-expanded="true"
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" aria-hidden="true">
+						<rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" />
+					</svg>
+				</button>
+			</div>
+		{:else}
+			<button
+				class="icon-button toggle-btn"
+				type="button"
+				onclick={onToggleExpanded}
+				title="Expand sidebar"
+				aria-label="Expand sidebar"
+				aria-expanded="false"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" aria-hidden="true">
+					<rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" />
+				</svg>
+			</button>
 		{/if}
-
-		<button
-			class="rail-btn toggle-btn"
-			class:active={expanded}
-			type="button"
-			onclick={onToggleExpanded}
-			title={expanded ? 'Collapse' : 'Show chat list'}
-			aria-expanded={expanded}
-		>
-			<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-				{#if expanded}
-					<path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-				{:else}
-					<path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-				{/if}
-			</svg>
-		</button>
 	</div>
 
+	{#if expanded && chats.length > 0}
+		<div class="search">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true">
+				<circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+			</svg>
+			<input
+				type="search"
+				placeholder="Search chats"
+				aria-label="Search chats"
+				bind:value={query}
+				onkeydown={e => {
+					if (e.key === 'Escape') {
+						query = '';
+						(e.currentTarget as HTMLInputElement).blur();
+					} else if (e.key === 'Enter' && filteredChats.length > 0) {
+						onSelectChat(filteredChats[0].id);
+						query = '';
+						(e.currentTarget as HTMLInputElement).blur();
+					}
+				}}
+			/>
+		</div>
+	{/if}
+
+	<!-- ---- Chat list ---- -->
 	<div class="chat-region">
 		{#if error}
 			<div class="alert alert-error">{error}</div>
@@ -88,297 +215,235 @@
 
 		{#if isLoading}
 			<div class="loading-container">
-				<LoadingSpinner label="Loading your chats..." />
+				<LoadingSpinner size="sm" />
 			</div>
-		{/if}
-
-		{#if !isLoading && expanded && chats.length > 0}
-			<div class="chats-list">
-				{#each chats as chat, index (chat.id)}
-					<button
-						class="chat-item"
-						class:selected={index === selectedChatIndex}
-						class:open={chat.id === activeChatId}
-						onclick={() => onSelectChat(chat.id)}
-						type="button"
-					>
-						<div class="chat-info">
-							<div class="chat-name-container">
-								<h3 class="chat-name">#{chat.name}</h3>
-								{#if unreadMap[chat.id]}
-									<div class="unread-indicator" title="New messages"></div>
-								{/if}
-							</div>
-							<p class="chat-meta">
-								Created {new Date(chat.createdAt).toLocaleDateString()}
-								{#if chat.members.length > 0}
-									• {chat.members.length} member{chat.members.length === 1 ? '' : 's'}
-								{/if}
-							</p>
-						</div>
-						<div class="chat-chevron">→</div>
-					</button>
-				{/each}
-			</div>
-		{/if}
-
-		{#if !isLoading && !expanded}
-			<!-- Collapsed: icon avatars, plus a persistent add button - unlike
-			     the expanded "+" (in .rail-top, only rendered when expanded),
-			     this is the only way to create/join a chat while collapsed. -->
+		{:else if expanded}
+			{#if chats.length > 0}
+				<div class="section-label">Chats</div>
+				<ul class="chats-list">
+					{#each filteredChats as chat (chat.id)}
+						{@const unread = !!unreadMap[chat.id]}
+						<li>
+							<button
+								class="chat-item"
+								class:selected={chat.id === selectedChatId}
+								class:open={chat.id === activeChatId}
+								class:unread
+								onclick={() => onSelectChat(chat.id)}
+								aria-current={chat.id === activeChatId ? 'page' : undefined}
+								type="button"
+							>
+								<span class="chat-avatar" style={`--avatar-color: ${colorForChat(chat.id)}`}>
+									{chat.name.charAt(0).toUpperCase()}
+								</span>
+								<span class="chat-info">
+									<span class="chat-row">
+										<span class="chat-name">{chat.name}</span>
+										<span class="chat-time">{activityLabel(chat)}</span>
+									</span>
+									<span class="chat-row">
+										<span class="chat-meta">
+											{chat.members.length} member{chat.members.length === 1 ? '' : 's'}
+										</span>
+										{#if unread}
+											<span class="unread-dot" aria-label="Unread messages"></span>
+										{/if}
+									</span>
+								</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
+				{#if filteredChats.length === 0}
+					<p class="no-results">No chats match “{query}”</p>
+				{/if}
+			{:else if !error}
+				<div class="list-empty">
+					<div class="list-empty-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+							<path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z" />
+						</svg>
+					</div>
+					<p class="list-empty-title">No chats yet</p>
+					<p class="list-empty-text">Start a conversation or join one with an invite code.</p>
+					<div class="list-empty-actions">
+						<button class="btn btn-primary" type="button" onclick={onOpenCreateModal}>Create chat</button>
+						<button class="btn btn-ghost" type="button" onclick={onOpenJoinModal}>Join</button>
+					</div>
+				</div>
+			{/if}
+		{:else}
+			<!-- Collapsed: avatar stack, plus a persistent add button - the
+			     only way to create/join while collapsed. -->
 			<div class="chat-stack">
 				{#each chats as chat (chat.id)}
 					<button
-						class="chat-avatar"
+						class="stack-avatar"
 						class:active={chat.id === activeChatId}
 						type="button"
 						onclick={() => onSelectChat(chat.id)}
-						title={`#${chat.name}`}
-						style={`background: ${colorForChat(chat.id)}`}
+						title={chat.name}
+						aria-label={chat.name}
+						style={`--avatar-color: ${colorForChat(chat.id)}`}
 					>
 						{chat.name.charAt(0).toUpperCase()}
 						{#if unreadMap[chat.id]}
-							<span class="unread-dot" aria-label="Unread messages"></span>
+							<span class="stack-unread" aria-label="Unread messages"></span>
 						{/if}
 					</button>
 				{/each}
-				<DropdownMenu placement="right" width="120px">
+				<DropdownMenu placement="right" width="200px">
 					{#snippet trigger({ toggle })}
-						<button onclick={toggle} class="chat-avatar add-chat-btn" title="Create or join a chat" type="button">+</button>
+						<button onclick={toggle} class="stack-avatar add-chat-btn" title="New chat" aria-label="New chat" type="button">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="16" height="16" aria-hidden="true">
+								<path d="M12 5v14M5 12h14" />
+							</svg>
+						</button>
 					{/snippet}
 					{#snippet children({ close })}
-						<button onclick={() => { onOpenCreateModal(); close(); }} class="dropdown-item" type="button">
-							<span>Create</span>
-						</button>
-						<button onclick={() => { onOpenJoinModal(); close(); }} class="dropdown-item" type="button">
-							<span>Join</span>
-						</button>
+						{@render createJoinItems(close)}
 					{/snippet}
 				</DropdownMenu>
 			</div>
 		{/if}
-
-		{#if !isLoading && chats.length === 0 && !error && expanded}
-			<EmptyState
-				icon="💬"
-				title="No chats yet"
-				description='Create your first chat or join one with an invitation code using the "+" button above!'
-			/>
-		{/if}
 	</div>
 
-	{#if expanded}
-		<div class="rail-footer">
-			<button class="nav-item" onclick={onLogout} type="button">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-					<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-					<path d="M16 17l5-5-5-5" />
-					<path d="M21 12H9" />
-				</svg>
-				<span>Sign Out</span>
-			</button>
-			<div class="rail-user">
-				<div class="user-avatar">{initial}</div>
-				<div class="user-meta">
-					<div class="user-name">@{$authStore.user?.username}</div>
-				</div>
-				<ThemeToggle />
-			</div>
-		</div>
-	{:else}
-		<div class="rail-bottom">
-			<ThemeToggle />
-			<DropdownMenu placement="right" width="180px">
-				{#snippet trigger({ toggle })}
-					<button
-						class="rail-avatar"
-						type="button"
-						onclick={toggle}
-						title={$authStore.user?.username ?? ''}
-						aria-label="Account menu"
-					>
-						{initial}
-					</button>
-				{/snippet}
-				{#snippet children({ close })}
-					<div class="dropdown-header">@{$authStore.user?.username}</div>
-					<div class="dropdown-separator"></div>
-					<button
-						onclick={() => { onLogout(); close(); }}
-						class="dropdown-item"
-						type="button"
-					>
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-							<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-							<path d="M16 17l5-5-5-5" />
-							<path d="M21 12H9" />
+	<!-- ---- Account ---- -->
+	<div class="rail-footer">
+		<DropdownMenu placement={expanded ? 'top' : 'right'} align="left" width="240px">
+			{#snippet trigger({ toggle, open })}
+				<button
+					class="account-trigger"
+					class:open
+					type="button"
+					onclick={toggle}
+					title={expanded ? undefined : username}
+					aria-label="Account menu"
+				>
+					<span class="account-avatar">{initial}</span>
+					{#if expanded}
+						<span class="account-name">{username}</span>
+						<svg class="account-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+							<path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
 						</svg>
-						<span>Sign Out</span>
-					</button>
-				{/snippet}
-			</DropdownMenu>
-		</div>
-	{/if}
+					{/if}
+				</button>
+			{/snippet}
+			{#snippet children({ close })}
+				{@render accountMenu(close)}
+			{/snippet}
+		</DropdownMenu>
+	</div>
 </nav>
 
 <style>
 	.rail {
-		width: var(--rail-width, 56px);
+		width: 68px;
 		height: 100%;
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: var(--rail-icon-gap, 4px);
-		padding: 12px 0;
-		background: var(--rail-bg, #101016);
+		background: var(--sidebar-bg);
+		border-right: 1px solid var(--sidebar-border);
 		overflow: hidden;
-		transition: width 0.18s ease;
-
-		/* The rail is deliberately theme-invariant chrome - pitch black in
-		   both themes, per the design tokens' own --rail-* comment - but
-		   generic tokens like --text-primary/--border/--surface flip to
-		   light-theme (dark-on-white) values in [data-theme='light'], which
-		   are unreadable against a black background. Declare rail-local
-		   equivalents pinned to their dark values, and use those (not the
-		   ambient tokens) below for anything painted directly on the rail.
-		   Deliberately NOT touching --text-primary etc. themselves: the
-		   account/create-join dropdowns rendered inside the rail are
-		   separate floating panels on their own (correctly theme-following)
-		   --panel-bg surface, and shadowing the ambient tokens here would
-		   make their text invisible too.
-
-		   Values pinned to the chat header redesign's mockup exactly
-		   (matching --rail-bg and the --accent override in global.css)
-		   rather than the shared design-tokens package's own dark chrome
-		   colors. --rail-accent-border is the selected chat item's border
-		   only - the mockup uses a muted purple there, distinct from the
-		   brighter --rail-accent used for icons/avatars/rings. */
-		--rail-bg: #101016;
-		--rail-text-primary: #e9e9ed;
-		--rail-text-secondary: #8a8a9c;
-		--rail-text-muted: #6f6f80;
-		--rail-border-color: #1c1c25;
-		--rail-border-color-hover: #2b2b38;
-		--rail-surface: transparent;
-		--rail-surface-hover: #15151c;
-		--rail-accent: #9184d9;
-		--rail-accent-subtle: rgba(145, 132, 217, 0.1);
-		--rail-accent-border: #3b3550;
-		--rail-icon-bg-hover: #1c1c25;
+		transition: width 0.22s var(--ease-out-expo);
 	}
 
 	.rail.expanded {
-		width: 320px;
+		width: 288px;
 		align-items: stretch;
-		padding: 0;
 	}
 
-	/* ---- Top cluster: brand mark, (expanded: name + add button), toggle ---- */
+	/* ---- Header ---- */
 	.rail-top {
 		width: 100%;
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 4px;
-		padding: 0 0 4px;
+		gap: 0.5rem;
+		padding: 0.875rem 0 0.5rem;
+		padding-top: calc(0.875rem + env(safe-area-inset-top));
 	}
 
 	.rail.expanded .rail-top {
 		flex-direction: row;
+		justify-content: space-between;
+		padding: 0.875rem 0.75rem 0.625rem 1rem;
+		padding-top: calc(0.875rem + env(safe-area-inset-top));
+	}
+
+	.brand {
+		display: flex;
 		align-items: center;
 		gap: 0.625rem;
-		padding: 1rem 1.25rem;
-		border-bottom: 1px solid var(--rail-border-color);
+		min-width: 0;
 	}
 
-	.rail-mark {
+	.brand-mark {
 		width: 30px;
 		height: 30px;
-		border-radius: 7px;
-		overflow: hidden;
-		flex-shrink: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.rail-mark img {
-		width: 100%;
-		height: 100%;
+		border-radius: 8px;
 		object-fit: contain;
+		flex-shrink: 0;
 	}
 
-	.rail-brand-name {
-		flex: 1;
-		min-width: 0;
-		font-size: 1.0625rem;
-		font-weight: 700;
-		color: var(--rail-text-primary);
-		letter-spacing: -0.02em;
-	}
-
-	.icon-btn {
-		width: var(--rail-icon-size, 36px);
-		height: var(--rail-icon-size, 36px);
-		border-radius: var(--radius-sm);
-		border: 1px solid var(--rail-border-color-hover);
-		background: transparent;
-		color: var(--rail-text-secondary);
+	.brand-name {
 		font-size: 1rem;
-		font-weight: 700;
-		line-height: 1;
+		font-weight: 650;
+		letter-spacing: -0.02em;
+		color: var(--text-primary);
+	}
+
+	.top-actions {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		cursor: pointer;
+		gap: 0.125rem;
+	}
+
+	.rail .icon-button:hover:not(:disabled) {
+		background: var(--sidebar-item-active);
+	}
+
+	/* ---- Search ---- */
+	.search {
+		position: relative;
+		margin: 0.125rem 0.75rem 0.5rem;
 		flex-shrink: 0;
 	}
 
-	.icon-btn:hover {
-		background: var(--rail-surface-hover);
-		color: var(--rail-text-primary);
+	.search svg {
+		position: absolute;
+		left: 0.625rem;
+		top: 50%;
+		transform: translateY(-50%);
+		color: var(--text-muted);
+		pointer-events: none;
 	}
 
-	/* Bordered rounded-square rather than a borderless pill - matches the
-	   "+" icon-btn next to it (both read as one family of chrome buttons),
-	   per the design exploration. */
-	.rail-btn {
-		width: var(--rail-icon-size, 36px);
-		height: var(--rail-icon-size, 36px);
+	.search input {
+		height: 2.125rem;
+		padding: 0 0.75rem 0 2rem;
+		font-size: 0.8125rem;
+		background: var(--sidebar-item-hover);
+		border-color: transparent;
 		border-radius: var(--radius-sm);
-		border: 1px solid var(--rail-border-color-hover);
-		background: transparent;
-		color: var(--rail-text-secondary);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		flex-shrink: 0;
-		text-decoration: none;
-		transition: background var(--duration-base, 0.15s) var(--ease-standard, ease),
-			color var(--duration-base, 0.15s) var(--ease-standard, ease);
 	}
 
-	.rail-btn svg {
-		width: 16px;
-		height: 16px;
+	.search input:hover:not(:focus) {
+		border-color: var(--border);
 	}
 
-	.rail-btn:hover {
-		background: var(--rail-icon-bg-hover, rgba(255, 255, 255, 0.08));
-		color: var(--rail-text-primary);
+	.search input:focus {
+		background: var(--surface);
 	}
 
-	.rail-btn.active {
-		background: var(--rail-icon-bg-active, #fff);
-		color: var(--rail-icon-color-active, #000);
+	.search input::-webkit-search-cancel-button {
+		display: none;
 	}
 
-	/* ---- Chat region: the whole point of the merge - this grows to fill
-	   the rail, showing icon avatars collapsed or the full list expanded,
-	   instead of a second panel appearing next to the rail. ---- */
+	/* ---- Chat region ---- */
 	.chat-region {
 		width: 100%;
 		flex: 1;
@@ -392,7 +457,7 @@
 	}
 
 	.rail.expanded .chat-region {
-		padding: 0.75rem;
+		padding: 0.25rem 0.5rem 0.75rem;
 	}
 
 	.alert {
@@ -401,336 +466,418 @@
 
 	.loading-container {
 		display: flex;
-		flex-direction: column;
-		align-items: center;
 		justify-content: center;
 		padding: 2rem 0.5rem;
-		color: var(--rail-text-muted);
+		color: var(--text-muted);
 	}
 
-	/* Collapsed: icon-only chat stack */
-	.chat-stack {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 6px;
-		padding: 4px 0;
+	.section-label {
+		padding: 0.5rem 0.625rem 0.375rem;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--text-muted);
 	}
 
-	.chat-avatar {
-		position: relative;
-		width: var(--rail-icon-size, 36px);
-		height: var(--rail-icon-size, 36px);
-		flex-shrink: 0;
-		border: none;
-		border-radius: 10px;
-		color: #fff;
-		font-size: 0.8rem;
-		font-weight: 700;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		opacity: 0.6;
-		transition: opacity var(--duration-base, 0.15s) var(--ease-standard, ease);
-	}
-
-	.chat-avatar:hover {
-		opacity: 0.85;
-	}
-
-	/* Stays the same rounded-square shape when active - just gains a ring -
-	   rather than morphing into a circle, per the design exploration. */
-	.chat-avatar.active {
-		opacity: 1;
-		box-shadow: 0 0 0 2px var(--rail-accent, #9184d9), 0 0 0 4px var(--rail-bg, #101016);
-	}
-
-	.chat-avatar.add-chat-btn {
-		background: transparent;
-		border: 1px dashed var(--rail-border-color-hover);
-		color: var(--rail-text-muted);
-		opacity: 1;
-		font-size: 1rem;
-		font-weight: 700;
-	}
-
-	.chat-avatar.add-chat-btn:hover {
-		opacity: 1;
-		color: var(--rail-accent);
-		border-color: var(--rail-accent);
-	}
-
-	.unread-dot {
-		position: absolute;
-		top: -2px;
-		right: -2px;
-		width: 9px;
-		height: 9px;
-		border-radius: 999px;
-		background: var(--rail-accent, #9184d9);
-		border: 2px solid var(--rail-bg, #101016);
-	}
-
-	/* Expanded: full chat-list rows (ported from the old .sidebar) */
 	.chats-list {
+		list-style: none;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 1px;
 	}
 
 	.chat-item {
+		position: relative;
 		width: 100%;
-		padding: 1rem 1.25rem;
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		border: 1px solid var(--rail-border-color);
-		border-radius: var(--radius-md);
-		transition: all 0.2s ease;
-		background: var(--rail-surface);
+		gap: 0.75rem;
+		padding: 0.5rem 0.625rem;
+		border: none;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: inherit;
+		text-align: left;
 		cursor: pointer;
 		user-select: none;
-		text-align: left;
+		transition: background-color 0.12s ease;
 	}
 
 	.chat-item:hover {
-		background: var(--rail-surface-hover);
-		border-color: var(--rail-border-color-hover);
-		box-shadow: var(--shadow-sm);
+		background: var(--sidebar-item-hover);
+	}
+
+	.chat-item.selected {
+		background: var(--sidebar-item-hover);
+		box-shadow: inset 0 0 0 1px var(--border-hover);
+	}
+
+	.chat-item.open {
+		background: var(--sidebar-item-active);
+	}
+
+	.chat-item.open::before {
+		content: '';
+		position: absolute;
+		left: -0.5rem;
+		top: 25%;
+		bottom: 25%;
+		width: 3px;
+		border-radius: 0 3px 3px 0;
+		background: var(--accent);
+	}
+
+	.chat-avatar,
+	.stack-avatar {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-weight: 650;
+		color: color-mix(in srgb, var(--avatar-color) var(--identity-ink, 100%), #000);
+		background: color-mix(in srgb, var(--avatar-color) 16%, transparent);
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--avatar-color) 22%, transparent);
+	}
+
+	.chat-avatar {
+		width: 36px;
+		height: 36px;
+		border-radius: 10px;
+		font-size: 0.875rem;
 	}
 
 	.chat-info {
 		flex: 1;
 		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.0625rem;
 	}
 
-	.chat-name-container {
+	.chat-row {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: 0.5rem;
-		margin-bottom: 0.25rem;
 		min-width: 0;
 	}
 
 	.chat-name {
-		margin: 0;
-		color: var(--rail-text-primary);
-		font-size: 0.9375rem;
-		font-weight: 600;
+		min-width: 0;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--text-primary);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
-	.unread-indicator {
-		width: 7px;
-		height: 7px;
-		background: var(--rail-accent);
-		border-radius: 50%;
+	.chat-name::before {
+		content: '#';
+		margin-right: 0.125rem;
+		color: var(--text-muted);
+		font-weight: 400;
+	}
+
+	.chat-item.unread .chat-name {
+		font-weight: 650;
+	}
+
+	.chat-time {
 		flex-shrink: 0;
+		font-size: 0.6875rem;
+		color: var(--text-muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.chat-item.unread .chat-time {
+		color: var(--accent);
+		font-weight: 600;
 	}
 
 	.chat-meta {
-		margin: 0;
-		color: var(--rail-text-muted);
+		min-width: 0;
 		font-size: 0.75rem;
+		color: var(--text-muted);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
-	.chat-chevron {
-		color: var(--rail-text-muted);
-		font-size: 1rem;
-		opacity: 0.4;
-		transition: all 0.15s ease;
+	.chat-item.unread .chat-meta {
+		color: var(--text-secondary);
 	}
 
-	.chat-item:hover .chat-chevron {
-		color: var(--rail-accent);
-		opacity: 1;
-		transform: translateX(2px);
+	.unread-dot {
+		flex-shrink: 0;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--accent);
+		box-shadow: 0 0 0 3px var(--accent-subtle);
 	}
 
-	.chat-item.selected,
-	.chat-item.open {
-		border-color: var(--rail-accent-border, var(--rail-accent));
-		background: var(--rail-accent-subtle);
+	.no-results {
+		padding: 1rem 0.625rem;
+		margin: 0;
+		font-size: 0.8125rem;
+		color: var(--text-muted);
+		text-align: center;
 	}
 
-	.chat-item.selected .chat-chevron,
-	.chat-item.open .chat-chevron {
-		color: var(--rail-accent);
-		opacity: 1;
-	}
-
-	/* ---- Bottom: account footer ---- */
-	.rail-bottom {
+	/* Empty list */
+	.list-empty {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 8px;
+		text-align: center;
+		padding: 2.5rem 1rem;
 	}
 
-	.rail-avatar {
-		width: 28px;
-		height: 28px;
-		border-radius: 999px;
-		border: none;
-		padding: 0;
-		flex-shrink: 0;
+	.list-empty-icon {
+		width: 44px;
+		height: 44px;
+		border-radius: 12px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.7rem;
-		font-weight: 700;
-		font-family: inherit;
-		color: var(--accent-contrast, #fff);
-		background: var(--rail-accent, #9184d9);
-		cursor: pointer;
-		margin-top: 4px;
-		transition: transform var(--duration-base, 0.15s) var(--ease-standard, ease);
+		color: var(--accent);
+		background: var(--accent-subtle);
+		margin-bottom: 0.875rem;
 	}
 
-	.rail-avatar:hover {
-		transform: scale(1.06);
+	.list-empty-title {
+		margin: 0 0 0.25rem;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--text-primary);
 	}
 
-	/* ThemeToggle has no styles of its own - it relies on the global
-	   .theme-toggle class (static/global.css), whose border/background/
-	   color are the same theme-following tokens responsible for the
-	   sign-out/chat-name legibility bug above. Override it here (both the
-	   collapsed .rail-bottom and expanded .rail-user place one) so it
-	   reads correctly against the black rail in light theme. */
-	.rail :global(.theme-toggle) {
-		width: var(--rail-icon-size, 36px);
-		height: var(--rail-icon-size, 36px);
+	.list-empty-text {
+		margin: 0 0 1rem;
+		font-size: 0.8125rem;
+		color: var(--text-muted);
+		max-width: 220px;
+	}
+
+	.list-empty-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.list-empty-actions .btn {
+		height: 2rem;
+		font-size: 0.8125rem;
+	}
+
+	/* ---- Collapsed stack ---- */
+	.chat-stack {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0;
+	}
+
+	.stack-avatar {
+		position: relative;
+		width: 40px;
+		height: 40px;
 		border: none;
+		border-radius: 12px;
+		font-size: 0.875rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: border-radius 0.2s var(--ease-out-expo), transform 0.12s ease;
+	}
+
+	.stack-avatar:hover {
+		border-radius: 14px;
+		transform: translateY(-1px);
+	}
+
+	.stack-avatar.active {
+		box-shadow: 0 0 0 2px var(--sidebar-bg), 0 0 0 4px var(--avatar-color);
+	}
+
+	.stack-avatar.add-chat-btn {
+		--avatar-color: var(--text-muted);
 		background: transparent;
-		color: var(--rail-text-secondary);
+		box-shadow: inset 0 0 0 1px var(--border-hover);
+		color: var(--text-secondary);
 	}
 
-	.rail :global(.theme-toggle svg) {
-		width: 20px;
-		height: 20px;
+	.stack-avatar.add-chat-btn:hover {
+		color: var(--accent);
+		box-shadow: inset 0 0 0 1px var(--accent);
 	}
 
-	.rail :global(.theme-toggle:hover) {
-		border-color: transparent;
-		background: var(--rail-icon-bg-hover, rgba(255, 255, 255, 0.08));
-		color: var(--rail-text-primary);
+	.stack-unread {
+		position: absolute;
+		top: -3px;
+		right: -3px;
+		width: 11px;
+		height: 11px;
+		border-radius: 50%;
+		background: var(--accent);
+		border: 2px solid var(--sidebar-bg);
 	}
 
+	/* ---- Account footer ---- */
 	.rail-footer {
 		width: 100%;
 		flex-shrink: 0;
-		padding: 0.75rem;
-		border-top: 1px solid var(--rail-border-color);
 		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
+		justify-content: center;
+		padding: 0.625rem 0.5rem;
+		padding-bottom: calc(0.625rem + env(safe-area-inset-bottom));
+		border-top: 1px solid var(--sidebar-border);
 	}
 
-	.nav-item {
+	.rail-footer :global(.dropdown-root) {
 		width: 100%;
 		display: flex;
-		align-items: center;
-		gap: 0.625rem;
-		padding: 0.5625rem 0.625rem;
-		border: none;
-		background: transparent;
-		border-radius: var(--radius-sm);
-		color: var(--rail-text-secondary);
-		font-family: var(--font-mono);
-		font-size: 0.8125rem;
-		font-weight: 600;
-		text-align: left;
-		text-decoration: none;
-		cursor: pointer;
-		transition: all 0.15s ease;
+		justify-content: center;
 	}
 
-	.nav-item svg {
-		flex-shrink: 0;
-	}
-
-	.nav-item:hover {
-		background: var(--rail-surface-hover);
-		color: var(--rail-text-primary);
-	}
-
-	.rail-user {
+	.account-trigger {
 		display: flex;
 		align-items: center;
 		gap: 0.625rem;
-		padding: 0.375rem 0.625rem;
+		padding: 0.375rem;
+		border: none;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--text-primary);
+		cursor: pointer;
+		transition: background-color 0.12s ease;
 	}
 
-	/* Solid-filled, matching .rail-avatar (the same account trigger in the
-	   collapsed rail) - was a subtle tinted style, needlessly different
-	   from its own collapsed-state counterpart. */
-	.user-avatar {
+	.rail.expanded .account-trigger {
+		width: 100%;
+		padding: 0.4375rem 0.5rem;
+	}
+
+	.account-trigger:hover,
+	.account-trigger.open {
+		background: var(--sidebar-item-hover);
+	}
+
+	.account-avatar {
 		width: 30px;
 		height: 30px;
+		flex-shrink: 0;
 		border-radius: 50%;
-		background: var(--rail-accent, #9184d9);
-		color: var(--accent-contrast, #fff);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-weight: 700;
 		font-size: 0.8125rem;
-		flex-shrink: 0;
+		font-weight: 650;
+		color: #fff;
+		background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #ff6fa8));
 	}
 
-	.user-meta {
+	.account-avatar.lg {
+		width: 36px;
+		height: 36px;
+		font-size: 0.9375rem;
+	}
+
+	.account-trigger .account-name {
 		flex: 1;
 		min-width: 0;
-	}
-
-	.user-name {
-		color: var(--rail-text-primary);
+		text-align: left;
 		font-size: 0.8125rem;
-		font-weight: 600;
+		font-weight: 550;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
-	/* On mobile the rail is forced expanded (see (app)/+layout.svelte's
-	   isMobile handling) and stretched to full width by that same file's
-	   media query - there's no collapsed state to toggle back to, so the
-	   toggle button is just noise. */
+	.account-chevron {
+		flex-shrink: 0;
+		color: var(--text-muted);
+	}
+
+	/* Account menu content (portaled into the dropdown) */
+	:global(.dropdown-menu) .account-meta {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	:global(.dropdown-menu) .account-name {
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	:global(.dropdown-menu) .account-email {
+		font-size: 0.75rem;
+		font-weight: 400;
+		color: var(--text-muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* ---- Mobile: the rail is the whole list screen ---- */
 	@media (max-width: 768px) {
 		.toggle-btn {
 			display: none;
 		}
 
-		/* Same specificity tier as the base .rail.expanded rule above (both
-		   carry the component's scoping class), so this has to live here
-		   to actually win - an override from outside this component would
-		   need :global() and still lose the specificity fight. */
 		.rail.expanded {
 			width: 100%;
+			border-right: none;
 		}
 
 		.rail.expanded .rail-top {
-			padding: 0.75rem 1rem;
+			padding-left: 1rem;
+			padding-right: 0.75rem;
+		}
+
+		.brand-name {
+			font-size: 1.25rem;
+		}
+
+		.search {
+			margin-left: 1rem;
+			margin-right: 1rem;
+		}
+
+		.search input {
+			height: 2.5rem;
+			font-size: 0.9375rem;
 		}
 
 		.rail.expanded .chat-region {
-			padding: 0.75rem 1rem;
+			padding: 0.25rem 0.5rem 1rem;
 		}
 
-		.rail.expanded .chat-item {
-			padding: 0.875rem 1rem;
+		.chat-item {
+			padding: 0.625rem 0.5rem;
+			gap: 0.875rem;
 		}
-	}
 
-	@media (max-width: 480px) {
-		.rail-brand-name {
+		.chat-item.open::before {
+			display: none;
+		}
+
+		.chat-avatar {
+			width: 46px;
+			height: 46px;
+			border-radius: 14px;
 			font-size: 1rem;
+		}
+
+		.chat-name {
+			font-size: 0.9688rem;
+		}
+
+		.chat-meta {
+			font-size: 0.8125rem;
 		}
 	}
 </style>

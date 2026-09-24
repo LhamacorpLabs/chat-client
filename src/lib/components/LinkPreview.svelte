@@ -109,21 +109,20 @@
 		background: var(--panel-bg);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		margin-top: 0.75rem;
+		margin-top: 0.25rem;
 		cursor: pointer;
-		transition: all 0.3s ease;
-		max-width: 450px;
+		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+		max-width: 420px;
 		overflow: hidden;
+		color: var(--text-primary);
 	}
 
 	.link-preview-card:hover {
 		border-color: var(--border-hover);
-		background: var(--surface-hover);
-		transform: translateY(-2px);
 		box-shadow: var(--shadow-md);
 	}
 
-	.link-preview-card:focus {
+	.link-preview-card:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -132,85 +131,76 @@
 		position: absolute;
 		top: 0;
 		left: 0;
-		width: 4px;
+		width: 3px;
 		height: 100%;
-		opacity: 0.8;
 	}
 
 	.preview-content {
-		padding: 1rem 1rem 1rem 1.25rem;
+		padding: 0.75rem 0.875rem 0.75rem 1rem;
 	}
 
 	.platform-header {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		margin-bottom: 0.75rem;
+		gap: 0.625rem;
+		margin-bottom: 0.5rem;
 	}
 
 	.platform-logo {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 32px;
-		height: 32px;
+		width: 28px;
+		height: 28px;
 		background: var(--surface-alt);
 		border-radius: var(--radius-sm);
 		flex-shrink: 0;
-		transition: transform 0.2s ease;
-	}
-
-	.link-preview-card:hover .platform-logo {
-		transform: scale(1.1);
 	}
 
 	.platform-info {
 		display: flex;
 		flex-direction: column;
-		gap: 0.125rem;
+		line-height: 1.25;
 	}
 
 	.platform-name {
 		font-weight: 600;
-		font-size: 0.9rem;
+		font-size: 0.8125rem;
 		color: var(--text-primary);
 		text-transform: capitalize;
 	}
 
 	.content-type {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-		opacity: 0.8;
-	}
-
-	.preview-body {
-		padding-left: 0.5rem;
+		font-size: 0.6875rem;
+		color: var(--text-muted);
 	}
 
 	.content-title {
 		font-weight: 600;
-		font-size: 1rem;
+		font-size: 0.875rem;
 		color: var(--text-primary);
-		line-height: 1.3;
-		margin-bottom: 0.5rem;
+		line-height: 1.35;
+		margin-bottom: 0.25rem;
 		word-break: break-word;
 	}
 
 	.content-description {
-		font-size: 0.85rem;
+		font-size: 0.8125rem;
 		color: var(--text-secondary);
-		line-height: 1.4;
-		margin-bottom: 0.5rem;
+		line-height: 1.45;
+		margin-bottom: 0.375rem;
 		word-break: break-word;
-		opacity: 0.9;
 	}
 
 	.content-url {
-		font-size: 0.75rem;
+		font-size: 0.6875rem;
 		color: var(--text-muted);
-		font-family: var(--font-mono);
-		opacity: 0.7;
 		text-transform: lowercase;
+	}
+
+	/* Brand marks that are near-black would vanish on dark surfaces */
+	:global([data-theme='dark']) .link-preview-card.github .platform-logo {
+		color: var(--text-primary) !important;
 	}
 
 	/* Platform-specific styling */

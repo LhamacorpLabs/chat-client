@@ -212,23 +212,19 @@
 </div>
 
 <style>
-	.image-upload-container {
-		margin: 8px 0;
-	}
-
 	.upload-zone {
-		border: 2px dashed var(--border);
-		border-radius: var(--radius-sm);
+		border: 1.5px dashed var(--border-hover);
+		border-radius: var(--radius-md);
 		padding: 16px;
 		text-align: center;
 		cursor: pointer;
-		transition: all 0.2s ease;
-		background: var(--surface-hover);
+		transition: border-color 0.15s ease, background-color 0.15s ease;
+		background: var(--panel-bg);
 	}
 
 	.upload-zone:hover:not(.disabled) {
 		border-color: var(--accent);
-		background: var(--surface-alt);
+		background: var(--accent-subtle);
 	}
 
 	.upload-zone.drag-over {

@@ -2,6 +2,8 @@
      mobile the sidebar is the whole screen while on this route, so this
      panel never actually becomes visible there). -->
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import { authStore } from '$lib/stores/auth';
 	import { chatStore } from '$lib/stores/chat';
 
 	let isElectron = $state(typeof window !== 'undefined' && !!window.electronAPI);
@@ -12,105 +14,192 @@
 	let steps = $derived([
 		{
 			label: 'Create your first chat',
-			hint: 'Tap the + next to "Chat" in the sidebar',
+			hint: 'Use the + button in the sidebar, or press C',
+			href: null,
 			done: hasChats
 		},
 		{
 			label: 'Invite a teammate',
-			hint: 'Open a chat and tap "+ Invite"',
+			hint: 'Open a chat and click Invite',
+			href: null,
 			done: hasInvited
 		},
 		{
 			label: 'Get the desktop app',
-			hint: null,
-			href: isElectron ? null : '/download',
+			hint: 'Native notifications and auto-updates',
+			href: isElectron ? null : resolve('/download'),
 			done: isElectron
 		}
 	]);
 
 	let activeIndex = $derived(steps.findIndex(step => !step.done));
+	let doneCount = $derived(steps.filter(step => step.done).length);
+
+	function greeting(): string {
+		const hour = new Date().getHours();
+		if (hour < 12) return 'Good morning';
+		if (hour < 18) return 'Good afternoon';
+		return 'Good evening';
+	}
 </script>
 
-{#if activeIndex !== -1}
-	<div class="onboarding-panel">
-		<div class="onboarding-card">
-			<div class="eyebrow">Get started</div>
-			<div class="steps">
-				{#each steps as step, i (step.label)}
-					<svelte:element
-						this={step.href ? 'a' : 'div'}
-						href={step.href}
-						class="step"
-						class:done={step.done}
-						class:active={i === activeIndex}
-						class:linked={!!step.href}
-					>
-						<span class="mark">
-							{#if step.done}
-								<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-									<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
-								</svg>
-							{:else}
-								{i + 1}
-							{/if}
-						</span>
-						<span class="text">
-							<span class="label">{step.label}</span>
-							{#if step.hint && i === activeIndex}
-								<span class="hint">{step.hint}</span>
-							{/if}
-						</span>
-					</svelte:element>
-				{/each}
-			</div>
-		</div>
+<div class="welcome">
+	<div class="welcome-inner">
+		<img class="welcome-mark" src="/logo.png" alt="" />
+		<h1>{greeting()}, {$authStore.user?.username}</h1>
+		<p class="lead">
+			{#if hasChats}
+				Pick a conversation from the sidebar to jump back in.
+			{:else}
+				Create a chat or join one with an invite code to get started.
+			{/if}
+		</p>
+
+		{#if activeIndex !== -1}
+			<section class="setup" aria-label="Get started">
+				<header class="setup-header">
+					<span>Get started</span>
+					<span class="setup-progress">{doneCount} of {steps.length}</span>
+				</header>
+				<div class="progress-track" aria-hidden="true">
+					<div class="progress-fill" style={`width: ${(doneCount / steps.length) * 100}%`}></div>
+				</div>
+				<ol class="steps">
+					{#each steps as step, i (step.label)}
+						<li>
+							<svelte:element
+								this={step.href ? 'a' : 'div'}
+								href={step.href}
+								class="step"
+								class:done={step.done}
+								class:active={i === activeIndex}
+								class:linked={!!step.href}
+							>
+								<span class="mark">
+									{#if step.done}
+										<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+											<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+										</svg>
+									{:else}
+										{i + 1}
+									{/if}
+								</span>
+								<span class="text">
+									<span class="label">{step.label}</span>
+									{#if !step.done}
+										<span class="hint">{step.hint}</span>
+									{/if}
+								</span>
+								{#if step.href && !step.done}
+									<svg class="step-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+										<path d="M5 12h14M13 6l6 6-6 6" />
+									</svg>
+								{/if}
+							</svelte:element>
+						</li>
+					{/each}
+				</ol>
+			</section>
+		{/if}
+
+		<dl class="shortcuts">
+			<div><dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Browse chats</dd></div>
+			<div><dt><kbd>C</kbd></dt><dd>Create</dd></div>
+			<div><dt><kbd>J</kbd></dt><dd>Join</dd></div>
+		</dl>
 	</div>
-{:else}
-	<div class="chat-placeholder-panel">
-		<div class="chat-placeholder">
-			<div class="chat-placeholder-icon">💬</div>
-			<h2>Select a chat</h2>
-			<p>Choose a conversation from the list to start messaging.</p>
-		</div>
-	</div>
-{/if}
+</div>
 
 <style>
-	.onboarding-panel,
-	.chat-placeholder-panel {
+	.welcome {
 		flex: 1;
 		min-height: 0;
 		display: flex;
-		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		background: transparent;
-		overflow: hidden;
+		overflow-y: auto;
 		padding: 2rem;
+		background:
+			radial-gradient(60% 50% at 50% 0%, var(--accent-subtle), transparent 70%),
+			var(--app-bg);
 	}
 
-	.onboarding-card {
+	.welcome-inner {
 		width: 100%;
-		max-width: 360px;
-		padding: 1.25rem 1.375rem;
-		border-radius: var(--radius-lg);
-		background: var(--glass-bg, var(--panel-bg));
-		border: 1px solid var(--glass-border, var(--border));
-		box-shadow: var(--glass-shadow, var(--shadow-md));
-		-webkit-backdrop-filter: blur(var(--glass-blur, 0px));
-		backdrop-filter: blur(var(--glass-blur, 0px));
+		max-width: 420px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		animation: fadeIn 0.4s var(--ease-out-expo);
 	}
 
-	.eyebrow {
-		font-family: var(--font-mono);
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
+	.welcome-mark {
+		width: 52px;
+		height: 52px;
+		border-radius: 14px;
+		margin-bottom: 1.25rem;
+		box-shadow: var(--shadow-md);
+	}
+
+	h1 {
+		margin: 0 0 0.5rem;
+		font-size: 1.5rem;
+		font-weight: 650;
+	}
+
+	.lead {
+		margin: 0 0 2rem;
+		font-size: 0.9375rem;
+		color: var(--text-secondary);
+		max-width: 340px;
+		text-wrap: balance;
+	}
+
+	.setup {
+		width: 100%;
+		text-align: left;
+		padding: 1rem;
+		border-radius: var(--radius-lg);
+		background: var(--panel-bg);
+		border: 1px solid var(--border);
+		box-shadow: var(--shadow-md);
+	}
+
+	.setup-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0 0.25rem;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.setup-progress {
+		font-size: 0.75rem;
+		font-weight: 500;
 		color: var(--text-muted);
-		margin-bottom: 0.75rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.progress-track {
+		height: 4px;
+		margin: 0.625rem 0.25rem 0.75rem;
+		border-radius: 999px;
+		background: var(--surface-alt);
+		overflow: hidden;
+	}
+
+	.progress-fill {
+		height: 100%;
+		border-radius: inherit;
+		background: var(--accent);
+		transition: width 0.4s var(--ease-out-expo);
 	}
 
 	.steps {
+		list-style: none;
 		display: flex;
 		flex-direction: column;
 		gap: 0.125rem;
@@ -118,12 +207,13 @@
 
 	.step {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		gap: 0.75rem;
-		padding: 0.5625rem 0.625rem;
+		padding: 0.625rem;
 		border-radius: var(--radius-md);
 		text-decoration: none;
 		color: inherit;
+		transition: background-color 0.15s ease;
 	}
 
 	.step.linked {
@@ -131,7 +221,7 @@
 	}
 
 	.step.linked:hover {
-		background: var(--glass-bg-hover, var(--surface-hover));
+		background: var(--surface-hover);
 	}
 
 	.mark {
@@ -143,9 +233,8 @@
 		align-items: center;
 		justify-content: center;
 		font-size: 0.75rem;
-		font-weight: 700;
-		background: var(--glass-bg, var(--surface));
-		border: 1px solid var(--border);
+		font-weight: 600;
+		border: 1px solid var(--border-hover);
 		color: var(--text-muted);
 	}
 
@@ -155,39 +244,36 @@
 	}
 
 	.step.done .mark {
-		background: rgba(127, 216, 168, 0.18);
+		background: var(--success-bg);
 		border-color: transparent;
-		color: #4ade80;
+		color: var(--success-text);
 	}
 
 	.step.active .mark {
 		background: var(--accent);
 		border-color: transparent;
-		color: var(--accent-contrast, #fff);
-		box-shadow: var(--accent-glow, none);
-	}
-
-	.step.active {
-		background: var(--accent-subtle);
+		color: var(--accent-contrast);
+		box-shadow: 0 0 0 4px var(--accent-subtle);
 	}
 
 	.text {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
-		gap: 0.125rem;
-		padding-top: 0.125rem;
+		gap: 0.0625rem;
+		min-width: 0;
 	}
 
 	.label {
 		font-size: 0.875rem;
-		font-weight: 600;
+		font-weight: 550;
 		color: var(--text-secondary);
 	}
 
 	.step.done .label {
 		color: var(--text-muted);
 		text-decoration: line-through;
-		text-decoration-color: var(--border);
+		text-decoration-color: var(--border-hover);
 	}
 
 	.step.active .label {
@@ -199,32 +285,51 @@
 		color: var(--text-muted);
 	}
 
-	.chat-placeholder {
-		flex: 1;
+	.step-arrow {
+		flex-shrink: 0;
+		color: var(--text-muted);
+		transition: transform 0.15s ease, color 0.15s ease;
+	}
+
+	.step.linked:hover .step-arrow {
+		color: var(--text-primary);
+		transform: translateX(2px);
+	}
+
+	.shortcuts {
 		display: flex;
-		flex-direction: column;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.5rem 1.25rem;
+		margin-top: 1.75rem;
+		font-size: 0.75rem;
+		color: var(--text-muted);
+	}
+
+	.shortcuts div {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+
+	.shortcuts dt {
+		display: flex;
+		gap: 0.1875rem;
+	}
+
+	kbd {
+		min-width: 1.25rem;
+		height: 1.25rem;
+		padding: 0 0.3125rem;
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.5rem;
-		text-align: center;
-	}
-
-	.chat-placeholder-icon {
-		font-size: 2.5rem;
-		opacity: 0.5;
-		margin-bottom: 0.25rem;
-	}
-
-	.chat-placeholder h2 {
-		margin: 0;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
 		color: var(--text-secondary);
-		font-size: 1.0625rem;
-	}
-
-	.chat-placeholder p {
-		margin: 0;
-		color: var(--text-muted);
-		font-size: 0.8125rem;
-		max-width: 280px;
+		background: var(--surface);
+		border: 1px solid var(--border-hover);
+		border-bottom-width: 2px;
+		border-radius: 5px;
 	}
 </style>

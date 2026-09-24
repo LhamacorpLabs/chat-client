@@ -8,7 +8,6 @@
 	import { resolve } from '$app/paths';
 	import { chatNotifications } from '$lib/stores/chatNotifications';
 	import { metadataPollingService } from '$lib/services/metadataPolling';
-	import { PUBLIC_CHAT_API_URL } from '$env/static/public';
 	import { cleanupAllChatData, schedulePeriodicCleanup } from '$lib/utils/localStorageCleanup';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
@@ -23,7 +22,6 @@
 	let isJoining = $state(false);
 	let joinError = $state<string | null>(null);
 	let selectedChatIndex = $state(-1);
-	let backendVersion = $state('');
 	let appVersion = $state('');
 	let isElectron = $state(typeof window !== 'undefined' && !!window.electronAPI);
 
@@ -78,7 +76,6 @@
 
 	$effect(() => {
 		chatNotifications.initialize();
-		fetchBackendVersion();
 		initializeAppVersion();
 
 		// Schedule periodic localStorage cleanup
@@ -183,21 +180,6 @@
 		joinError = null;
 	}
 
-	async function fetchBackendVersion() {
-		try {
-			const response = await fetch(`${PUBLIC_CHAT_API_URL}/actuator/info`);
-			if (response.ok) {
-				const data = await response.json();
-				const commitId = data.git?.commit?.id;
-				if (commitId) {
-					backendVersion = `be:${commitId}`;
-				}
-			}
-		} catch (error) {
-			console.error('Failed to fetch backend version:', error);
-		}
-	}
-
 	function initializeAppVersion() {
 		try {
 			appVersion = __APP_VERSION__;
@@ -269,11 +251,9 @@
 
 {#if $authStore.user}
 	<div class="app-shell" class:chat-open={isChatRoute}>
-		<!-- Rail is a direct app-shell child (not inset by --gap like the
-		     rest of the chrome) so it spans the full window height, flush
-		     against the top/bottom/left edges - matching the reference's
-		     edge-to-edge nav rail. It IS the chat list now too (expanded
-		     in place, no separate flyout panel) - see Rail.svelte. -->
+		<!-- The rail spans the full window height and IS the chat list
+		     (expanded in place, or collapsed to an avatar stack) - see
+		     Rail.svelte. -->
 		<div class="rail-wrapper">
 			<Rail
 				chats={$chatStore.chats}
@@ -283,6 +263,8 @@
 				error={$chatStore.error}
 				{selectedChatIndex}
 				expanded={effectiveListOpen}
+				{appVersion}
+				showDownload={!isElectron}
 				onToggleExpanded={() => (listOpen = !listOpen)}
 				onSelectChat={openChat}
 				onOpenCreateModal={openCreateModal}
@@ -291,47 +273,36 @@
 			/>
 		</div>
 
-		<div class="app-content">
-		<div class="shell-row">
-
 		<!-- Main column - the active route renders here. On desktop this
 		     sits beside the rail at all times; on mobile it only takes
 		     over the full screen while a chat is open (WhatsApp's mobile
-		     behavior), and the list route below just never shows it. -->
+		     behavior), and the list route never shows it. Copyright,
+		     version and the download link live in the rail's account menu. -->
 		<div class="shell-main">
 			{@render children()}
-		</div>
-		</div>
-
-		<footer class="app-footer">
-			©<span id="year"></span> Lhamacorp <script> document.getElementById('year').textContent = new Date().getFullYear(); </script>
-			{#if appVersion || backendVersion}
-				<span class="version-info">
-					{#if appVersion} • v{appVersion}{/if}
-				</span>
-			{/if}
-			{#if !isElectron}
-				<a href={resolve('/download')} class="download-link">• Download Client</a>
-			{/if}
-		</footer>
 		</div>
 
 		<!-- Create Chat Modal -->
 		{#if showCreateModal}
-			<Modal title="Create New Chat" onClose={closeCreateModal}>
-				<p class="modal-description">Enter a name for your new chat:</p>
+			<Modal title="Create a chat" description="Give it a short, recognizable name." onClose={closeCreateModal}>
 				<form onsubmit={(e) => { e.preventDefault(); handleCreateChat(); }}>
 					{#key showCreateModal}
+					<label class="field-label" for="new-chat-name">Name</label>
+					<div class="prefixed-input">
+					<span class="input-prefix" aria-hidden="true">#</span>
 					<!-- svelte-ignore a11y_autofocus -->
 					<input
+						id="new-chat-name"
 						type="text"
 						bind:value={newChatName}
-						placeholder="Enter chat name..."
+						placeholder="e.g. design-review"
 						required
 						disabled={$chatStore.isCreating}
 						class="modal-input"
+						autocomplete="off"
 						autofocus
 					/>
+					</div>
 					{/key}
 					<div class="modal-actions">
 						<button
@@ -347,7 +318,7 @@
 							class="btn btn-primary"
 							disabled={$chatStore.isCreating || !newChatName.trim()}
 						>
-							{$chatStore.isCreating ? 'Creating...' : 'Create Chat'}
+							{$chatStore.isCreating ? 'Creating…' : 'Create chat'}
 						</button>
 					</div>
 				</form>
@@ -356,18 +327,21 @@
 
 		<!-- Join Chat Modal -->
 		{#if showJoinModal}
-			<Modal title="Join Chat" onClose={closeJoinModal}>
-				<p class="modal-description">Enter the invitation code to join a chat:</p>
+			<Modal title="Join a chat" description="Paste the invitation code someone shared with you." onClose={closeJoinModal}>
 				<form onsubmit={(e) => { e.preventDefault(); handleJoinChat(); }}>
 					{#key showJoinModal}
+					<label class="field-label" for="invite-code">Invitation code</label>
 					<!-- svelte-ignore a11y_autofocus -->
 					<input
+						id="invite-code"
 						type="text"
 						bind:value={invitationCode}
-						placeholder="Enter invitation code..."
+						placeholder="Paste code"
 						required
 						disabled={isJoining}
-						class="modal-input"
+						class="modal-input code-input"
+						autocomplete="off"
+						spellcheck="false"
 						autofocus
 					/>
 					{/key}
@@ -390,7 +364,7 @@
 							class="btn btn-primary"
 							disabled={isJoining || !invitationCode.trim()}
 						>
-							{isJoining ? 'Joining...' : 'Join Chat'}
+							{isJoining ? 'Joining…' : 'Join chat'}
 						</button>
 					</div>
 				</form>
@@ -399,7 +373,7 @@
 	</div>
 {:else}
 	<div class="loading-screen">
-		<LoadingSpinner size="lg" label="Loading..." />
+		<LoadingSpinner size="lg" />
 	</div>
 {/if}
 
@@ -409,36 +383,15 @@
 		height: 100dvh;
 		display: flex;
 		overflow: hidden;
-	}
-
-	/* Everything except the rail keeps the old inset/floating-panel
-	   treatment - only the rail itself is edge-to-edge. */
-	.app-content {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-		gap: var(--gap);
-		padding: var(--gap);
-		padding-bottom: 0;
-	}
-
-	/* Just the main column now - the rail (including the expanded chat
-	   list) lives entirely in Rail.svelte, not here. */
-	.shell-row {
-		flex: 1;
-		min-height: 0;
-		display: flex;
+		background: var(--app-bg);
 	}
 
 	.rail-wrapper {
 		display: contents;
 	}
 
-	/* Main column - just a sizing container. The active route (the "select
-	   a chat" placeholder, or the chat view) provides its own floating
-	   panel look, same as the rail, so this stays unstyled. */
+	/* Main column - just a sizing container; the active route (the
+	   welcome screen, or the chat view) fills it. */
 	.shell-main {
 		flex: 1;
 		min-width: 0;
@@ -446,42 +399,6 @@
 		flex-direction: column;
 		min-height: 0;
 		overflow: hidden;
-	}
-
-	/* Footer - plain text below the panels, not a panel itself */
-	.app-footer {
-		flex-shrink: 0;
-		padding: 0.75rem 1.5rem;
-		padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
-		text-align: center;
-		color: var(--text-muted);
-		font-size: 0.7rem;
-	}
-
-	.version-info {
-		color: var(--text-muted);
-		font-size: 0.7rem;
-	}
-
-	.download-link {
-		color: var(--text-muted);
-		font-size: 0.7rem;
-		text-decoration: none;
-		margin-left: 0.25rem;
-	}
-
-	.download-link:hover {
-		color: var(--text-primary);
-	}
-
-	/* Dimmer than the shared --text-muted token in dark theme, matching
-	   the chat header redesign's mockup exactly - this footer line is
-	   meant to read as barely-there, not at the same muted level as
-	   in-app secondary text (timestamps, member counts, etc). */
-	:global([data-theme='dark']) .app-footer,
-	:global([data-theme='dark']) .version-info,
-	:global([data-theme='dark']) .download-link {
-		color: #4a4a5c;
 	}
 
 	/* Loading Screen - shown full-viewport while auth is still hydrating,
@@ -496,59 +413,60 @@
 		color: var(--text-muted);
 	}
 
-	/* Modal chrome (overlay/content/header/close button) now lives in the
-	   shared Modal component - the rules below only style the form content
-	   this page passes into the modal's body. */
-	.modal-description {
-		margin: 0 0 1rem 0;
+	/* Modal chrome lives in the shared Modal component - the rules below
+	   only style the form content this page passes into the modal's body. */
+	.field-label {
+		display: block;
+		margin-bottom: 0.375rem;
+		font-size: 0.8125rem;
+		font-weight: 550;
 		color: var(--text-secondary);
-		font-size: 0.875rem;
+	}
+
+	.prefixed-input {
+		position: relative;
+	}
+
+	.input-prefix {
+		position: absolute;
+		left: 0.875rem;
+		top: 50%;
+		transform: translateY(-50%);
+		color: var(--text-muted);
+		pointer-events: none;
+	}
+
+	.prefixed-input .modal-input {
+		padding-left: 1.75rem;
 	}
 
 	.modal-input {
 		width: 100%;
-		margin-bottom: 0.75rem;
+		height: 2.5rem;
+	}
+
+	.code-input {
+		font-family: var(--font-mono);
+		letter-spacing: 0.06em;
 	}
 
 	.modal-error {
-		margin-bottom: 0.75rem;
+		margin: 0.75rem 0 0;
 	}
 
 	.modal-actions {
 		display: flex;
-		gap: 0.75rem;
+		gap: 0.5rem;
 		justify-content: flex-end;
-		margin-top: 1.25rem;
-	}
-
-	.modal-actions button {
-		min-width: 80px;
+		margin-top: 1.5rem;
 	}
 
 	/* Responsive Design - on mobile the shell only ever shows one pane at a
 	   time, WhatsApp-style: the chat list by default, or the open chat
-	   (full-screen) while chat-open is set. */
+	   (full-screen) while chat-open is set. The rail is always rendered
+	   expanded there (see isMobile above and Rail.svelte's media query). */
 	@media (max-width: 768px) {
-		.app-content {
-			gap: 0;
-			padding: 0;
-		}
-
-		.shell-row {
-			gap: 0;
-		}
-
-		/* No icon-only state on mobile - there's no separate flyout to
-		   fall back on now that the rail and list are merged, so the
-		   rail is always rendered expanded (full list, full width - see
-		   Rail.svelte's own mobile media query for the width override)
-		   and visibility is driven by isChatRoute instead, WhatsApp-style:
-		   the list or the open chat, never both. */
 		.shell-main {
-			display: none;
-		}
-
-		.app-footer {
 			display: none;
 		}
 
@@ -561,5 +479,4 @@
 			width: 100%;
 		}
 	}
-
 </style>
