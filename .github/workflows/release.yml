@@ -177,12 +177,13 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Drafts have no git tag yet (it's only created on publish), so no --cleanup-tag here.
       - name: Delete draft releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release list --repo ${{ github.repository }} --limit 100 --json tagName,isDraft --jq '.[] | select(.isDraft) | .tagName' | while read TAG; do
-            gh release delete "$TAG" --repo ${{ github.repository }} --yes --cleanup-tag
+            gh release delete "$TAG" --repo ${{ github.repository }} --yes
           done
 
       - name: Delete old releases (keep last 3)
