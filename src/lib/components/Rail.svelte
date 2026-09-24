@@ -58,12 +58,39 @@
 	const selectedChatId = $derived(chats[selectedChatIndex]?.id);
 
 	let railEl: HTMLElement | undefined = $state();
+	// Collapsed avatars only show an initial, so the keyboard-selected chat
+	// gets a floating name label beside it. It's position: fixed (the rail
+	// clips overflow), so it's placed from the avatar's on-screen position
+	// and re-placed whenever the list scrolls.
+	const COLLAPSED_RAIL_WIDTH = 68;
+	let stackLabel = $state<{ name: string; top: number; left: number } | null>(null);
+
+	function selectedElement(): HTMLElement | null {
+		if (!selectedChatId || !railEl) return null;
+		return railEl.querySelector<HTMLElement>(`[data-chat-id="${CSS.escape(selectedChatId)}"]`);
+	}
+
+	function placeStackLabel() {
+		const el = selectedElement();
+		if (expanded || !el || !railEl) {
+			stackLabel = null;
+			return;
+		}
+		const rect = el.getBoundingClientRect();
+		stackLabel = {
+			name: chats[selectedChatIndex]?.name ?? '',
+			top: rect.top + rect.height / 2,
+			// Anchor to the collapsed rail width (see .rail) rather than the
+			// avatar, which is still moving while the rail animates closed.
+			left: railEl.getBoundingClientRect().left + COLLAPSED_RAIL_WIDTH + 8
+		};
+	}
+
 	// Keep the keyboard-selected chat visible in a long list.
 	$effect(() => {
-		if (!selectedChatId || !railEl) return;
-		railEl
-			.querySelector(`[data-chat-id="${CSS.escape(selectedChatId)}"]`)
-			?.scrollIntoView({ block: 'nearest' });
+		void expanded;
+		selectedElement()?.scrollIntoView({ block: 'nearest' });
+		placeStackLabel();
 	});
 
 	// Relative timestamps ("5m", "2h") need to tick on their own.
@@ -217,7 +244,7 @@
 	{/if}
 
 	<!-- ---- Chat list ---- -->
-	<div class="chat-region">
+	<div class="chat-region" onscroll={placeStackLabel}>
 		{#if error}
 			<div class="alert alert-error">{error}</div>
 		{/if}
@@ -319,6 +346,12 @@
 			</div>
 		{/if}
 	</div>
+
+	{#if stackLabel}
+		<div class="stack-label" style={`top: ${stackLabel.top}px; left: ${stackLabel.left}px`} aria-hidden="true">
+			{stackLabel.name}
+		</div>
+	{/if}
 
 	<!-- ---- Account ---- -->
 	<div class="rail-footer">
@@ -714,7 +747,27 @@
 	}
 
 	.stack-avatar.selected {
-		box-shadow: 0 0 0 2px var(--sidebar-bg), 0 0 0 4px var(--border-hover);
+		box-shadow: 0 0 0 2px var(--sidebar-bg), 0 0 0 4px var(--accent);
+	}
+
+	.stack-label {
+		position: fixed;
+		z-index: 50;
+		/* `translate`, not `transform` - fadeIn animates transform. */
+		translate: 0 -50%;
+		max-width: 220px;
+		padding: 0.3125rem 0.625rem;
+		border-radius: var(--radius-sm);
+		background: var(--text-primary);
+		color: var(--sidebar-bg);
+		font-size: 0.8125rem;
+		font-weight: 550;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		pointer-events: none;
+		box-shadow: var(--shadow-md);
+		animation: fadeIn 0.15s ease;
 	}
 
 	.stack-avatar.add-chat-btn {
