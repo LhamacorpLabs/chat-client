@@ -1,6 +1,7 @@
 # Lhama Chat
 
 [![Deploy](https://github.com/LhamacorpLabs/chat-client/actions/workflows/deploy.yml/badge.svg)](https://github.com/LhamacorpLabs/chat-client/actions/workflows/deploy.yml)
+[![Release](https://github.com/LhamacorpLabs/chat-client/actions/workflows/release.yml/badge.svg)](https://github.com/LhamacorpLabs/chat-client/actions/workflows/release.yml)
 
 Real-time chat app built with SvelteKit. Available as web app and native desktop client (macOS, Windows, Linux).
 
