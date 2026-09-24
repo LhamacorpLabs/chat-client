@@ -76,6 +76,7 @@
 
 <div class="download-page">
 	<div class="download-container">
+		<img class="app-icon" src="/logo.png" alt="" />
 		<h1>Download Chat</h1>
 		<p class="subtitle">Native desktop client with auto-updates</p>
 
@@ -99,7 +100,11 @@
 								<span class="platform-name">{platform.name}</span>
 								<span class="platform-desc">{platform.desc}</span>
 							</div>
-							<span class="download-icon">↓</span>
+							<span class="download-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+									<path d="M12 4v12M6 11l6 6 6-6M5 20h14" />
+								</svg>
+							</span>
 						</a>
 					{/if}
 				{/each}
@@ -117,68 +122,91 @@
 </div>
 
 <style>
+	/* body is position: fixed / overflow: hidden (app shell), so this page
+	   provides its own scroll container. */
 	.download-page {
-		min-height: 100vh;
-		min-height: 100dvh;
+		height: 100vh;
+		height: 100dvh;
+		overflow-y: auto;
 		display: flex;
 		align-items: flex-start;
 		justify-content: center;
-		padding: 4rem 2rem 2rem;
+		padding: 5rem 1.5rem 3rem;
+		background:
+			radial-gradient(60% 40% at 50% 0%, var(--accent-subtle), transparent 70%),
+			var(--app-bg);
 	}
 
 	.download-container {
-		max-width: 480px;
+		max-width: 460px;
 		width: 100%;
 		text-align: center;
+		animation: fadeIn 0.4s var(--ease-out-expo);
+	}
+
+	.app-icon {
+		width: 64px;
+		height: 64px;
+		border-radius: 16px;
+		box-shadow: var(--shadow-lg);
+		margin-bottom: 1.5rem;
 	}
 
 	h1 {
 		color: var(--text-primary);
 		margin: 0 0 0.5rem;
-		font-size: 1.8rem;
+		font-size: 1.75rem;
+		font-weight: 650;
 	}
 
 	.subtitle {
-		color: var(--text-muted);
-		margin: 0 0 2rem;
-		font-size: 0.9rem;
+		color: var(--text-secondary);
+		margin: 0 0 2.25rem;
+		font-size: 0.9375rem;
 	}
 
 	.loading, .error-text {
 		color: var(--text-muted);
-		font-size: 0.9rem;
+		font-size: 0.875rem;
 	}
 
 	.platforms {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--panel-bg);
+		box-shadow: var(--shadow-md);
+		overflow: hidden;
 	}
 
 	.platform-card {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
-		padding: 1rem 1.25rem;
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-sm);
+		gap: 0.875rem;
+		padding: 0.875rem 1rem;
 		text-decoration: none;
-		transition: all 0.15s ease;
+		transition: background-color 0.15s ease;
+	}
+
+	.platform-card + .platform-card {
+		border-top: 1px solid var(--border);
 	}
 
 	.platform-card:hover {
-		border-color: var(--accent);
 		background: var(--surface-hover);
-		box-shadow: var(--shadow-md);
 	}
 
 	.platform-icon {
 		flex-shrink: 0;
-		color: var(--text-muted);
+		width: 36px;
+		height: 36px;
+		border-radius: var(--radius-sm);
+		background: var(--surface-hover);
+		color: var(--text-secondary);
 		display: flex;
 		align-items: center;
+		justify-content: center;
 	}
 
 	.platform-info {
@@ -186,12 +214,13 @@
 		flex-direction: column;
 		align-items: flex-start;
 		flex: 1;
+		line-height: 1.35;
 	}
 
 	.platform-name {
 		color: var(--text-primary);
-		font-weight: 500;
-		font-size: 0.95rem;
+		font-weight: 550;
+		font-size: 0.9063rem;
 	}
 
 	.platform-desc {
@@ -200,38 +229,46 @@
 	}
 
 	.download-icon {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		color: var(--text-muted);
-		font-size: 1.2rem;
-		font-weight: bold;
+		transition: background-color 0.15s ease, color 0.15s ease;
+	}
+
+	.platform-card:hover .download-icon {
+		background: var(--accent);
+		color: var(--accent-contrast);
 	}
 
 	.download-button {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		margin-top: 1.5rem;
-		padding: 0.75rem 2rem;
+		margin-top: 1.25rem;
+		height: 2.5rem;
+		padding: 0 1.25rem;
 		background: var(--accent);
 		color: var(--accent-contrast);
-		border-radius: var(--radius-pill);
+		border-radius: var(--radius-sm);
 		text-decoration: none;
-		font-family: var(--font-mono);
-		font-weight: 700;
-		font-size: 0.8125rem;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		transition: all 0.15s ease;
+		font-weight: 600;
+		font-size: 0.875rem;
+		transition: background-color 0.15s ease, box-shadow 0.15s ease;
 	}
 
 	.download-button:hover {
 		background: var(--accent-hover);
-		box-shadow: 0 2px 8px var(--accent-shadow);
+		box-shadow: 0 4px 12px var(--accent-shadow);
 	}
 
 	.macos-note {
-		margin-top: 2rem;
+		margin-top: 1.75rem;
 		text-align: left;
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		color: var(--text-muted);
 	}
 
@@ -240,17 +277,23 @@
 		text-align: center;
 	}
 
+	.macos-note summary:hover {
+		color: var(--text-secondary);
+	}
+
 	.macos-note p {
-		margin: 0.5rem 0;
+		margin: 0.75rem 0 0.5rem;
 	}
 
 	.macos-note code {
 		display: block;
+		font-family: var(--font-mono);
 		background: var(--surface-hover);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
-		padding: 0.5rem 0.75rem;
+		padding: 0.625rem 0.75rem;
 		font-size: 0.75rem;
+		color: var(--text-primary);
 		word-break: break-all;
 	}
 
@@ -259,7 +302,8 @@
 		margin-top: 2rem;
 		color: var(--text-muted);
 		text-decoration: none;
-		font-size: 0.85rem;
+		font-size: 0.8125rem;
+		font-weight: 500;
 	}
 
 	.back-link:hover {

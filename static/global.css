@@ -1,26 +1,37 @@
 /*
- * App-specific base styles and legacy variable aliases.
+ * App-specific base styles and token refinements.
  *
- * The actual COSMIC design tokens (colors, type, spacing, radii,
- * shadows, motion, light/dark theming) live in the shared
- * @lhamacorplabs/design-tokens package and are imported in
- * src/routes/+layout.svelte via `import '@lhamacorplabs/design-tokens/v2/css'`.
- * This file only adds:
+ * The COSMIC design tokens (colors, type, spacing, radii, shadows,
+ * motion, light/dark theming) live in the shared
+ * @lhamacorplabs/design-tokens package, imported in
+ * src/routes/+layout.svelte. This file only adds:
+ *   - app-level refinements on top of those tokens (typography, surface
+ *     layering for the sidebar/main pane, elevation, motion)
  *   - old variable names kept as aliases so existing component code
- *     (--bg-primary, --border-color, etc.) didn't need a rewrite when
- *     the token system was introduced
+ *     (--bg-primary, --border-color, etc.) keeps working
  *   - semantic state colors specific to this app (unread/mention/muted)
  *   - the reset, typography defaults, and shared component classes
- *     (.btn/.card/.badge/.alert/.label-upper/.theme-toggle/.panel-focused)
+ *     (.btn/.icon-button/.badge/.alert/.label-upper)
+ *
+ * :root[data-theme=...] (specificity 0,2,0) intentionally outranks the
+ * package's un-attributed :root defaults (0,1,0), so overrides here win
+ * regardless of stylesheet load order.
  */
 
 :root {
 	color-scheme: light;
 
+	/* UI text is set in Inter; the mono face is reserved for things that
+	   benefit from fixed-width glyphs (invite codes, URLs, versions). */
+	--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-ui: var(--font-sans);
+
+	--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+	--ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
 	/* --- Legacy aliases so existing components keep working unchanged.
-	   These are lazily resolved against @lhamacorplabs/design-tokens, so
-	   they auto-update per theme without needing to be redeclared under
-	   [data-theme='dark']. --- */
+	   These are lazily resolved against the tokens, so they auto-update
+	   per theme without needing to be redeclared. --- */
 	--bg-primary: var(--surface);
 	--bg-secondary: var(--surface-hover);
 	--bg-tertiary: var(--surface-alt);
@@ -34,15 +45,7 @@
 	--danger-subtle: var(--error-bg);
 	--warning: var(--warning-text);
 	--warning-subtle: var(--warning-bg);
-	--radius-xl: var(--radius-lg);
-
-	/* --glass-(bg/border/blur/shadow) and --accent-glow used to be
-	   aliased here to flat v1 stand-ins ("flat panels replace the old
-	   blur/glass surfaces"). v2 tokens now define those for real
-	   (translucent surfaces, a genuine glow ring), so the aliases are
-	   removed rather than shadowing them. --bg-glass/--bg-glass-hover
-	   had no callers left; any new glass surface should reference
-	   --glass-bg/--glass-bg-hover from the package directly. */
+	--radius-xl: 22px;
 
 	/* Semantic state colors - unread/mention/muted indicators used across
 	   the chat list and message thread. */
@@ -53,28 +56,90 @@
 	--state-online: var(--success-text);
 }
 
-[data-theme='dark'] {
-	color-scheme: dark;
+/* ---- Light theme ---- */
+:root[data-theme='light'] {
+	color-scheme: light;
+
+	--bg-gradient: #ffffff;
+	--app-bg: #ffffff;
+	--sidebar-bg: #f7f7f9;
+	--sidebar-border: rgba(15, 15, 30, 0.07);
+	--sidebar-item-hover: rgba(15, 15, 30, 0.045);
+	--sidebar-item-active: rgba(15, 15, 30, 0.07);
+
+	--surface: #ffffff;
+	--surface-hover: #f4f4f6;
+	--surface-alt: #ececf0;
+	--panel-bg: #ffffff;
+
+	--text-primary: #16161d;
+	--text-secondary: #54545f;
+	--text-muted: #8b8b96;
+
+	--border: rgba(15, 15, 30, 0.08);
+	--border-hover: rgba(15, 15, 30, 0.14);
+	--input-bg: #ffffff;
+
+	/* Pastel identity colors (avatars, author names) are darkened by this
+	   much on light surfaces so they keep enough contrast. */
+	--identity-ink: 62%;
+
+	--bubble-other: #f1f1f4;
+	--bubble-own: var(--accent);
+	--bubble-own-text: #ffffff;
+
+	--shadow-sm: 0 1px 2px rgba(16, 16, 32, 0.05);
+	--shadow-md: 0 4px 12px -2px rgba(16, 16, 32, 0.08), 0 1px 3px rgba(16, 16, 32, 0.05);
+	--shadow-lg: 0 16px 40px -8px rgba(16, 16, 32, 0.16), 0 2px 6px rgba(16, 16, 32, 0.06);
+	--overlay-bg: rgba(16, 16, 28, 0.32);
 }
 
-/* App-specific dark accent override - the shared design-tokens package's
-   dark --accent (#7c6fee) is a slightly different, more saturated purple
-   than the one this app's chat header redesign was reviewed against.
-   Re-pin the accent family to that exact color here so every accent-driven
-   surface (buttons, own-message bubbles, chat list selection, focus rings,
-   the nav rail) matches consistently instead of drifting between two
-   purples. :root[data-theme='dark'] (specificity 0,2,0) intentionally
-   outranks the package's un-attributed :root dark defaults (0,1,0) so this
-   wins regardless of stylesheet load order. Light theme is untouched. */
+/* ---- Dark theme ----
+   Accent family pinned to the app's reviewed purple (#9184d9) rather than
+   the package's more saturated #7c6fee, so every accent-driven surface
+   matches consistently. */
 :root[data-theme='dark'] {
+	color-scheme: dark;
+
+	--bg-gradient: #0c0c10;
+	--app-bg: #0c0c10;
+	--sidebar-bg: #111116;
+	--sidebar-border: rgba(255, 255, 255, 0.06);
+	--sidebar-item-hover: rgba(255, 255, 255, 0.04);
+	--sidebar-item-active: rgba(255, 255, 255, 0.07);
+
+	--surface: #16161c;
+	--surface-hover: #1c1c23;
+	--surface-alt: #24242c;
+	--panel-bg: #17171d;
+
+	--text-primary: #ededf2;
+	--text-secondary: #a6a6b3;
+	--text-muted: #6e6e7c;
+
+	--border: rgba(255, 255, 255, 0.07);
+	--border-hover: rgba(255, 255, 255, 0.13);
+	--input-bg: rgba(255, 255, 255, 0.03);
+
 	--accent: #9184d9;
-	--accent-hover: #b3a9e6;
+	--accent-hover: #a89de3;
 	--accent-contrast: #0b0b0f;
-	--accent-subtle: rgba(145, 132, 217, 0.1);
-	--accent-shadow: rgba(145, 132, 217, 0.18);
+	--accent-subtle: rgba(145, 132, 217, 0.12);
+	--accent-shadow: rgba(145, 132, 217, 0.22);
 	--accent-glow: 0 0 0 3px rgba(145, 132, 217, 0.32), 0 0 24px rgba(145, 132, 217, 0.22);
 	--border-focus: #9184d9;
-	--focus-ring: rgba(145, 132, 217, 0.3);
+	--focus-ring: rgba(145, 132, 217, 0.28);
+
+	--identity-ink: 100%;
+
+	--bubble-other: #1d1d24;
+	--bubble-own: #2f2a52;
+	--bubble-own-text: #f1effc;
+
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+	--shadow-md: 0 6px 16px -4px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+	--shadow-lg: 0 20px 48px -12px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.35);
+	--overlay-bg: rgba(0, 0, 0, 0.55);
 }
 
 /* Reset and base styles */
@@ -85,17 +150,18 @@
 }
 
 html {
-	font-family: var(--font-mono);
+	font-family: var(--font-ui);
+	font-feature-settings: 'cv11', 'ss01', 'ss03';
 	line-height: 1.5;
-	background: var(--bg-gradient);
+	background: var(--app-bg, var(--bg-gradient));
 	color: var(--text-primary);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
 }
 
 body {
-	background: var(--bg-gradient);
-	background-attachment: fixed;
+	background: var(--app-bg, var(--bg-gradient));
 	color: var(--text-primary);
 	transition: background-color 0.2s ease, color 0.2s ease;
 	min-height: 100vh;
@@ -108,21 +174,28 @@ body {
 	width: 100%;
 }
 
+::selection {
+	background: var(--accent-subtle);
+	color: inherit;
+}
+
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
 	color: var(--text-primary);
 	margin-bottom: 0.75rem;
-	font-weight: 700;
-	letter-spacing: -0.01em;
+	font-weight: 600;
+	letter-spacing: -0.015em;
+	line-height: 1.25;
 }
 
 h1 {
 	font-size: 1.75rem;
-	font-weight: 700;
+	letter-spacing: -0.025em;
 }
 
 h2 {
 	font-size: 1.375rem;
+	letter-spacing: -0.02em;
 }
 
 h3 {
@@ -137,8 +210,8 @@ p {
 /* Small uppercase, letter-spaced label - section/field headers */
 .label-upper {
 	font-size: 0.6875rem;
-	font-weight: 700;
-	letter-spacing: 0.07em;
+	font-weight: 600;
+	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--text-muted);
 }
@@ -151,12 +224,18 @@ input, button, select, textarea {
 
 input, textarea, select {
 	background: var(--input-bg);
-	border: 1px solid var(--border);
+	border: 1px solid var(--border-hover);
 	color: var(--text-primary);
 	padding: 0.625rem 0.875rem;
 	border-radius: var(--radius-sm);
-	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 	width: 100%;
+}
+
+input:hover:not(:focus):not(:disabled),
+textarea:hover:not(:focus):not(:disabled),
+select:hover:not(:focus):not(:disabled) {
+	border-color: color-mix(in srgb, var(--text-muted) 45%, transparent);
 }
 
 input:focus, textarea:focus, select:focus {
@@ -169,38 +248,59 @@ input::placeholder, textarea::placeholder {
 	color: var(--text-muted);
 }
 
+:focus-visible {
+	outline: 2px solid var(--border-focus);
+	outline-offset: 2px;
+}
+
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+	outline: none;
+}
+
 /* Buttons */
 .btn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0.5rem 1.125rem;
-	border: none;
-	border-radius: var(--radius-pill);
-	font-family: var(--font-mono);
-	font-weight: 700;
-	font-size: 0.8125rem;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
+	height: 2.25rem;
+	padding: 0 1rem;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	font-family: inherit;
+	font-weight: 550;
+	font-size: 0.875rem;
+	letter-spacing: -0.005em;
 	text-decoration: none;
+	white-space: nowrap;
 	cursor: pointer;
-	transition: all 0.15s ease;
-	gap: 0.375rem;
+	transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+		box-shadow 0.15s ease, transform 0.1s ease;
+	gap: 0.4rem;
+	user-select: none;
+}
+
+.btn:active:not(:disabled) {
+	transform: scale(0.98);
 }
 
 .btn-primary {
 	background: var(--accent);
 	color: var(--accent-contrast);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px var(--accent-shadow);
 }
 
 .btn-primary:hover:not(:disabled) {
 	background: var(--accent-hover);
-	box-shadow: 0 2px 8px var(--accent-shadow);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 12px var(--accent-shadow);
 }
 
 .btn-danger {
 	background: var(--danger);
-	color: var(--accent-contrast);
+	color: #fff;
+}
+
+:root[data-theme='dark'] .btn-danger {
+	color: #1a0a0a;
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -208,18 +308,44 @@ input::placeholder, textarea::placeholder {
 }
 
 .btn-ghost {
-	background: var(--input-bg);
+	background: transparent;
 	color: var(--text-primary);
-	border: 1px solid var(--border);
+	border-color: var(--border-hover);
 }
 
-.btn-ghost:hover {
+.btn-ghost:hover:not(:disabled) {
 	background: var(--surface-hover);
-	border-color: var(--border-hover);
 }
 
 .btn:disabled {
 	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Square, borderless icon button used across headers/toolbars */
+.icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 2rem;
+	height: 2rem;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.icon-button:hover:not(:disabled) {
+	background: var(--surface-hover);
+	color: var(--text-primary);
+}
+
+.icon-button:disabled {
+	opacity: 0.4;
 	cursor: not-allowed;
 }
 
@@ -230,7 +356,7 @@ input::placeholder, textarea::placeholder {
 	border-radius: var(--radius-md);
 	padding: 1.25rem;
 	box-shadow: var(--shadow-sm);
-	transition: all 0.15s ease;
+	transition: box-shadow 0.15s ease;
 }
 
 .card:hover {
@@ -241,12 +367,10 @@ input::placeholder, textarea::placeholder {
 .badge {
 	display: inline-flex;
 	align-items: center;
-	padding: 0.1875rem 0.625rem;
+	padding: 0.1875rem 0.5rem;
 	border-radius: var(--radius-pill);
 	font-size: 0.6875rem;
-	font-weight: 700;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
+	font-weight: 600;
 	background: var(--accent-subtle);
 	color: var(--accent);
 }
@@ -263,10 +387,11 @@ input::placeholder, textarea::placeholder {
 
 /* Alerts */
 .alert {
-	padding: 0.75rem 1rem;
-	border-radius: var(--radius-md);
+	padding: 0.625rem 0.875rem;
+	border-radius: var(--radius-sm);
 	margin-bottom: 0.75rem;
-	font-size: 0.875rem;
+	font-size: 0.8125rem;
+	line-height: 1.45;
 }
 
 .alert-error {
@@ -292,30 +417,6 @@ input::placeholder, textarea::placeholder {
 	box-shadow: 0 0 0 3px var(--focus-ring), var(--shadow-lg);
 }
 
-/* Theme toggle button - small circular icon button */
-.theme-toggle {
-	position: relative;
-	width: 28px;
-	height: 28px;
-	border-radius: 50%;
-	border: 1px solid var(--border);
-	background: var(--input-bg);
-	color: var(--text-primary);
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 13px;
-	line-height: 1;
-	transition: all 0.2s ease;
-	flex-shrink: 0;
-}
-
-.theme-toggle:hover {
-	border-color: var(--border-hover);
-	background: var(--surface-hover);
-}
-
 /* Animations */
 @keyframes fadeIn {
 	from {
@@ -328,8 +429,28 @@ input::placeholder, textarea::placeholder {
 	}
 }
 
+@keyframes popIn {
+	from {
+		opacity: 0;
+		transform: scale(0.97) translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+
 .fade-in {
-	animation: fadeIn 0.3s ease-out;
+	animation: fadeIn 0.3s var(--ease-out-expo);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
 }
 
 /* Responsive design */
@@ -344,8 +465,14 @@ input::placeholder, textarea::placeholder {
 }
 
 /* Scrollbar styling */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-hover) transparent;
+}
+
 ::-webkit-scrollbar {
-	width: 6px;
+	width: 10px;
+	height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -353,10 +480,13 @@ input::placeholder, textarea::placeholder {
 }
 
 ::-webkit-scrollbar-thumb {
-	background: var(--border);
-	border-radius: 3px;
+	background: var(--border-hover);
+	border-radius: 999px;
+	border: 3px solid transparent;
+	background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
 	background: var(--text-muted);
+	background-clip: padding-box;
 }

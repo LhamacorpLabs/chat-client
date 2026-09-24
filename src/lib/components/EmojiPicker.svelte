@@ -26,15 +26,17 @@
 <style>
 	.emoji-picker {
 		position: absolute;
-		bottom: calc(100% + 8px);
-		left: 0;
+		bottom: calc(100% + 14px);
+		right: -2.5rem;
 		background: var(--panel-bg);
-		border: 1px solid var(--border);
+		border: 1px solid var(--border-hover);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-lg);
-		padding: 0.75rem;
+		padding: 0.5rem;
 		z-index: 100;
-		width: 280px;
+		width: 272px;
+		animation: popIn 0.18s var(--ease-out-expo, ease-out);
+		transform-origin: bottom right;
 	}
 
 	.emoji-grid {
@@ -54,10 +56,11 @@
 		background: none;
 		border-radius: var(--radius-sm);
 		cursor: pointer;
-		transition: background 0.1s ease;
+		transition: background-color 0.1s ease, transform 0.1s ease;
 	}
 
 	.emoji-item:hover {
 		background: var(--surface-hover);
+		transform: scale(1.15);
 	}
 </style>

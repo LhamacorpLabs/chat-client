@@ -306,15 +306,22 @@ one item (or small related group) per session/PR — not all at once.
 
 ## Minor / polish
 
-- [ ] `routes/(app)/+layout.svelte` embeds a raw `<script>` +
+- [x] `routes/(app)/+layout.svelte` embeds a raw `<script>` +
       `document.getElementById('year').textContent = ...` in the template
       for a footer year. Replace with `{new Date().getFullYear()}`.
+      **Resolved by the UI redesign**: the footer is gone; copyright,
+      version and the download link moved into the rail's account menu,
+      which uses `{new Date().getFullYear()}`.
 - [ ] Mobile action-menu backdrop (`chat/[chatId]/+page.svelte`, search for
       the mobile action-menu `<div>`) is a plain `onclick` div — no
       role/keydown/focus-trap. Reaction buttons nearby are bare emoji with no
-      `aria-label`.
-- [ ] `ThemeToggle.svelte` still uses Svelte 4 `on:click` while the rest of
-      the codebase is on Svelte 5 `onclick={}`.
+      `aria-label`. **Partly done in the UI redesign**: every reaction button
+      (hover toolbar, bottom sheet, reaction pills) now has an `aria-label`
+      and the menu has `role="menu"`; the backdrop still has no focus trap.
+- [x] `ThemeToggle.svelte` still uses Svelte 4 `on:click` while the rest of
+      the codebase is on Svelte 5 `onclick={}`. **Resolved by deletion**:
+      the theme switch now lives in the rail's account menu, so the
+      component (and the also-unused `ui/EmptyState.svelte`) were removed.
 - [ ] `linkPreview.ts` has 6 near-identical `detectX()` platform functions —
       collapsible into one table-driven matcher (keyword → path-segment →
       description builder).

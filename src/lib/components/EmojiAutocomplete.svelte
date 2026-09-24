@@ -31,13 +31,14 @@
 <style>
 	.emoji-autocomplete {
 		position: absolute;
-		bottom: calc(100% + 4px);
+		bottom: calc(100% + 14px);
 		left: 0;
 		background: var(--panel-bg);
-		border: 1px solid var(--border);
+		border: 1px solid var(--border-hover);
 		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-md);
-		padding: 0.25rem;
+		box-shadow: var(--shadow-lg);
+		padding: 0.3125rem;
+		animation: popIn 0.16s var(--ease-out-expo, ease-out);
 		z-index: 101;
 		min-width: 180px;
 		max-height: 200px;
@@ -59,9 +60,12 @@
 		transition: background 0.1s ease;
 	}
 
-	.autocomplete-item:hover,
-	.autocomplete-item.selected {
+	.autocomplete-item:hover {
 		background: var(--surface-hover);
+	}
+
+	.autocomplete-item.selected {
+		background: var(--accent-subtle);
 	}
 
 	.autocomplete-emoji {
@@ -69,6 +73,8 @@
 	}
 
 	.autocomplete-code {
-		color: var(--text-muted);
+		color: var(--text-secondary);
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
 	}
 </style>

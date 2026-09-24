@@ -32,13 +32,13 @@
 	import EmojiAutocomplete from '$lib/components/EmojiAutocomplete.svelte';
 	import { searchEmojis } from '$lib/utils/emojis';
 	import { colorForChat } from '$lib/utils/chatAvatar';
+	import { formatTime, formatFullDateTime, formatDayLabel, isSameDay } from '$lib/utils/time';
 	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
 	import { mergeMessagesWithPerMessageReactions, messagesReactionsChanged, getUserReactionForMessage } from '$lib/utils/reactionUtils';
-	import type { ReactionSummary } from '$lib/types/chat';
+	import type { ReactionSummary, ReactionType } from '$lib/types/chat';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
-	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
 
 	// Realtime mode: 'mqtt' or 'polling'
@@ -143,6 +143,32 @@
 	const currentChat = $derived(data.chat);
 	const chatName = $derived(currentChat.name);
 	const isOwner = $derived(data.isOwner);
+
+	const quickReactions: { type: ReactionType; emoji: string; label: string }[] = [
+		{ type: 'LIKE', emoji: '👍', label: 'Like' },
+		{ type: 'LOVE', emoji: '❤️', label: 'Love' },
+		{ type: 'FUNNY', emoji: '😂', label: 'Haha' }
+	];
+
+	// Consecutive messages from the same author within this window render
+	// as one visual group (one avatar/name header, tightened bubble
+	// corners), and a divider is inserted whenever the calendar day changes.
+	const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;
+
+	function continuesGroup(prev: Message | undefined, next: Message | undefined): boolean {
+		if (!prev || !next || prev.username !== next.username) return false;
+		if (!isSameDay(prev.createdAt, next.createdAt)) return false;
+		const gap = new Date(next.createdAt).getTime() - new Date(prev.createdAt).getTime();
+		return Math.abs(gap) < MESSAGE_GROUP_WINDOW_MS;
+	}
+
+	const messageLayout = $derived(
+		messages.map((message, i) => ({
+			newDay: i === 0 || !isSameDay(messages[i - 1].createdAt, message.createdAt),
+			first: !continuesGroup(messages[i - 1], message),
+			last: !continuesGroup(message, messages[i + 1])
+		}))
+	);
 
 	// Memory management constants
 	const MAX_MESSAGES_IN_MEMORY = 500; // Keep max 500 messages in memory
@@ -1390,100 +1416,132 @@
 	<div class="chat-page">
 		<!-- Header -->
 		<header class="chat-header">
-			<div class="header-content">
-				<div class="header-left">
-					<button onclick={goBack} class="btn btn-ghost back-btn" title="Back">
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-							<path d="M15 18l-6-6 6-6" />
-						</svg>
-					</button>
-					<div class="chat-avatar" style={`background: ${colorForChat(chatId)}`}>
-						{chatName.charAt(0).toUpperCase()}
-					</div>
-					<div class="chat-title">
-						<h1>#{chatName}</h1>
-						<span class="title-divider" aria-hidden="true"></span>
-						<span class="member-count">{currentChat.members.length} member{currentChat.members.length === 1 ? '' : 's'}</span>
-					</div>
+			<div class="header-left">
+				<button onclick={goBack} class="icon-button back-btn" title="Back" aria-label="Back to chats">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true">
+						<path d="M15 18l-6-6 6-6" />
+					</svg>
+				</button>
+				<div class="chat-avatar" style={`--avatar-color: ${colorForChat(chatId)}`} aria-hidden="true">
+					{chatName.charAt(0).toUpperCase()}
+				</div>
+				<div class="chat-title">
+					<h1><span class="hash" aria-hidden="true">#</span>{chatName}</h1>
+					<span class="member-count">
+						{currentChat.members.length} member{currentChat.members.length === 1 ? '' : 's'}
+						{#if $chatMuteStore.mutedChats[data.chatId]}
+							<span class="muted-pill" title="Notifications muted">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11" aria-hidden="true">
+									<path d="M11 5L6 9H2v6h4l5 4V5z" /><path d="M23 9l-6 6M17 9l6 6" />
+								</svg>
+								Muted
+							</span>
+						{/if}
+					</span>
+				</div>
+			</div>
+
+			<div class="header-actions">
+				<div class="member-stack" title={currentChat.members.map(m => m.name).join(', ')}>
+					{#each currentChat.members.slice(0, 4) as member (member.id)}
+						<span class="member-avatar" style={`--avatar-color: ${colorForChat(member.id)}`}>
+							{member.name.charAt(0).toUpperCase()}
+						</span>
+					{/each}
+					{#if currentChat.members.length > 4}
+						<span class="member-avatar more">+{currentChat.members.length - 4}</span>
+					{/if}
 				</div>
 
-				<div class="header-actions">
-					{#if isOwner}
-						<button
-							onclick={handleCreateInvite}
-							class="btn btn-ghost invite-btn"
-							disabled={isCreatingInvite}
-						>
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
-								<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-								<circle cx="9" cy="7" r="4" />
-								<path d="M19 8v6M22 11h-6" />
-							</svg>
-							<span>{isCreatingInvite ? 'Creating...' : 'Invite'}</span>
-						</button>
-					{/if}
+				{#if isOwner}
+					<button
+						onclick={handleCreateInvite}
+						class="btn btn-ghost invite-btn"
+						disabled={isCreatingInvite}
+					>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true">
+							<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+							<circle cx="9" cy="7" r="4" />
+							<path d="M19 8v6M22 11h-6" />
+						</svg>
+						<span>{isCreatingInvite ? 'Creating…' : 'Invite'}</span>
+					</button>
+				{/if}
 
-					<!-- Actions menu - available to all users -->
-					<DropdownMenu width="180px">
-						{#snippet trigger({ toggle })}
-							<button
-								onclick={toggle}
-								class="btn btn-ghost actions-toggle"
-								disabled={$chatStore.isDeleting}
-								type="button"
-								title="More actions"
-							>
-								<svg viewBox="0 0 24 24" width="16" height="16">
-									<circle cx="12" cy="5" r="1.6" fill="currentColor" />
-									<circle cx="12" cy="12" r="1.6" fill="currentColor" />
-									<circle cx="12" cy="19" r="1.6" fill="currentColor" />
+				<!-- Actions menu - available to all users -->
+				<DropdownMenu width="200px">
+					{#snippet trigger({ toggle })}
+						<button
+							onclick={toggle}
+							class="icon-button actions-toggle"
+							disabled={$chatStore.isDeleting}
+							type="button"
+							title="More actions"
+							aria-label="More actions"
+						>
+							<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+								<circle cx="5" cy="12" r="1.7" fill="currentColor" />
+								<circle cx="12" cy="12" r="1.7" fill="currentColor" />
+								<circle cx="19" cy="12" r="1.7" fill="currentColor" />
+							</svg>
+						</button>
+					{/snippet}
+					{#snippet children({ close })}
+						<button
+							onclick={() => {
+								chatMuteStore.toggleMute(data.chatId);
+								close();
+							}}
+							class="dropdown-item"
+							type="button"
+						>
+							{#if $chatMuteStore.mutedChats[data.chatId]}
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+									<path d="M11 5L6 9H2v6h4l5 4V5z" /><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14" />
 								</svg>
-							</button>
-						{/snippet}
-						{#snippet children({ close })}
+								<span>Unmute notifications</span>
+							{:else}
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+									<path d="M11 5L6 9H2v6h4l5 4V5z" /><path d="M23 9l-6 6M17 9l6 6" />
+								</svg>
+								<span>Mute notifications</span>
+							{/if}
+						</button>
+						<div class="dropdown-separator"></div>
+						{#if !isOwner}
 							<button
 								onclick={() => {
-									chatMuteStore.toggleMute(data.chatId);
+									showLeaveModal = true;
 									close();
 								}}
-								class="dropdown-item"
+								class="dropdown-item danger"
+								disabled={isLeaving}
 								type="button"
 							>
-								{#if $chatMuteStore.mutedChats[data.chatId]}
-									Unmute
-								{:else}
-									Mute
-								{/if}
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+									<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" />
+								</svg>
+								<span>{isLeaving ? 'Leaving…' : 'Leave chat'}</span>
 							</button>
-							{#if !isOwner}
-								<button
-									onclick={() => {
-										showLeaveModal = true;
-										close();
-									}}
-									class="dropdown-item danger"
-									disabled={isLeaving}
-									type="button"
-								>
-									{isLeaving ? 'Leaving...' : 'Leave Chat'}
-								</button>
-							{/if}
-							{#if isOwner}
-								<button
-									onclick={() => {
-										showDeleteModal = true;
-										close();
-									}}
-									class="dropdown-item danger"
-									disabled={$chatStore.isDeleting}
-									type="button"
-								>
-									{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
-								</button>
-							{/if}
-						{/snippet}
-					</DropdownMenu>
-				</div>
+						{/if}
+						{#if isOwner}
+							<button
+								onclick={() => {
+									showDeleteModal = true;
+									close();
+								}}
+								class="dropdown-item danger"
+								disabled={$chatStore.isDeleting}
+								type="button"
+							>
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+									<path d="M3 6h18" /><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+								</svg>
+								<span>{$chatStore.isDeleting ? 'Deleting…' : 'Delete chat'}</span>
+							</button>
+						{/if}
+					{/snippet}
+				</DropdownMenu>
 			</div>
 		</header>
 
@@ -1497,150 +1555,224 @@
 					class:has-new-messages={newMessagesBelowCount > 0}
 					title={newMessagesBelowCount > 0 ? `${newMessagesBelowCount} new message${newMessagesBelowCount > 1 ? 's' : ''}` : 'Jump to newest messages'}
 				>
-					{newMessagesBelowCount > 0 ? '↓ New messages' : '↓ Jump to newer messages'}
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true">
+						<path d="M12 5v14M5 12l7 7 7-7" />
+					</svg>
+					<span>{newMessagesBelowCount > 0 ? 'New messages' : 'Jump to latest'}</span>
 					{#if newMessagesBelowCount > 0}
 						<span class="new-messages-badge">{newMessagesBelowCount > 99 ? '99+' : newMessagesBelowCount}</span>
 					{/if}
 				</button>
 			{/if}
 			{#if error}
-				<div class="error-container">
-					<div class="alert alert-error">
-						{error}
+				<div class="state-container">
+					<div class="state-icon error" aria-hidden="true">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+							<circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" />
+						</svg>
 					</div>
-					<button onclick={loadMessages} class="btn btn-primary">
-						Try Again
-					</button>
+					<p class="state-title">Couldn’t load messages</p>
+					<p class="state-text">{error}</p>
+					<button onclick={loadMessages} class="btn btn-primary">Try again</button>
 				</div>
 			{:else if isLoading}
-				<div class="loading-container">
-					<LoadingSpinner label="Loading messages..." />
+				<div class="messages-container skeleton" aria-busy="true" aria-label="Loading messages">
+					{#each [60, 35, 75, 45, 55] as width, i (i)}
+						<div class="skeleton-row" class:own={i === 2}>
+							{#if i !== 2}<span class="skeleton-avatar"></span>{/if}
+							<span class="skeleton-bubble" style={`width: ${width}%`}></span>
+						</div>
+					{/each}
 				</div>
 			{:else if messages.length === 0}
-				<div class="empty-messages">
-					<EmptyState icon="💬" title="No messages yet" description="Be the first to start the conversation!" />
+				<div class="state-container intro">
+					<div class="intro-avatar" style={`--avatar-color: ${colorForChat(chatId)}`} aria-hidden="true">
+						{chatName.charAt(0).toUpperCase()}
+					</div>
+					<p class="state-title">Welcome to #{chatName}</p>
+					<p class="state-text">This is the very beginning of the conversation. Say hello 👋</p>
 				</div>
 			{:else}
 				<div class="messages-container" bind:this={messagesContainer}>
 					<!-- Auto-loading indicator -->
 					{#if hasMoreMessages && isLoadingMore}
 						<div class="loading-more-container">
-							<LoadingSpinner size="sm" inline label="Loading older messages..." />
+							<LoadingSpinner size="sm" inline label="Loading older messages…" />
 						</div>
 					{/if}
 
 					{#each messages as message, index (message.id)}
 						{@const isOwnMessage = message.username === $authStore.user?.username}
 						{@const memberColor = shouldUseColors && !isOwnMessage ? getMemberColor(chatId, message.userId) : null}
+						{@const authorColor = memberColor ?? colorForChat(message.userId)}
 						{@const linkifyResult = linkify(message.message, true)}
+						{@const layout = messageLayout[index]}
+						{@const isDeleted = message.message === '[deleted message]'}
+						{@const isFavorite = favoriteMessageIds.has(message.id)}
+						{#if layout?.newDay}
+							<div class="day-divider" role="separator">
+								<span>{formatDayLabel(message.createdAt)}</span>
+							</div>
+						{/if}
 						<div class="message-item {isOwnMessage ? 'own-message' : 'other-message'}"
+						     class:group-first={layout?.first}
+						     class:group-last={layout?.last}
 						     class:highlighted={highlightedMessageId === message.id}
 						     class:selected={selectedMessageIndex === index}
-						     class:favorited={favoriteMessageIds.has(message.id)}
-						     style={memberColor ? `--current-member-color: ${memberColor}` : ''}>
-							<div class="message-header">
-								<span class="message-user"
-								      style={memberColor ? `color: ${memberColor}` : ''}>
-									{message.username === $authStore.user?.username ? 'You' : message.username}
-									{#if favoriteMessageIds.has(message.id)}
-										<span class="favorite-indicator">★</span>
+						     class:favorited={isFavorite}
+						     class:deleted={isDeleted}
+						     class:menu-open={openActionMenuId === message.id}
+						     style={`--author-color: ${authorColor}`}>
+							{#if !isOwnMessage}
+								<div class="message-gutter">
+									{#if layout?.first}
+										<span class="message-avatar" aria-hidden="true">{message.username.charAt(0).toUpperCase()}</span>
+									{:else}
+										<time class="gutter-time" datetime={message.createdAt}>{formatTime(message.createdAt)}</time>
 									{/if}
-								</span>
-								<div class="message-header-right">
-									{#if message.message !== '[deleted message]'}
-										<div class="message-actions">
+								</div>
+							{/if}
+
+							<div class="message-body">
+								{#if layout?.first}
+									<div class="message-header">
+										{#if !isOwnMessage}
+											<span class="message-user">{message.username}</span>
+										{/if}
+										<time class="message-time" datetime={message.createdAt} title={formatFullDateTime(message.createdAt)}>
+											{formatTime(message.createdAt)}
+										</time>
+									</div>
+								{/if}
+
+								<div class="bubble-row">
+									<div class="message-bubble" title={layout?.first ? undefined : formatFullDateTime(message.createdAt)}>
+										{#if isFavorite}
+											<span class="favorite-indicator" title="Favorited" aria-label="Favorited">
+												<svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
+													<path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.5L12 17.3l-5.9 3.2 1.3-6.5-4.9-4.6 6.6-.8z" />
+												</svg>
+											</span>
+										{/if}
+										<div class="message-content">
+											{#if isDeleted}
+												<span class="deleted-text">This message was deleted</span>
+											{:else if hasImages(message.message) || hasReply(message.message)}
+												<!-- Message with images or replies - use ParsedMessage component -->
+												<ParsedMessage
+													content={message.message}
+													messages={messages}
+													onReplyClick={handleReplyClick}
+													onLinkClick={handleLinkConfirmation}
+												/>
+											{:else}
+												<!-- Regular text message -->
+												<span class="message-text"><LinkifiedText segments={linkifyResult.segments} onLinkClick={handleLinkConfirmation} /></span>
+
+												{#if linkifyResult.gifs && linkifyResult.gifs.length > 0}
+													<div class="message-gifs">
+														{#each linkifyResult.gifs as gif (gif.id)}
+															<MessageGif {gif} />
+														{/each}
+													</div>
+												{/if}
+
+												{#if linkifyResult.previews.length > 0}
+													<div class="message-previews">
+														{#each linkifyResult.previews as preview (preview.url)}
+															<LinkPreview
+																{preview}
+																onLinkClick={handleLinkConfirmation}
+															/>
+														{/each}
+													</div>
+												{/if}
+											{/if}
+										</div>
+									</div>
+
+									{#if !isDeleted}
+										<div class="message-actions" role="toolbar" aria-label="Message actions">
+											<div class="quick-reactions">
+												{#each quickReactions as reaction (reaction.type)}
+													<button class="action-btn reaction-quick"
+													        class:active={message.reactions?.some(r => r.type === reaction.type && r.users.some(u => u.username === $authStore.user?.username))}
+													        onclick={() => updateMessageReaction(message.id, reaction.type)}
+													        title={reaction.label}
+													        aria-label={reaction.label}>
+														{reaction.emoji}
+													</button>
+												{/each}
+												<span class="toolbar-divider" aria-hidden="true"></span>
+												<button class="action-btn reply-btn"
+												        onclick={() => handleReplyToMessage(message)}
+												        title="Reply"
+												        aria-label="Reply">
+													<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+														<path d="M9 14L4 9l5-5" /><path d="M4 9h11a5 5 0 015 5v6" />
+													</svg>
+												</button>
+											</div>
 											<button class="action-btn menu-btn"
 											        onclick={(e) => toggleActionMenu(message.id, e)}
-											        title="Message actions">
-												⋮
+											        title="More"
+											        aria-label="More message actions"
+											        aria-haspopup="menu"
+											        aria-expanded={openActionMenuId === message.id}>
+												<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+													<circle cx="5" cy="12" r="1.7" fill="currentColor" />
+													<circle cx="12" cy="12" r="1.7" fill="currentColor" />
+													<circle cx="19" cy="12" r="1.7" fill="currentColor" />
+												</svg>
 											</button>
 											{#if openActionMenuId === message.id}
+												<!-- svelte-ignore a11y_click_events_have_key_events -->
+												<!-- svelte-ignore a11y_no_static_element_interactions -->
 												<div class="mobile-menu-backdrop" onclick={closeActionMenu}></div>
-												<div class="action-dropdown">
+												<div class="action-dropdown" role="menu">
+													<div class="sheet-handle" aria-hidden="true"></div>
 													<div class="sheet-reactions">
-														<button class="sheet-reaction-btn"
-														        class:active={message.reactions?.some(r => r.type === 'FUNNY' && r.users.some(u => u.username === $authStore.user?.username))}
-														        onclick={() => { updateMessageReaction(message.id, 'FUNNY'); closeActionMenu(); }}>
-															😂
-														</button>
-														<button class="sheet-reaction-btn"
-														        class:active={message.reactions?.some(r => r.type === 'LIKE' && r.users.some(u => u.username === $authStore.user?.username))}
-														        onclick={() => { updateMessageReaction(message.id, 'LIKE'); closeActionMenu(); }}>
-															👍
-														</button>
-														<button class="sheet-reaction-btn"
-														        class:active={message.reactions?.some(r => r.type === 'LOVE' && r.users.some(u => u.username === $authStore.user?.username))}
-														        onclick={() => { updateMessageReaction(message.id, 'LOVE'); closeActionMenu(); }}>
-															❤️
-														</button>
+														{#each quickReactions as reaction (reaction.type)}
+															<button class="sheet-reaction-btn"
+															        class:active={message.reactions?.some(r => r.type === reaction.type && r.users.some(u => u.username === $authStore.user?.username))}
+															        onclick={() => { updateMessageReaction(message.id, reaction.type); closeActionMenu(); }}
+															        aria-label={reaction.label}>
+																{reaction.emoji}
+															</button>
+														{/each}
 													</div>
-													<button class="dropdown-item reply-item"
+													<button class="dropdown-item" role="menuitem"
 													        onclick={() => handleReplyToMessage(message)}>
-														<span class="desktop-text">↩ Reply</span>
-														<span class="mobile-text">Reply</span>
+														<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+															<path d="M9 14L4 9l5-5" /><path d="M4 9h11a5 5 0 015 5v6" />
+														</svg>
+														<span>Reply</span>
 													</button>
-													<button class="dropdown-item favorite-item"
+													<button class="dropdown-item" role="menuitem"
 													        onclick={() => handleToggleFavorite(message.id)}>
-														<span class="desktop-text">{favoriteMessageIds.has(message.id) ? '★ Unfavorite' : '☆ Favorite'}</span>
-														<span class="mobile-text">{favoriteMessageIds.has(message.id) ? 'Unfavorite' : 'Favorite'}</span>
+														<svg viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+															<path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.5L12 17.3l-5.9 3.2 1.3-6.5-4.9-4.6 6.6-.8z" />
+														</svg>
+														<span>{isFavorite ? 'Remove from favorites' : 'Add to favorites'}</span>
 													</button>
 													{#if isOwnMessage}
-														<button class="dropdown-item delete-item"
+														<div class="menu-separator" aria-hidden="true"></div>
+														<button class="dropdown-item delete-item" role="menuitem"
 														        onclick={() => handleDeleteMessage(message.id)}>
-															<span class="desktop-text">✕ Delete</span>
-															<span class="mobile-text">Delete</span>
+															<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+																<path d="M3 6h18" /><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+															</svg>
+															<span>Delete message</span>
 														</button>
 													{/if}
 												</div>
 											{/if}
 										</div>
 									{/if}
-									<span class="message-time">
-										{new Date(message.createdAt).toLocaleString([], {
-											year: 'numeric',
-											month: '2-digit',
-											day: '2-digit',
-											hour: '2-digit',
-											minute: '2-digit'
-										})}
-									</span>
 								</div>
-							</div>
-							<div class="message-content">
-								{#if hasImages(message.message) || hasReply(message.message)}
-									<!-- Message with images or replies - use ParsedMessage component -->
-									<ParsedMessage
-										content={message.message}
-										messages={messages}
-										onReplyClick={handleReplyClick}
-										onLinkClick={handleLinkConfirmation}
-									/>
-								{:else}
-									<!-- Regular text message - use existing linkify logic -->
-									<LinkifiedText segments={linkifyResult.segments} onLinkClick={handleLinkConfirmation} />
-
-									{#if linkifyResult.gifs && linkifyResult.gifs.length > 0}
-										<div class="message-gifs">
-											{#each linkifyResult.gifs as gif (gif.id)}
-												<MessageGif {gif} />
-											{/each}
-										</div>
-									{/if}
-
-									{#if linkifyResult.previews.length > 0}
-										<div class="message-previews">
-											{#each linkifyResult.previews as preview (preview.url)}
-												<LinkPreview
-													{preview}
-													onLinkClick={handleLinkConfirmation}
-												/>
-											{/each}
-										</div>
-									{/if}
-								{/if}
 
 								<!-- Message reactions -->
-								{#if message.message !== '[deleted message]'}
+								{#if !isDeleted}
 									<MessageReactions
 										{message}
 										{isOwnMessage}
@@ -1652,6 +1784,7 @@
 					{/each}
 				</div>
 			{/if}
+
 		</main>
 
 		<!-- Message Input -->
@@ -1662,123 +1795,135 @@
 				</div>
 			{/if}
 
-			{#if replyingTo}
-				<div class="reply-composition-container">
-					<ReplyPreview
-						message={replyingTo}
-						mode="composition"
-						onCancel={cancelReply}
-					/>
-				</div>
-			{/if}
-
-			{#if showImageUpload}
-				<div class="image-upload-section">
-					<ImageUpload
-						onFilesSelected={handleImageFilesSelected}
-						selectedFiles={selectedImages}
-						onRemoveFile={handleRemoveImage}
-						disabled={isSending || isUploadingImages}
-						maxFiles={5}
-					/>
-				</div>
-			{/if}
-
 			<form onsubmit={handleMessageSubmit} class="input-container">
 				<div class="composer">
-					<button
-						type="button"
-						class="composer-icon-btn image-btn"
-						onclick={toggleImageUpload}
-						disabled={isSending || isUploadingImages}
-						title="Add images"
-					>
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-							<path d="M12 5v14M5 12h14" />
-						</svg>
-					</button>
-					<div class="textarea-wrapper">
-						{#if showEmojiAutocomplete}
-							<EmojiAutocomplete
-								query={emojiQuery}
-								onSelect={insertEmojiFromAutocomplete}
-								selectedIndex={emojiAutocompleteIndex}
+					{#if replyingTo}
+						<div class="reply-composition-container">
+							<ReplyPreview
+								message={replyingTo}
+								mode="composition"
+								onCancel={cancelReply}
 							/>
-						{/if}
-						{#if showEmojiPicker}
-							<EmojiPicker
-								onSelect={insertEmojiFromPicker}
+						</div>
+					{/if}
+
+					{#if showImageUpload}
+						<div class="image-upload-section">
+							<ImageUpload
+								onFilesSelected={handleImageFilesSelected}
+								selectedFiles={selectedImages}
+								onRemoveFile={handleRemoveImage}
+								disabled={isSending || isUploadingImages}
+								maxFiles={5}
 							/>
-						{/if}
-						<textarea
-							rows="1"
-							bind:value={newMessage}
-							bind:this={messageInputElement}
-							onkeydown={handleKeyPress}
-							oninput={handleMessageInput}
-							onfocus={() => {
-								selectedMessageIndex = -1;
-								// Only jump to bottom on focus if we're already pinned
-								// there - don't yank the view away from scrollback the
-								// user is reading just because they tapped the input.
-								if (isPinnedToBottom) {
-									setTimeout(() => scrollToBottom(), FOCUS_SCROLL_DELAY_MS);
-								}
-							}}
-							placeholder={selectedImages.length > 0 ? 'Add a caption...' : 'Type a message...'}
+						</div>
+					{/if}
+
+					<div class="composer-row">
+						<button
+							type="button"
+							class="composer-icon-btn image-btn"
+							class:active={showImageUpload}
+							onclick={toggleImageUpload}
 							disabled={isSending || isUploadingImages}
-							class="message-input"
-						></textarea>
+							title="Attach images"
+							aria-label="Attach images"
+						>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="19" height="19" aria-hidden="true">
+								<path d="M21.4 11.1l-8.8 8.8a5.5 5.5 0 01-7.8-7.8l8.8-8.8a3.7 3.7 0 015.2 5.2l-8.8 8.8a1.8 1.8 0 01-2.6-2.6l8.1-8.1" />
+							</svg>
+						</button>
+						<div class="textarea-wrapper">
+							{#if showEmojiAutocomplete}
+								<EmojiAutocomplete
+									query={emojiQuery}
+									onSelect={insertEmojiFromAutocomplete}
+									selectedIndex={emojiAutocompleteIndex}
+								/>
+							{/if}
+							{#if showEmojiPicker}
+								<EmojiPicker
+									onSelect={insertEmojiFromPicker}
+								/>
+							{/if}
+							<textarea
+								rows="1"
+								bind:value={newMessage}
+								bind:this={messageInputElement}
+								onkeydown={handleKeyPress}
+								oninput={handleMessageInput}
+								onfocus={() => {
+									selectedMessageIndex = -1;
+									// Only jump to bottom on focus if we're already pinned
+									// there - don't yank the view away from scrollback the
+									// user is reading just because they tapped the input.
+									if (isPinnedToBottom) {
+										setTimeout(() => scrollToBottom(), FOCUS_SCROLL_DELAY_MS);
+									}
+								}}
+								placeholder={selectedImages.length > 0 ? 'Add a caption…' : `Message #${chatName}`}
+								aria-label={`Message #${chatName}`}
+								disabled={isSending || isUploadingImages}
+								class="message-input"
+							></textarea>
+						</div>
+						<button
+							type="button"
+							class="composer-icon-btn emoji-btn"
+							class:active={showEmojiPicker}
+							onclick={() => showEmojiPicker = !showEmojiPicker}
+							disabled={isSending || isUploadingImages}
+							title="Emoji"
+							aria-label="Emoji"
+						>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="19" height="19" aria-hidden="true">
+								<circle cx="12" cy="12" r="9" />
+								<path d="M8.5 14s1.3 1.75 3.5 1.75S15.5 14 15.5 14" />
+								<circle cx="9" cy="10" r="0.9" fill="currentColor" stroke="none" />
+								<circle cx="15" cy="10" r="0.9" fill="currentColor" stroke="none" />
+							</svg>
+						</button>
+						<button
+							type="submit"
+							class="send-btn"
+							class:ready={!!newMessage.trim() || selectedImages.length > 0}
+							disabled={(isSending || isUploadingImages) || (!newMessage.trim() && selectedImages.length === 0)}
+							title={isUploadingImages ? 'Uploading…' : isSending ? 'Sending…' : 'Send'}
+							aria-label="Send message"
+						>
+							{#if isSending || isUploadingImages}
+								<span class="send-spinner" aria-hidden="true"></span>
+							{:else}
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+									<path d="M12 19V5M5 12l7-7 7 7" />
+								</svg>
+							{/if}
+						</button>
 					</div>
-					<button
-						type="button"
-						class="composer-icon-btn emoji-btn"
-						onclick={() => showEmojiPicker = !showEmojiPicker}
-						disabled={isSending || isUploadingImages}
-						title="Emojis"
-					>
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-							<circle cx="12" cy="12" r="9" />
-							<path d="M8.5 14s1.3 1.75 3.5 1.75S15.5 14 15.5 14" />
-							<circle cx="9" cy="10" r="0.9" fill="currentColor" stroke="none" />
-							<circle cx="15" cy="10" r="0.9" fill="currentColor" stroke="none" />
-						</svg>
-					</button>
 				</div>
-				<button
-					type="submit"
-					class="btn btn-primary send-btn"
-					disabled={(isSending || isUploadingImages) || (!newMessage.trim() && selectedImages.length === 0)}
-					title="Send"
-				>
-					<svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
-						<path d="M22 2 11 13" />
-						<path d="M22 2 15 22 11 13 2 9 22 2Z" />
-					</svg>
-					<span class="send-label">{isUploadingImages ? 'Uploading...' : isSending ? 'Sending...' : 'Send'}</span>
-				</button>
+				<p class="composer-hint" aria-hidden="true">
+					<kbd>Enter</kbd> to send · <kbd>Shift</kbd> + <kbd>Enter</kbd> for a new line
+				</p>
 			</form>
 		</footer>
 
 		<!-- Invitation Modal -->
 		{#if showInviteModal && inviteCode}
-			<Modal title="Invitation Created!" onClose={closeInviteModal}>
-				<p class="modal-description">Share this invitation code with others to join the chat:</p>
+			<Modal title="Invite people" description={`Share this code so someone can join #${chatName}.`} onClose={closeInviteModal}>
 				<div class="invite-code-display">
 					<span class="invite-code">{inviteCode}</span>
 					<button onclick={copyInviteCode} class="btn btn-ghost copy-btn" class:copied={inviteCopied}>
-						{inviteCopied ? 'Copied!' : 'Copy'}
+						{inviteCopied ? 'Copied' : 'Copy'}
 					</button>
 				</div>
-				<p class="invite-note">This code can be used once to join the chat.</p>
+				<p class="invite-note">Each code works once.</p>
 			</Modal>
 		{/if}
 
 		<!-- Delete Confirmation Modal -->
 		{#if showDeleteModal}
-			<Modal title="Delete Chat" onClose={() => showDeleteModal = false}>
-				<p class="modal-description"><strong>Are you sure you want to delete this chat?</strong></p>
-				<p class="modal-description">This action cannot be undone. The chat "#{chatName}" and all its messages will be permanently deleted.</p>
+			<Modal title={`Delete #${chatName}?`} onClose={() => showDeleteModal = false}>
+				<p class="modal-description">The chat and all of its messages will be permanently deleted for everyone. This can’t be undone.</p>
 				<div class="modal-actions">
 					<button
 						onclick={() => showDeleteModal = false}
@@ -1792,7 +1937,7 @@
 						class="btn btn-danger"
 						disabled={$chatStore.isDeleting}
 					>
-						{$chatStore.isDeleting ? 'Deleting...' : 'Delete Chat'}
+						{$chatStore.isDeleting ? 'Deleting…' : 'Delete chat'}
 					</button>
 				</div>
 			</Modal>
@@ -1800,9 +1945,8 @@
 
 		<!-- Leave Confirmation Modal -->
 		{#if showLeaveModal}
-			<Modal title="Leave Chat" onClose={() => showLeaveModal = false}>
-				<p class="modal-description"><strong>Are you sure you want to leave this chat?</strong></p>
-				<p class="modal-description">You will no longer receive messages from "#{chatName}" and will need to be re-invited to join again.</p>
+			<Modal title={`Leave #${chatName}?`} onClose={() => showLeaveModal = false}>
+				<p class="modal-description">You’ll stop receiving its messages, and you’ll need a new invitation to rejoin.</p>
 				<div class="modal-actions">
 					<button
 						onclick={() => showLeaveModal = false}
@@ -1816,7 +1960,7 @@
 						class="btn btn-danger"
 						disabled={isLeaving}
 					>
-						{isLeaving ? 'Leaving...' : 'Leave Chat'}
+						{isLeaving ? 'Leaving…' : 'Leave chat'}
 					</button>
 				</div>
 			</Modal>
@@ -1829,12 +1973,16 @@
 
 		<!-- Link Confirmation Modal -->
 		{#if showLinkConfirmation && pendingUrl}
-			<Modal title="Open Link" onClose={closeLinkConfirmation}>
-				<p class="modal-description">Do you want to open this link in a new tab?</p>
+			<Modal title="Open external link?" onClose={closeLinkConfirmation}>
 				<div class="link-display">
 					<span class="link-url">{pendingUrl}</span>
 				</div>
-				<p class="link-warning">Only open links from trusted sources.</p>
+				<p class="link-warning">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+						<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z" />
+					</svg>
+					Only open links from people you trust.
+				</p>
 				<div class="modal-actions">
 					<button
 						onclick={closeLinkConfirmation}
@@ -1846,7 +1994,7 @@
 						onclick={confirmAndOpenLink}
 						class="btn btn-primary"
 					>
-						Open Link
+						Open link
 					</button>
 				</div>
 			</Modal>
@@ -1864,331 +2012,502 @@
 	</div>
 {:else}
 	<div class="loading-screen">
-		<LoadingSpinner size="lg" label="Loading..." />
+		<LoadingSpinner size="lg" />
 	</div>
 {/if}
 
 <style>
 	.chat-page {
-		/* Shared column width for the header, message list and composer -
-		   declared once so the three can never drift apart. */
-		--chat-column-width: 900px;
+		/* Shared column width for the message list and composer -
+		   declared once so the two can never drift apart. */
+		--chat-column-width: 860px;
+		--gutter-width: 36px;
 		display: flex;
 		flex-direction: column;
 		flex: 1;
 		min-height: 0;
 		overflow: hidden;
-		gap: var(--gap);
+		background: var(--app-bg);
 	}
 
-	/* Header - floating glass panel, same treatment as the rail's chat
-	   list and the Get Started card. Falls back to the old opaque
-	   --panel-bg cleanly on v1, since --glass-* doesn't exist there. */
-	/* The header used to be its own edge-to-edge glass panel, matching the
-	   composer's --glass-* treatment. That token tier is calibrated for a
-	   translucent surface floating over an app-supplied photo/gradient
-	   backdrop (--bg-image) - this app never sets one, so blurring the flat
-	   --bg-gradient did nothing visible, and a 5% white tint on near-black
-	   read as barely-there. Dropped the glass surface for an opaque inset
-	   card instead: .chat-header is now just the inset (padding, no chrome
-	   of its own) and .header-content is the actual visible card, sized and
-	   colored like the composer so header/content/composer read as one
-	   column instead of three different surface treatments. */
+	/* ---------------------------------------------------------------
+	   Header - a flat bar with a hairline divider rather than a floating
+	   card, so the conversation reads as one continuous pane.
+	   --------------------------------------------------------------- */
 	.chat-header {
 		flex-shrink: 0;
-		padding: 0.875rem 1.5rem 0;
-	}
-
-	.header-content {
-		max-width: var(--chat-column-width);
-		margin: 0 auto;
-		padding: 0.625rem 0.75rem 0.625rem 0.875rem;
+		height: 60px;
+		padding: 0 1rem 0 1.25rem;
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		background: var(--panel-bg);
-		border: 1px solid var(--border-hover);
-		border-radius: var(--radius-lg);
+		justify-content: space-between;
+		gap: 1rem;
+		border-bottom: 1px solid var(--border);
+		background: color-mix(in srgb, var(--app-bg) 85%, transparent);
+		-webkit-backdrop-filter: saturate(1.4) blur(12px);
+		backdrop-filter: saturate(1.4) blur(12px);
+		position: relative;
+		z-index: 5;
 	}
 
 	.header-left {
 		display: flex;
 		align-items: center;
-		gap: 0.625rem;
+		gap: 0.75rem;
 		min-width: 0;
 	}
 
-	/* Circular chip around the logo, like a channel/group avatar rather
-	   than a flat inline icon. */
-	/* Same colored avatar chip as the chat's icon in the rail (colorForChat
-	   gives it the same color there and here, and the same rounded-square
-	   shape the rail uses at rest - only the rail's own avatar goes fully
-	   circular to signal "selected"), so the header reads as "this chat"
-	   rather than showing the generic app logo. */
-	.chat-avatar {
+	.back-btn {
+		display: none;
+		margin-left: -0.5rem;
+	}
+
+	.chat-avatar,
+	.intro-avatar,
+	.member-avatar,
+	.message-avatar {
 		flex-shrink: 0;
-		width: 28px;
-		height: 28px;
-		border-radius: var(--radius-sm);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: #fff;
-		font-family: var(--font-mono);
-		font-size: 0.8125rem;
-		font-weight: 700;
-		box-shadow: 0 0 0 1px var(--glass-border, var(--border));
+		font-weight: 650;
+		color: color-mix(in srgb, var(--avatar-color) var(--identity-ink, 100%), #000);
+		background: color-mix(in srgb, var(--avatar-color) 16%, var(--app-bg));
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--avatar-color) 22%, transparent);
+	}
+
+	.chat-avatar {
+		width: 36px;
+		height: 36px;
+		border-radius: 10px;
+		font-size: 0.875rem;
 	}
 
 	.chat-title {
 		display: flex;
-		align-items: baseline;
-		gap: 0.5rem;
+		flex-direction: column;
 		min-width: 0;
+		line-height: 1.25;
 	}
 
-	/* Icon-only button, shared look for back/actions controls in the
-	   header. */
-	.back-btn,
-	.actions-toggle {
-		display: none;
-		flex-shrink: 0;
-		width: 30px;
-		height: 30px;
-		padding: 0;
-		border-radius: var(--radius-sm);
-		align-items: center;
-		justify-content: center;
-	}
-
-	.actions-toggle {
-		display: inline-flex;
-	}
-
-	.header-content h1 {
+	.chat-title h1 {
 		margin: 0;
 		min-width: 0;
-		font-size: 1rem;
-		font-weight: 500;
-		color: var(--text-primary);
+		font-size: 0.9688rem;
+		font-weight: 600;
 		letter-spacing: -0.01em;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.title-divider {
-		flex-shrink: 0;
-		width: 1px;
-		height: 16px;
-		background: var(--border-hover);
+	.chat-title .hash {
+		color: var(--text-muted);
+		font-weight: 400;
+		margin-right: 0.0625rem;
 	}
 
 	.member-count {
-		flex-shrink: 0;
-		font-family: var(--font-mono);
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 		font-size: 0.75rem;
 		color: var(--text-muted);
+	}
+
+	.muted-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0 0.375rem;
+		border-radius: var(--radius-pill);
+		background: var(--surface-hover);
+		font-size: 0.6875rem;
+		color: var(--text-secondary);
 	}
 
 	.header-actions {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+		flex-shrink: 0;
 	}
 
-	/* Chat Content - blends into the page background, like .message-input-area */
+	.member-stack {
+		display: flex;
+		align-items: center;
+		padding-right: 0.25rem;
+		margin-right: 0.25rem;
+	}
+
+	.member-avatar {
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		font-size: 0.6875rem;
+		margin-left: -7px;
+		border: 2px solid var(--app-bg);
+		box-shadow: none;
+		background: color-mix(in srgb, var(--avatar-color) 22%, var(--app-bg));
+	}
+
+	.member-avatar:first-child {
+		margin-left: 0;
+	}
+
+	.member-avatar.more {
+		--avatar-color: var(--text-secondary);
+		font-size: 0.625rem;
+		background: var(--surface-alt);
+	}
+
+	.invite-btn {
+		height: 2rem;
+		padding: 0 0.75rem;
+		font-size: 0.8125rem;
+	}
+
+	/* ---------------------------------------------------------------
+	   Message list
+	   --------------------------------------------------------------- */
 	.chat-content {
 		flex: 1;
 		min-height: 0;
-		background: transparent;
 		overflow-y: auto;
-		padding: 1rem 1.5rem;
+		padding: 0.5rem 1.5rem 1rem;
 		width: 100%;
 		position: relative;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior: contain;
 	}
 
-	.loading-container,
-	.error-container {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		height: 100%;
-		max-width: var(--chat-column-width);
-		margin: 0 auto;
-		color: var(--text-muted);
-	}
-
-	.empty-messages {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		height: 100%;
-		max-width: var(--chat-column-width);
-		margin: 0 auto;
-		text-align: center;
-		color: var(--text-muted);
-	}
-
-	/* Messages */
 	.messages-container {
 		display: flex;
 		flex-direction: column;
-		gap: 0.375rem;
 		padding: 0.5rem 0;
 		max-width: var(--chat-column-width);
 		margin: 0 auto;
 	}
 
-	/* Auto-loading indicator */
 	.loading-more-container {
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		gap: 0.5rem;
-		margin-bottom: 0.75rem;
 		padding: 0.5rem;
+		margin-bottom: 0.5rem;
 		color: var(--text-muted);
 		font-size: 0.8rem;
 	}
 
+	/* Skeleton loading */
+	.skeleton-row {
+		display: flex;
+		align-items: flex-end;
+		gap: 0.625rem;
+		margin-top: 1rem;
+	}
+
+	.skeleton-row.own {
+		justify-content: flex-end;
+	}
+
+	.skeleton-avatar {
+		width: var(--gutter-width);
+		height: var(--gutter-width);
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.skeleton-bubble {
+		height: 42px;
+		max-width: 480px;
+		border-radius: 16px;
+	}
+
+	.skeleton-avatar,
+	.skeleton-bubble {
+		background: linear-gradient(90deg, var(--surface-hover) 0%, var(--surface-alt) 50%, var(--surface-hover) 100%);
+		background-size: 200% 100%;
+		animation: shimmer 1.4s ease-in-out infinite;
+	}
+
+	@keyframes shimmer {
+		from {
+			background-position: 100% 0;
+		}
+		to {
+			background-position: -100% 0;
+		}
+	}
+
+	/* Empty / error states */
+	.state-container {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		height: 100%;
+		max-width: 360px;
+		margin: 0 auto;
+		animation: fadeIn 0.35s var(--ease-out-expo);
+	}
+
+	.state-icon {
+		width: 48px;
+		height: 48px;
+		border-radius: 14px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 1rem;
+	}
+
+	.state-icon.error {
+		color: var(--error-text);
+		background: var(--error-bg);
+	}
+
+	.intro-avatar {
+		width: 64px;
+		height: 64px;
+		border-radius: 18px;
+		font-size: 1.625rem;
+		margin-bottom: 1.125rem;
+	}
+
+	.state-title {
+		margin: 0 0 0.375rem;
+		font-size: 1.0625rem;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.state-text {
+		margin: 0 0 1.25rem;
+		font-size: 0.875rem;
+		color: var(--text-muted);
+		text-wrap: balance;
+	}
+
+	/* Day divider */
+	.day-divider {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin: 1.25rem 0 0.5rem;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		letter-spacing: 0.02em;
+	}
+
+	.day-divider::before,
+	.day-divider::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: var(--border);
+	}
+
+	.day-divider span {
+		padding: 0.1875rem 0.625rem;
+		border-radius: var(--radius-pill);
+		border: 1px solid var(--border);
+		background: var(--app-bg);
+	}
+
+	/* ---- A single message ---- */
 	.message-item {
-		border-radius: var(--radius-lg);
-		padding: 0.625rem 0.875rem;
-		max-width: 70%;
-		margin-bottom: 0.125rem;
-		transition: background-color 0.15s ease;
+		display: flex;
+		gap: 0.625rem;
 		position: relative;
+		margin-top: 2px;
+		border-radius: var(--radius-md);
 	}
 
-	@keyframes highlightPulse {
-		0% {
-			background: var(--accent-subtle);
-			box-shadow: 0 0 0 3px var(--accent-subtle);
-		}
-		100% {
-			background: transparent;
-			box-shadow: none;
-		}
-	}
-
-	.message-item.highlighted {
-		animation: highlightPulse 2s ease-out;
-	}
-
-	.message-item.selected {
-		outline: 2px solid var(--accent);
-		outline-offset: 2px;
-	}
-
-	.message-item.favorited {
-		border-left: 2px solid var(--warning-text);
-	}
-
-	.message-item.favorited.own-message {
-		border-right: 2px solid var(--warning-text);
-		border-left: none;
+	.message-item.group-first {
+		margin-top: 0.875rem;
 	}
 
 	.own-message {
-		background: var(--accent);
-		color: var(--accent-contrast);
-		align-self: flex-end;
-		border-bottom-right-radius: 4px;
+		justify-content: flex-end;
 	}
 
-	.other-message {
-		background: var(--surface-hover);
-		border: 1px solid var(--border);
-		border-left: 3px solid var(--current-member-color, var(--border));
-		align-self: flex-start;
-		border-bottom-left-radius: 4px;
+	.message-gutter {
+		width: var(--gutter-width);
+		flex-shrink: 0;
+		display: flex;
+		justify-content: center;
 	}
 
-	:global([data-theme='dark']) .other-message {
-		background: var(--surface-alt);
-		border: none;
-		border-left: 3px solid var(--current-member-color, var(--border));
+	/* Sits beside the group's first bubble, below the name/time header. */
+	.message-avatar {
+		--avatar-color: var(--author-color);
+		width: var(--gutter-width);
+		height: var(--gutter-width);
+		border-radius: 50%;
+		font-size: 0.8125rem;
+		margin-top: 1.4375rem;
 	}
 
-	:global([data-theme='dark']) .own-message {
-		background: color-mix(in srgb, var(--accent) 16%, transparent);
-		color: var(--text-primary);
-		border: none;
-	}
-
-	/* Re-assert the favorited indicator: same specificity as the
-	   .other-message/.own-message dark overrides above, but these come
-	   later so they win the border-left/border-right tie-break. */
-	:global([data-theme='dark']) .message-item.favorited {
-		border-left: 2px solid var(--warning-text);
-	}
-
-	:global([data-theme='dark']) .message-item.favorited.own-message {
-		border-right: 2px solid var(--warning-text);
-		border-left: none;
-	}
-
-	:global([data-theme='dark']) .own-message .message-user {
-		color: var(--accent);
-	}
-
-	:global([data-theme='dark']) .own-message .message-time {
+	.gutter-time {
+		align-self: center;
+		font-size: 0.625rem;
 		color: var(--text-muted);
+		opacity: 0;
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+		transition: opacity 0.12s ease;
 	}
 
-	:global([data-theme='dark']) .own-message .message-content {
-		color: var(--text-primary);
+	.message-item:hover .gutter-time {
+		opacity: 1;
+	}
+
+	.message-body {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		max-width: min(72%, 620px);
+	}
+
+	.own-message .message-body {
+		align-items: flex-end;
 	}
 
 	.message-header {
 		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 0.125rem;
+		align-items: baseline;
 		gap: 0.5rem;
+		margin: 0 0.75rem 0.25rem;
 	}
 
 	.message-user {
+		font-size: 0.8125rem;
 		font-weight: 600;
-		color: var(--current-member-color, var(--accent));
-		font-size: 0.75rem;
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-	}
-
-	.favorite-indicator {
-		color: var(--warning-text);
-		font-size: 0.7rem;
-		display: inline-block;
-		margin-left: 0.125rem;
-	}
-
-	.message-header-right {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
+		color: color-mix(in srgb, var(--author-color) var(--identity-ink, 100%), #000);
 	}
 
 	.message-time {
-		color: var(--text-muted);
 		font-size: 0.6875rem;
+		color: var(--text-muted);
+		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
+	}
+
+	.bubble-row {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		max-width: 100%;
+	}
+
+	.own-message .bubble-row {
+		flex-direction: row-reverse;
+	}
+
+	/* Bubble shape: fully rounded, with the corner nearest the author
+	   tightened between consecutive messages in a group. */
+	.message-bubble {
+		--r: 18px;
+		--r-tight: 6px;
+		position: relative;
+		min-width: 0;
+		padding: 0.5rem 0.875rem;
+		border-radius: var(--r);
+		background: var(--bubble-other);
+		color: var(--text-primary);
+		transition: box-shadow 0.2s ease;
+	}
+
+	.other-message:not(.group-first) .message-bubble {
+		border-top-left-radius: var(--r-tight);
+	}
+
+	.other-message:not(.group-last) .message-bubble {
+		border-bottom-left-radius: var(--r-tight);
+	}
+
+	.own-message .message-bubble {
+		background: var(--bubble-own);
+		color: var(--bubble-own-text);
+	}
+
+	.own-message:not(.group-first) .message-bubble {
+		border-top-right-radius: var(--r-tight);
+	}
+
+	.own-message:not(.group-last) .message-bubble {
+		border-bottom-right-radius: var(--r-tight);
+	}
+
+	.message-item.deleted .message-bubble {
+		background: transparent;
+		box-shadow: inset 0 0 0 1px var(--border-hover);
+	}
+
+	.deleted-text {
+		font-style: italic;
+		color: var(--text-muted);
+		font-size: 0.875rem;
+	}
+
+	.message-item.selected .message-bubble {
+		box-shadow: 0 0 0 2px var(--accent);
+	}
+
+	@keyframes highlightPulse {
+		0%,
+		30% {
+			box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px var(--accent-subtle);
+		}
+		100% {
+			box-shadow: 0 0 0 0 transparent;
+		}
+	}
+
+	.message-item.highlighted .message-bubble {
+		animation: highlightPulse 1.8s ease-out;
+	}
+
+	.favorite-indicator {
+		position: absolute;
+		top: -5px;
+		width: 17px;
+		height: 17px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #1a1405;
+		background: var(--warning-text);
+		box-shadow: 0 0 0 2px var(--app-bg);
+		z-index: 1;
+	}
+
+	.other-message .favorite-indicator {
+		right: -5px;
+	}
+
+	.own-message .favorite-indicator {
+		left: -5px;
 	}
 
 	.message-content {
 		position: relative;
-		color: var(--text-primary);
 		line-height: 1.5;
 		font-size: 0.9375rem;
-		word-wrap: break-word;
+		overflow-wrap: anywhere;
+	}
+
+	/* pre-line only on the text itself - on the whole content box it would
+	   also render the template's own whitespace around previews/GIFs as
+	   blank lines. */
+	.message-text {
 		white-space: pre-line;
-		overflow-wrap: break-word;
 	}
 
 	.message-previews {
@@ -2198,317 +2517,362 @@
 		gap: 0.375rem;
 	}
 
-	/* Message actions menu */
-	.message-actions {
-		opacity: 0;
-		position: absolute;
-		top: -2px;
+	.message-gifs {
 		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		transition: opacity 0.15s ease;
-	}
-
-	.own-message .message-actions {
-		left: -28px;
-	}
-
-	.other-message .message-actions {
-		right: -28px;
-	}
-
-	.message-item:hover .message-actions {
-		opacity: 1;
-	}
-
-	@media (hover: none) {
-		.message-actions {
-			opacity: 0.6;
-		}
-	}
-
-	.action-btn {
-		background: transparent;
-		border: none;
-		border-radius: var(--radius-sm);
-		padding: 0.25rem;
-		cursor: pointer;
-		font-size: 0.75rem;
-		line-height: 1;
-		width: 22px;
-		height: 22px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.1s ease;
-	}
-
-	.action-btn:hover {
-		background: var(--surface-alt);
-	}
-
-	.menu-btn {
-		font-weight: bold;
-		font-size: 0.875rem;
-		color: var(--text-muted);
-	}
-
-	.menu-btn:hover {
-		color: var(--text-primary);
-	}
-
-	/* Action dropdown menu */
-	.action-dropdown {
-		position: absolute;
-		top: 100%;
-		right: 0;
-		background: var(--panel-bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-md);
-		z-index: 1000;
-		min-width: 120px;
-		margin-top: 4px;
-		padding: 0.25rem;
-		animation: fadeInDropdown 0.1s ease-out;
-	}
-
-	@keyframes fadeInDropdown {
-		from {
-			opacity: 0;
-			transform: translateY(-2px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
-	.dropdown-item {
-		display: block;
-		width: 100%;
-		padding: 0.4rem 0.625rem;
-		border: none;
-		background: none;
-		text-align: left;
-		cursor: pointer;
-		font-size: 0.8125rem;
-		color: var(--text-primary);
-		transition: background-color 0.1s ease;
-		border-radius: var(--radius-sm);
-	}
-
-	.dropdown-item:hover {
-		background: var(--surface-hover);
-	}
-
-	.delete-item {
-		color: var(--danger);
-	}
-
-	.delete-item:hover {
-		background: var(--error-bg);
-	}
-
-	.reply-item {
-		color: var(--accent);
-	}
-
-	.reply-item:hover {
-		background: var(--accent-subtle);
-	}
-
-	.favorite-item {
-		color: var(--warning-text);
-	}
-
-	.favorite-item:hover {
-		background: var(--warning-bg);
-	}
-
-	/* Position menu on left for other messages */
-	.other-message .action-dropdown {
-		right: auto;
-		left: 0;
-	}
-
-	/* Reaction row in bottom sheet - hidden on desktop */
-	.sheet-reactions {
-		display: none;
-	}
-
-	/* Mobile menu backdrop - hidden on desktop */
-	.mobile-menu-backdrop {
-		display: none;
-	}
-
-	/* Text visibility control */
-	.desktop-text {
-		display: inline;
-	}
-
-	.mobile-text {
-		display: none;
-	}
-
-	/* Own message styling overrides */
-	.own-message .message-user {
-		color: color-mix(in srgb, var(--accent-contrast) 85%, transparent);
-	}
-
-	.own-message .message-time {
-		color: color-mix(in srgb, var(--accent-contrast) 60%, transparent);
-	}
-
-	.own-message .message-content {
-		color: var(--accent-contrast);
+		flex-direction: column;
+		gap: 6px;
+		margin-top: 6px;
 	}
 
 	.message-content :global(.message-link) {
 		color: var(--accent);
 		text-decoration: underline;
+		text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
 		text-underline-offset: 2px;
 		word-break: break-all;
-		transition: color 0.1s ease;
+		transition: text-decoration-color 0.12s ease;
 	}
 
 	.message-content :global(.message-link):hover {
-		color: var(--accent-hover);
+		text-decoration-color: currentColor;
 	}
 
-	.own-message .message-content :global(.message-link) {
-		color: color-mix(in srgb, var(--accent-contrast) 90%, transparent);
-		text-decoration: underline;
-	}
-
-	.own-message .message-content :global(.message-link):hover {
-		color: var(--accent-contrast);
-	}
-
-	:global([data-theme='dark']) .message-content :global(.message-link) {
-		color: var(--border-focus);
-	}
-
-	:global([data-theme='dark']) .message-content :global(.message-link):hover {
-		color: #9db3ff;
+	:global([data-theme='light']) .own-message .message-content :global(.message-link) {
+		color: #fff;
 	}
 
 	:global([data-theme='dark']) .own-message .message-content :global(.message-link) {
-		color: var(--border-focus);
+		color: #c9c1f5;
 	}
 
-	:global([data-theme='dark']) .own-message .message-content :global(.message-link):hover {
-		color: #9db3ff;
+	/* ---- Hover toolbar ---- */
+	.message-actions {
+		position: absolute;
+		top: -14px;
+		display: flex;
+		align-items: center;
+		gap: 1px;
+		padding: 2px;
+		border-radius: 10px;
+		background: var(--panel-bg);
+		border: 1px solid var(--border-hover);
+		box-shadow: var(--shadow-md);
+		opacity: 0;
+		transform: translateY(2px);
+		pointer-events: none;
+		transition: opacity 0.12s ease, transform 0.12s ease;
+		z-index: 3;
 	}
 
-	.message-input-area {
+	.other-message .message-actions {
+		right: -8px;
+		transform-origin: right;
+	}
+
+	.own-message .message-actions {
+		left: -8px;
+	}
+
+	.message-item:hover .message-actions,
+	.message-item.menu-open .message-actions,
+	.message-actions:focus-within {
+		opacity: 1;
+		transform: translateY(0);
+		pointer-events: auto;
+	}
+
+	.quick-reactions {
+		display: flex;
+		align-items: center;
+		gap: 1px;
+	}
+
+	.toolbar-divider {
+		width: 1px;
+		height: 16px;
+		margin: 0 2px;
+		background: var(--border-hover);
+	}
+
+	.action-btn {
+		width: 28px;
+		height: 28px;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		border-radius: 7px;
 		background: transparent;
-		padding: 0.75rem 1.5rem;
-		padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+		color: var(--text-secondary);
+		font-size: 0.9375rem;
+		line-height: 1;
+		cursor: pointer;
+		transition: background-color 0.1s ease, color 0.1s ease, transform 0.1s ease;
+	}
+
+	.action-btn:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	.reaction-quick:hover {
+		transform: scale(1.15);
+	}
+
+	.reaction-quick.active {
+		background: var(--accent-subtle);
+	}
+
+	/* Message action menu */
+	.action-dropdown {
+		position: absolute;
+		top: calc(100% + 6px);
+		right: 0;
+		min-width: 200px;
+		padding: 0.3125rem;
+		background: var(--panel-bg);
+		border: 1px solid var(--border-hover);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-lg);
+		z-index: 1000;
+		animation: menuIn 0.14s var(--ease-out-expo);
+	}
+
+	.own-message .action-dropdown {
+		right: auto;
+		left: 0;
+	}
+
+	@keyframes menuIn {
+		from {
+			opacity: 0;
+			transform: scale(0.97) translateY(-2px);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+	}
+
+	.action-dropdown .dropdown-item {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		width: 100%;
+		height: 2.125rem;
+		padding: 0 0.625rem;
+		border: none;
+		background: none;
+		border-radius: var(--radius-sm);
+		text-align: left;
+		cursor: pointer;
+		font-size: 0.8125rem;
+		color: var(--text-primary);
+		white-space: nowrap;
+		transition: background-color 0.1s ease;
+	}
+
+	.action-dropdown .dropdown-item svg {
 		flex-shrink: 0;
+		color: var(--text-muted);
+	}
+
+	.action-dropdown .dropdown-item:hover {
+		background: var(--surface-hover);
+	}
+
+	.action-dropdown .dropdown-item:hover svg {
+		color: var(--text-primary);
+	}
+
+	.action-dropdown .delete-item,
+	.action-dropdown .delete-item svg,
+	.action-dropdown .delete-item:hover svg {
+		color: var(--danger);
+	}
+
+	.action-dropdown .delete-item:hover {
+		background: var(--error-bg);
+	}
+
+	.menu-separator {
+		height: 1px;
+		margin: 0.3125rem -0.3125rem;
+		background: var(--border);
+	}
+
+	/* Bottom-sheet-only parts, hidden on desktop */
+	.sheet-reactions,
+	.sheet-handle,
+	.mobile-menu-backdrop {
+		display: none;
+	}
+
+	/* Touch devices have no hover: show a quiet, always-visible "more"
+	   button beside the bubble instead of the floating toolbar. */
+	@media (hover: none) {
+		.message-actions,
+		.message-actions:focus-within {
+			position: static;
+			opacity: 1;
+			transform: none;
+			pointer-events: auto;
+			padding: 0;
+			background: none;
+			border: none;
+			box-shadow: none;
+		}
+
+		.quick-reactions {
+			display: none;
+		}
+
+		.menu-btn {
+			color: var(--text-muted);
+			opacity: 0.7;
+		}
+	}
+
+	/* ---------------------------------------------------------------
+	   Jump to latest
+	   --------------------------------------------------------------- */
+	.jump-to-newest-btn {
+		position: sticky;
+		bottom: 0.75rem;
+		left: 50%;
+		transform: translateX(-50%);
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		height: 2.125rem;
+		padding: 0 0.875rem 0 0.75rem;
+		background: var(--panel-bg);
+		color: var(--text-primary);
+		border: 1px solid var(--border-hover);
+		border-radius: var(--radius-pill);
+		font-size: 0.8125rem;
+		font-weight: 550;
+		cursor: pointer;
+		z-index: 100;
+		box-shadow: var(--shadow-lg);
+		transition: background-color 0.15s ease, box-shadow 0.15s ease;
+		animation: slideInUp 0.25s var(--ease-out-expo);
+	}
+
+	.jump-to-newest-btn:hover {
+		background: var(--surface-hover);
+	}
+
+	.jump-to-newest-btn:active {
+		transform: translateX(-50%) scale(0.97);
+	}
+
+	.jump-to-newest-btn.has-new-messages {
+		background: var(--accent);
+		color: var(--accent-contrast);
+		border-color: transparent;
+		box-shadow: var(--shadow-lg), 0 6px 20px var(--accent-shadow);
+	}
+
+	.new-messages-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 1.25rem;
+		height: 1.25rem;
+		padding: 0 0.35rem;
+		border-radius: var(--radius-pill);
+		background: var(--accent-contrast);
+		color: var(--accent);
+		font-size: 0.6875rem;
+		font-weight: 700;
+	}
+
+	@keyframes slideInUp {
+		from {
+			opacity: 0;
+			transform: translateX(-50%) translateY(12px);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(-50%) translateY(0);
+		}
+	}
+
+	/* ---------------------------------------------------------------
+	   Composer
+	   --------------------------------------------------------------- */
+	.message-input-area {
+		flex-shrink: 0;
+		padding: 0 1.5rem 0.5rem;
+		padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
 	}
 
 	.send-error {
 		max-width: var(--chat-column-width);
-		margin: 0 auto 0.75rem auto;
-	}
-
-	.reply-composition-container {
-		max-width: var(--chat-column-width);
-		margin: 0 auto 0.5rem auto;
+		margin: 0 auto 0.5rem;
 	}
 
 	.input-container {
 		max-width: var(--chat-column-width);
 		margin: 0 auto;
-		display: flex;
-		gap: 0.5rem;
-		/* Stretch (not flex-end) so .send-btn always matches .composer's
-		   actual rendered height exactly, top and bottom - a fixed height
-		   on the button drifted out of sync with the composer whenever its
-		   padding/textarea height changed. */
-		align-items: stretch;
 	}
 
-	/* Composer - unified glass-panel surface for the icon buttons and
-	   textarea, matching the header's floating-panel treatment instead of
-	   leaving each control as a separate floating shape. */
 	.composer {
-		flex: 1;
 		display: flex;
-		align-items: flex-end;
-		gap: 0.125rem;
+		flex-direction: column;
 		min-width: 0;
-		background: var(--glass-bg, var(--panel-bg));
-		border: 1.5px solid var(--glass-border, var(--border));
-		border-radius: var(--radius-lg);
-		box-shadow: var(--glass-shadow, var(--shadow-sm));
-		-webkit-backdrop-filter: blur(var(--glass-blur, 0px));
-		backdrop-filter: blur(var(--glass-blur, 0px));
-		padding: 0.375rem;
+		background: var(--panel-bg);
+		border: 1px solid var(--border-hover);
+		border-radius: 16px;
+		box-shadow: var(--shadow-md);
 		transition: border-color 0.15s ease, box-shadow 0.15s ease;
 	}
 
 	.composer:focus-within {
-		border-color: var(--border-focus);
-		box-shadow: 0 0 0 3px var(--focus-ring);
+		border-color: color-mix(in srgb, var(--accent) 60%, var(--border-hover));
+		box-shadow: var(--shadow-md), 0 0 0 3px var(--focus-ring);
 	}
 
-	.send-btn {
-		padding: 0 1.125rem;
-		font-size: 0.8125rem;
-		/* Override the shared .btn's pill radius (999px) - the reference
-		   shows a rounded rectangle matching the composer bar's own
-		   radius, not a stadium shape. */
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-sm);
-		transition: transform 0.1s ease, box-shadow 0.15s ease, background 0.15s ease;
-	}
-
-	.send-btn:hover:not(:disabled) {
-		transform: translateY(-1px);
-	}
-
-	.send-btn:active:not(:disabled) {
-		transform: translateY(0) scale(0.97);
-	}
-
-	/* Stay at full brightness even when disabled (empty input) - the
-	   shared .btn:disabled dim reads as broken/washed-out against the
-	   redesign's accent fill, which the reference always shows solid. */
-	.send-btn:disabled {
-		opacity: 1;
+	.reply-composition-container {
+		padding: 0.5rem 0.5rem 0;
 	}
 
 	.image-upload-section {
-		max-width: var(--chat-column-width);
-		margin: 0 auto 0.75rem auto;
-		background: var(--surface-hover);
+		margin: 0.5rem 0.5rem 0;
+		padding: 0.625rem;
 		border-radius: var(--radius-md);
-		border: 1px solid var(--border);
-		padding: 0.75rem;
+		background: var(--surface-hover);
+	}
+
+	.composer-row {
+		display: flex;
+		align-items: flex-end;
+		gap: 0.125rem;
+		padding: 0.375rem;
 	}
 
 	.composer-icon-btn {
 		flex-shrink: 0;
 		width: 36px;
 		height: 36px;
-		border-radius: 50%;
+		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 0;
-		background: transparent;
 		border: none;
-		color: var(--text-secondary);
+		border-radius: 10px;
+		background: transparent;
+		color: var(--text-muted);
 		cursor: pointer;
-		transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
-		box-sizing: border-box;
+		transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 	}
 
-	.composer-icon-btn:hover:not(:disabled) {
+	.composer-icon-btn:hover:not(:disabled),
+	.composer-icon-btn.active {
 		background: var(--surface-hover);
-		color: var(--accent);
+		color: var(--text-primary);
 	}
 
 	.composer-icon-btn:active:not(:disabled) {
@@ -2528,16 +2892,9 @@
 		align-items: center;
 	}
 
-	.message-gifs {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		margin-top: 6px;
-	}
-
 	.message-input {
 		width: 100%;
-		padding: 0.5rem 0.5rem;
+		padding: 0.4375rem 0.375rem;
 		border-radius: 0;
 		border: none;
 		background: transparent;
@@ -2548,10 +2905,9 @@
 		overflow-y: auto;
 		height: 36px;
 		min-height: 36px;
-		max-height: 120px;
+		max-height: 160px;
 		line-height: 1.5;
 		scrollbar-width: none;
-		-ms-overflow-style: none;
 		box-sizing: border-box;
 		transition: none;
 	}
@@ -2560,18 +2916,87 @@
 		display: none;
 	}
 
-	.message-input:focus {
+	/* The global textarea:focus rule adds its own ring - override it here
+	   so focus shows once, on the composer. */
+	.message-input:focus,
+	.message-input:hover {
 		outline: none;
-		/* The global textarea:focus rule (global.css) adds its own
-		   border-color/box-shadow ring - override it here so focus shows
-		   as a single ring on the composer, not a second one around the
-		   textarea itself. */
 		box-shadow: none;
+		border-color: transparent;
 	}
 
 	.message-input:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	.send-btn {
+		flex-shrink: 0;
+		width: 36px;
+		height: 36px;
+		margin-left: 0.25rem;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		border-radius: 10px;
+		background: var(--surface-alt);
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: background-color 0.18s ease, color 0.18s ease, transform 0.1s ease, box-shadow 0.18s ease;
+	}
+
+	.send-btn.ready {
+		background: var(--accent);
+		color: var(--accent-contrast);
+		box-shadow: 0 2px 8px var(--accent-shadow);
+	}
+
+	.send-btn.ready:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
+
+	.send-btn:active:not(:disabled) {
+		transform: scale(0.92);
+	}
+
+	.send-btn:disabled {
+		cursor: default;
+	}
+
+	.send-spinner {
+		width: 15px;
+		height: 15px;
+		border-radius: 50%;
+		border: 2px solid currentColor;
+		border-right-color: transparent;
+		animation: spin 0.7s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.composer-hint {
+		margin: 0.375rem 0.25rem 0;
+		font-size: 0.6875rem;
+		color: var(--text-muted);
+		text-align: right;
+		opacity: 0;
+		transition: opacity 0.15s ease;
+	}
+
+	.input-container:focus-within .composer-hint {
+		opacity: 1;
+	}
+
+	.composer-hint kbd {
+		font-family: inherit;
+		font-weight: 600;
+		color: var(--text-secondary);
 	}
 
 	.loading-screen {
@@ -2584,292 +3009,9 @@
 		color: var(--text-muted);
 	}
 
-	/* Responsive Design */
-	@media (max-width: 768px) {
-		/* Collapse the floating panels to edge-to-edge */
-		.chat-page {
-			gap: 0;
-			padding: 0;
-			padding-top: env(safe-area-inset-top);
-		}
-
-		.chat-header {
-			border-radius: 0;
-			border-top: none;
-			border-left: none;
-			border-right: none;
-			box-shadow: none;
-		}
-
-		.header-content {
-			padding: 0.625rem 1rem;
-		}
-
-		.header-left {
-			gap: 0.5rem;
-		}
-
-		.back-btn {
-			display: inline-flex;
-		}
-
-		.chat-avatar {
-			font-size: 0.75rem;
-		}
-
-		.message-item {
-			max-width: 85%;
-		}
-
-		.message-header {
-			gap: 0.375rem;
-		}
-
-		/* Touch-friendly action buttons */
-		.action-btn {
-			width: 32px;
-			height: 32px;
-			padding: 0.5rem;
-		}
-
-		.menu-btn {
-			font-size: 1rem;
-		}
-
-		/* Switch to mobile text */
-		.desktop-text {
-			display: none;
-		}
-
-		.mobile-text {
-			display: inline;
-		}
-
-		/* Bottom sheet backdrop */
-		.mobile-menu-backdrop {
-			display: block;
-			position: fixed;
-			top: 0;
-			left: 0;
-			width: 100vw;
-			height: 100vh;
-			background: rgba(15, 23, 42, 0.4);
-			backdrop-filter: blur(2px);
-			z-index: 9998;
-			animation: fadeIn 0.15s ease-out;
-		}
-
-		:global([data-theme='dark']) .mobile-menu-backdrop {
-			background: rgba(0, 0, 0, 0.6);
-		}
-
-		@keyframes fadeIn {
-			from { opacity: 0; }
-			to { opacity: 1; }
-		}
-
-		/* Bottom sheet action menu */
-		.action-dropdown {
-			position: fixed;
-			bottom: 0;
-			left: 0;
-			right: 0;
-			top: auto;
-			z-index: 9999;
-			min-width: 100%;
-			max-width: 100%;
-			margin-top: 0;
-			border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-			box-shadow: 0 -4px 24px var(--shadow-elevated);
-			padding: 0.25rem;
-			padding-bottom: env(safe-area-inset-bottom);
-			animation: slideUp 0.2s ease-out;
-		}
-
-		.own-message .action-dropdown,
-		.other-message .action-dropdown {
-			position: fixed;
-			bottom: 0;
-			left: 0;
-			right: 0;
-			top: auto;
-		}
-
-		@keyframes slideUp {
-			from { transform: translateY(100%); }
-			to { transform: translateY(0); }
-		}
-
-		.action-dropdown .dropdown-item {
-			padding: 0.875rem 1.25rem;
-			font-size: 0.9375rem;
-			min-height: 48px;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			text-align: center;
-			border-bottom: 1px solid var(--border-color);
-			border-radius: 0;
-		}
-
-		.action-dropdown .dropdown-item:first-child {
-			border-radius: var(--radius-md) var(--radius-md) 0 0;
-		}
-
-		.action-dropdown .dropdown-item:last-child {
-			border-bottom: none;
-			border-radius: 0 0 var(--radius-md) var(--radius-md);
-		}
-
-		/* Reaction row in bottom sheet */
-		.sheet-reactions {
-			display: flex;
-			justify-content: center;
-			gap: 0.75rem;
-			padding: 1rem;
-			border-bottom: 1px solid var(--border-color);
-		}
-
-		.sheet-reaction-btn {
-			width: 44px;
-			height: 44px;
-			border-radius: 50%;
-			border: 1.5px solid var(--border-color);
-			background: var(--bg-secondary);
-			font-size: 1.25rem;
-			cursor: pointer;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			transition: all 0.15s ease;
-		}
-
-		.sheet-reaction-btn:active {
-			transform: scale(0.9);
-		}
-
-		.sheet-reaction-btn.active {
-			border-color: var(--accent);
-			background: var(--accent-subtle);
-			box-shadow: 0 0 0 2px var(--accent-subtle);
-		}
-	}
-
-	@media (max-width: 480px) {
-		.chat-content {
-			padding: 0.5rem 0.75rem;
-		}
-
-		.message-input-area {
-			padding: 0.5rem 0.75rem;
-			padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
-		}
-
-		.input-container {
-			gap: 0.375rem;
-		}
-
-		.composer {
-			padding: 0.25rem;
-		}
-
-		.image-upload-section {
-			padding: 0.625rem;
-		}
-
-		.composer-icon-btn {
-			width: 36px;
-			height: 36px;
-		}
-
-		/* Icon-only on phones - a fixed-width text pill next to the "SEND"
-		   label ate too much of the row's width, leaving the message
-		   input cramped on narrow screens. */
-		.send-btn {
-			width: 40px;
-			height: 40px;
-			padding: 0;
-			border-radius: 50%;
-		}
-
-		.send-btn .send-label {
-			display: none;
-		}
-
-		.message-input {
-			height: 36px;
-			min-height: 36px;
-			font-size: 0.875rem;
-		}
-
-		.message-item {
-			max-width: 90%;
-			padding: 0.5rem 0.75rem;
-		}
-
-		.own-message {
-			margin-left: auto;
-		}
-
-		.other-message {
-			margin-right: auto;
-		}
-
-		.message-time {
-			font-size: 0.625rem;
-		}
-
-		.action-btn {
-			width: 34px;
-			height: 34px;
-		}
-	}
-
-	/* Very small screens - truncate group name, drop the member count */
-	@media (max-width: 428px) {
-		.header-content h1 {
-			max-width: 14ch;
-		}
-
-		.title-divider,
-		.member-count {
-			display: none;
-		}
-	}
-
-	/* Invitation button: accent-outlined at rest (not the shared
-	   .btn-ghost's neutral border), since inviting someone is the one
-	   header action worth calling out. Token-driven (not hardcoded) -
-	   the app's dark --accent is now pinned to the design mockup's exact
-	   purple in global.css, so this matches the mockup in dark theme
-	   while still adapting correctly in light theme. */
-	.invite-btn {
-		font-size: 0.75rem;
-		padding: 0.4375rem 0.875rem 0.4375rem 0.75rem;
-		line-height: 1;
-		background: transparent;
-		border-color: var(--accent-shadow);
-		color: var(--accent);
-		transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-	}
-
-	.invite-btn:hover:not(:disabled) {
-		background: var(--accent-subtle);
-		border-color: var(--accent);
-		color: var(--accent-hover);
-	}
-
-	/* Chat header's "..." actions menu is now the shared DropdownMenu
-	   component; the delete/leave/link-confirm modals are now the shared
-	   Modal component. The rules below only style content this page
-	   passes into those components. */
-	.back-btn:hover:not(:disabled),
-	.actions-toggle:hover:not(:disabled) {
-		border-color: var(--border-hover);
-		background: var(--surface-hover);
-		color: var(--text-primary);
-	}
-
+	/* ---------------------------------------------------------------
+	   Modal content (the Modal component owns the chrome)
+	   --------------------------------------------------------------- */
 	.modal-description {
 		margin: 0 0 0.75rem 0;
 		color: var(--text-secondary);
@@ -2880,11 +3022,11 @@
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
-		margin: 1rem 0;
-		padding: 0.875rem;
-		background: var(--bg-secondary);
+		margin: 0 0 0.75rem;
+		padding: 0.5rem 0.5rem 0.5rem 1rem;
+		background: var(--surface-hover);
 		border-radius: var(--radius-md);
-		border: 1px solid var(--border-color);
+		border: 1px dashed var(--border-hover);
 	}
 
 	.invite-code {
@@ -2892,20 +3034,19 @@
 		font-family: var(--font-mono);
 		font-size: 1.125rem;
 		font-weight: 600;
-		color: var(--accent);
-		text-align: center;
-		letter-spacing: 1px;
+		color: var(--text-primary);
+		letter-spacing: 0.08em;
+		user-select: all;
 	}
 
 	.copy-btn {
-		padding: 0.375rem 0.75rem;
-		font-size: 0.8125rem;
+		height: 2rem;
 		flex-shrink: 0;
-		transition: color 0.15s, background 0.15s;
 	}
 
 	.copy-btn.copied {
 		color: var(--success-text);
+		border-color: var(--success-border);
 	}
 
 	.invite-note {
@@ -2916,121 +3057,222 @@
 
 	.modal-actions {
 		display: flex;
-		gap: 0.75rem;
+		gap: 0.5rem;
 		justify-content: flex-end;
-		margin-top: 1.25rem;
+		margin-top: 1.5rem;
 	}
 
-	.modal-actions button {
-		min-width: 80px;
-	}
-
-	/* Link confirmation modal styles */
 	.link-display {
-		margin: 0.75rem 0;
-		padding: 0.875rem;
-		background: var(--bg-secondary);
+		margin: 0 0 0.75rem;
+		padding: 0.75rem 0.875rem;
+		background: var(--surface-hover);
 		border-radius: var(--radius-md);
-		border: 1px solid var(--border-color);
+		border: 1px solid var(--border);
 		word-break: break-all;
 	}
 
 	.link-url {
 		font-family: var(--font-mono);
 		font-size: 0.8rem;
-		color: var(--accent);
+		color: var(--text-primary);
 		display: block;
-		text-align: center;
 	}
 
 	.link-warning {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
 		font-size: 0.8rem;
 		color: var(--text-muted);
 		margin: 0;
-		text-align: center;
-		font-style: italic;
 	}
 
-	/* Error Toast */
-	/* Jump to Newest Button */
-	.jump-to-newest-btn {
-		position: sticky;
-		bottom: 0.75rem;
-		left: 50%;
-		transform: translateX(-50%);
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		background: var(--accent);
-		color: var(--accent-contrast);
-		border: none;
-		border-radius: var(--radius-pill);
-		padding: 0.5rem 1rem;
-		font-family: var(--font-mono);
-		font-size: 0.8125rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		cursor: pointer;
-		z-index: 100;
-		box-shadow: var(--shadow-md);
-		transition: all 0.15s ease;
-		animation: slideInUp 0.2s ease-out;
-	}
-
-	.jump-to-newest-btn:hover {
-		background: var(--accent-hover);
-		box-shadow: var(--shadow-lg);
-	}
-
-	.jump-to-newest-btn:active {
-		transform: translateX(-50%) scale(0.97);
-	}
-
-	.jump-to-newest-btn.has-new-messages {
-		animation: slideInUp 0.2s ease-out, pulseGlow 1.6s ease-in-out infinite;
-	}
-
-	@keyframes pulseGlow {
-		0%, 100% {
-			box-shadow: var(--shadow-md), 0 0 0 0 var(--accent-shadow);
-		}
-		50% {
-			box-shadow: var(--shadow-md), 0 0 0 6px transparent;
-		}
-	}
-
-	.new-messages-badge {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 1.25rem;
-		height: 1.25rem;
-		padding: 0 0.35rem;
-		border-radius: var(--radius-pill);
-		background: var(--accent-contrast);
-		color: var(--accent);
-		font-size: 0.6875rem;
-		font-weight: 700;
-		letter-spacing: normal;
-		text-transform: none;
-	}
-
-	@keyframes slideInUp {
-		from {
-			opacity: 0;
-			transform: translateX(-50%) translateY(12px);
-		}
-		to {
-			opacity: 1;
-			transform: translateX(-50%) translateY(0);
+	/* ---------------------------------------------------------------
+	   Responsive
+	   --------------------------------------------------------------- */
+	@media (max-width: 1100px) {
+		.member-stack {
+			display: none;
 		}
 	}
 
 	@media (max-width: 768px) {
+		.chat-page {
+			--gutter-width: 30px;
+			padding-top: env(safe-area-inset-top);
+		}
+
+		.chat-header {
+			height: 56px;
+			padding: 0 0.5rem 0 0.75rem;
+		}
+
+		.back-btn {
+			display: inline-flex;
+			margin-left: -0.25rem;
+		}
+
+		.header-left {
+			gap: 0.5rem;
+		}
+
+		.chat-avatar {
+			width: 34px;
+			height: 34px;
+		}
+
+		.invite-btn span {
+			display: none;
+		}
+
+		.invite-btn {
+			width: 2rem;
+			padding: 0;
+			border: none;
+		}
+
+		.chat-content {
+			padding: 0.25rem 0.75rem 0.75rem;
+		}
+
+		.message-body {
+			max-width: 82%;
+		}
+
+		.message-item.group-first {
+			margin-top: 0.75rem;
+		}
+
+		.gutter-time {
+			display: none;
+		}
+
+		.message-input-area {
+			padding: 0 0.625rem 0.5rem;
+			padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+		}
+
+		.composer-hint {
+			display: none;
+		}
+
+		/* A transform on the toolbar (its hover/focus-within reveal) would
+		   become the containing block for the position: fixed sheet below,
+		   trapping it inside the toolbar - so none while the menu is open. */
+		.message-item.menu-open .message-actions {
+			transform: none;
+		}
+
+		/* Bottom sheet */
+		.mobile-menu-backdrop {
+			display: block;
+			position: fixed;
+			inset: 0;
+			background: var(--overlay-bg);
+			-webkit-backdrop-filter: blur(3px);
+			backdrop-filter: blur(3px);
+			z-index: 9998;
+			animation: backdropIn 0.2s ease-out;
+		}
+
+		@keyframes backdropIn {
+			from {
+				opacity: 0;
+			}
+			to {
+				opacity: 1;
+			}
+		}
+
+		.action-dropdown,
+		.own-message .action-dropdown,
+		.other-message .action-dropdown {
+			position: fixed;
+			top: auto;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			z-index: 9999;
+			min-width: 100%;
+			margin: 0;
+			padding: 0.5rem 0.75rem;
+			padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+			border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+			border-bottom: none;
+			animation: sheetUp 0.28s var(--ease-out-expo);
+		}
+
+		@keyframes sheetUp {
+			from {
+				transform: translateY(100%);
+			}
+			to {
+				transform: translateY(0);
+			}
+		}
+
+		.sheet-handle {
+			display: block;
+			width: 36px;
+			height: 4px;
+			margin: 0.125rem auto 0.75rem;
+			border-radius: 999px;
+			background: var(--border-hover);
+		}
+
+		.sheet-reactions {
+			display: flex;
+			justify-content: center;
+			gap: 0.75rem;
+			padding: 0.25rem 0 1rem;
+			margin-bottom: 0.375rem;
+			border-bottom: 1px solid var(--border);
+		}
+
+		.sheet-reaction-btn {
+			width: 52px;
+			height: 52px;
+			border-radius: 50%;
+			border: none;
+			background: var(--surface-hover);
+			font-size: 1.5rem;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: transform 0.12s ease, background-color 0.12s ease;
+		}
+
+		.sheet-reaction-btn:active {
+			transform: scale(0.9);
+		}
+
+		.sheet-reaction-btn.active {
+			background: var(--accent-subtle);
+			box-shadow: inset 0 0 0 2px var(--accent);
+		}
+
+		.action-dropdown .dropdown-item {
+			height: 3rem;
+			font-size: 0.9375rem;
+			gap: 0.875rem;
+			padding: 0 0.75rem;
+		}
+
+		.action-dropdown .dropdown-item svg {
+			width: 20px;
+			height: 20px;
+		}
+
 		.jump-to-newest-btn {
-			padding: 0.4rem 0.875rem;
+			height: 2rem;
 			font-size: 0.75rem;
+		}
+	}
+
+	@media (max-width: 428px) {
+		.chat-title h1 {
+			max-width: 16ch;
 		}
 	}
 </style>

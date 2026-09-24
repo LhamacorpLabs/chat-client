@@ -35,7 +35,7 @@
 	<div class="reply-content">
 		<div class="reply-info">
 			{#if message}
-				<span class="reply-username">{message.username}</span>
+				<span class="reply-username">{#if mode === 'composition'}Replying to {/if}{message.username}</span>
 				{#if message.message === '[deleted message]'}
 					<span class="reply-text deleted">Original message deleted</span>
 				{:else}
@@ -53,9 +53,12 @@
 					onCancel();
 				}}
 				title="Cancel reply"
+				aria-label="Cancel reply"
 				type="button"
 			>
-				✕
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14" aria-hidden="true">
+					<path d="M18 6L6 18M6 6l12 12" />
+				</svg>
 			</button>
 		{/if}
 	</div>
@@ -64,35 +67,40 @@
 <style>
 	.reply-preview {
 		display: flex;
-		align-items: flex-start;
-		gap: 0.5rem;
+		align-items: stretch;
+		gap: 0.625rem;
 		border-radius: var(--radius-sm);
-		padding: 0.5rem;
+		padding: 0.4375rem 0.625rem 0.4375rem 0.5rem;
 	}
 
 	.reply-preview.composition {
-		background: var(--surface-alt);
-		border: 1px solid var(--border);
-		margin-bottom: 0.5rem;
+		background: var(--surface-hover);
 	}
 
+	/* Inside a message bubble: tint relative to the bubble's own text
+	   color, so it reads correctly on both the neutral and the accent
+	   bubble without a hard-coded surface. */
 	.reply-preview.display {
-		background: var(--panel-bg);
+		background: color-mix(in srgb, currentColor 9%, transparent);
+		margin-bottom: 0.375rem;
 		cursor: pointer;
-		transition: background var(--duration-slow) var(--ease-standard);
+		transition: background-color var(--duration-slow) var(--ease-standard);
 	}
 
 	.reply-preview.display:hover {
-		background: var(--surface-hover);
+		background: color-mix(in srgb, currentColor 14%, transparent);
 	}
 
 	.reply-indicator {
 		width: 3px;
-		height: 100%;
 		border-radius: 2px;
 		background: var(--accent);
 		flex-shrink: 0;
-		min-height: 2rem;
+	}
+
+	.reply-preview.display .reply-indicator {
+		background: currentColor;
+		opacity: 0.55;
 	}
 
 	.reply-content {
@@ -107,51 +115,60 @@
 	.reply-info {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: 0.0625rem;
 		min-width: 0;
 		flex: 1;
+		line-height: 1.35;
 	}
 
 	.reply-username {
 		font-weight: 600;
-		font-size: 0.85rem;
-		color: var(--text-primary);
+		font-size: 0.8125rem;
+	}
+
+	.reply-preview.composition .reply-username {
+		color: var(--accent);
 	}
 
 	.reply-text {
-		font-size: 0.8rem;
-		color: var(--text-secondary);
+		font-size: 0.8125rem;
+		opacity: 0.8;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		display: block;
 	}
 
-	.reply-text.deleted {
-		color: var(--text-muted);
-		font-style: italic;
+	.reply-preview.composition .reply-text {
+		color: var(--text-secondary);
+		opacity: 1;
 	}
 
+	.reply-text.deleted,
 	.reply-text.not-found {
-		color: var(--text-muted);
 		font-style: italic;
+		opacity: 0.6;
 	}
 
 	.reply-cancel {
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-sm);
 		background: none;
 		border: none;
-		color: var(--text-secondary);
+		color: var(--text-muted);
 		cursor: pointer;
 		font-size: 1rem;
-		padding: 0.25rem;
+		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
-		transition: color var(--duration-slow) var(--ease-standard);
+		transition: color var(--duration-base) ease, background-color var(--duration-base) ease;
 	}
 
 	.reply-cancel:hover {
 		color: var(--text-primary);
+		background: var(--surface-alt);
 	}
 </style>
