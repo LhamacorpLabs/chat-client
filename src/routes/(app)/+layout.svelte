@@ -67,6 +67,17 @@
 
 	let effectiveListOpen = $derived(isMobile || listOpen);
 
+	// Keyboard selection starts fresh each time the user leaves a chat, and
+	// stays within bounds if the chat list shrinks (e.g. after leaving one).
+	$effect(() => {
+		if (isChatRoute) selectedChatIndex = -1;
+	});
+
+	$effect(() => {
+		const count = $chatStore.chats.length;
+		if (untrack(() => selectedChatIndex) >= count) selectedChatIndex = count - 1;
+	});
+
 	$effect(() => {
 		if ($authLoaded && !$authStore.token) {
 			clearChats();
@@ -210,24 +221,30 @@
 			const chats = $chatStore.chats;
 
 			switch (event.key) {
+				// ↑/↓/Enter browse the chat list only while no chat is open -
+				// inside a chat the same keys navigate messages (chat page).
 				case 'ArrowDown':
+					if (isChatRoute || chats.length === 0) break;
 					event.preventDefault();
-					if (chats.length > 0) {
-						selectedChatIndex = Math.min(selectedChatIndex + 1, chats.length - 1);
-					}
+					selectedChatIndex = Math.min(selectedChatIndex + 1, chats.length - 1);
 					break;
 				case 'ArrowUp':
+					if (isChatRoute || chats.length === 0) break;
 					event.preventDefault();
-					if (chats.length > 0) {
-						selectedChatIndex = Math.max(selectedChatIndex - 1, 0);
-					}
+					selectedChatIndex =
+						selectedChatIndex < 0 ? chats.length - 1 : Math.max(selectedChatIndex - 1, 0);
 					break;
-				case 'Enter':
-					event.preventDefault();
+				case 'Enter': {
+					if (isChatRoute) break;
+					// Let a focused button/link handle its own Enter.
+					const focused = document.activeElement;
+					if (focused instanceof HTMLButtonElement || focused instanceof HTMLAnchorElement) break;
 					if (selectedChatIndex >= 0 && selectedChatIndex < chats.length) {
+						event.preventDefault();
 						openChat(chats[selectedChatIndex].id);
 					}
 					break;
+				}
 				case 'c':
 					if (isChatRoute) break;
 					event.preventDefault();
