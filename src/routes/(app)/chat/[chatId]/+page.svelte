@@ -26,7 +26,7 @@
 	import { playNotificationSound, isWindowFocused } from '$lib/utils/notificationSound';
 	import { showMessageNotification } from '$lib/utils/osNotification';
 	import { chatMuteStore } from '$lib/stores/chatMute';
-	import { hasReply, formatReplyMessage } from '$lib/utils/replyMessages';
+	import { hasReply, formatReplyMessage, parseReplyMessage } from '$lib/utils/replyMessages';
 	import ReplyPreview from '$lib/components/ReplyPreview.svelte';
 	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 	import EmojiAutocomplete from '$lib/components/EmojiAutocomplete.svelte';
@@ -77,9 +77,14 @@
 	let showLeaveModal = $state(false);
 	let isLeaving = $state(false);
 	let openActionMenuId = $state<string | null>(null);
+	// Open the "More" menu upward when there isn't room for it below the
+	// message (e.g. the latest message, right above the composer).
+	let actionMenuDropUp = $state(false);
 
 	let showLinkConfirmation = $state(false);
 	let linkOpenError = $state<string | null>(null);
+	let copyStatus = $state<{ message: string; variant: 'success' | 'error' } | null>(null);
+	let copyStatusTimeout: ReturnType<typeof setTimeout> | null = null;
 	let pendingUrl = $state<string | null>(null);
 
 	let showEmojiPicker = $state(false);
@@ -92,6 +97,7 @@
 	const POLLING_INTERVAL_MS = 1000;
 	let reactionPollingInterval: ReturnType<typeof setInterval> | null = null;
 	const REACTION_POLLING_INTERVAL_MS = 10000; // Poll reactions every 10 seconds
+	const ACTION_MENU_MIN_SPACE_PX = 220; // Room the "More" menu needs below its button
 	let messageInputElement = $state<HTMLTextAreaElement>(undefined!);
 	let chatContent = $state<HTMLElement>(undefined!);
 	// The content that actually grows (messages, images, reactions) - as
@@ -1160,11 +1166,41 @@
 
 	function toggleActionMenu(messageId: string, event?: Event) {
 		event?.stopPropagation();
-		openActionMenuId = openActionMenuId === messageId ? null : messageId;
+		if (openActionMenuId === messageId) {
+			openActionMenuId = null;
+			return;
+		}
+		const trigger = event?.currentTarget as HTMLElement | undefined;
+		if (trigger && chatContent) {
+			const spaceBelow = chatContent.getBoundingClientRect().bottom - trigger.getBoundingClientRect().bottom;
+			actionMenuDropUp = spaceBelow < ACTION_MENU_MIN_SPACE_PX;
+		} else {
+			actionMenuDropUp = false;
+		}
+		openActionMenuId = messageId;
 	}
 
 	function closeActionMenu() {
 		openActionMenuId = null;
+	}
+
+	// The text as shown in the bubble - without the reply:/image: lines
+	// that reply and image messages carry.
+	function getCopyableText(content: string): string {
+		return hasReply(content) || hasImages(content) ? parseReplyMessage(content).text : content;
+	}
+
+	async function handleCopyMessage(message: Message) {
+		closeActionMenu();
+		try {
+			await navigator.clipboard.writeText(getCopyableText(message.message));
+			copyStatus = { message: 'Message copied', variant: 'success' };
+		} catch (error) {
+			console.error('Failed to copy message:', error);
+			copyStatus = { message: 'Could not copy the message', variant: 'error' };
+		}
+		if (copyStatusTimeout) clearTimeout(copyStatusTimeout);
+		copyStatusTimeout = setTimeout(() => { copyStatus = null; }, 2000);
 	}
 
 	function handleReplyToMessage(message: Message) {
@@ -1729,7 +1765,7 @@
 												<!-- svelte-ignore a11y_click_events_have_key_events -->
 												<!-- svelte-ignore a11y_no_static_element_interactions -->
 												<div class="mobile-menu-backdrop" onclick={closeActionMenu}></div>
-												<div class="action-dropdown" role="menu">
+												<div class="action-dropdown" class:drop-up={actionMenuDropUp} role="menu">
 													<div class="sheet-handle" aria-hidden="true"></div>
 													<div class="sheet-reactions">
 														{#each quickReactions as reaction (reaction.type)}
@@ -1748,6 +1784,15 @@
 														</svg>
 														<span>Reply</span>
 													</button>
+													{#if getCopyableText(message.message)}
+														<button class="dropdown-item" role="menuitem"
+														        onclick={() => handleCopyMessage(message)}>
+															<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+																<rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+															</svg>
+															<span>Copy text</span>
+														</button>
+													{/if}
 													<button class="dropdown-item" role="menuitem"
 													        onclick={() => handleToggleFavorite(message.id)}>
 														<svg viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
@@ -2009,6 +2054,11 @@
 		{#if linkOpenError}
 			<Toast message={linkOpenError} onDismiss={() => linkOpenError = null} />
 		{/if}
+
+		<!-- Copy message feedback -->
+		{#if copyStatus}
+			<Toast message={copyStatus.message} variant={copyStatus.variant} onDismiss={() => copyStatus = null} />
+		{/if}
 	</div>
 {:else}
 	<div class="loading-screen">
@@ -2022,6 +2072,8 @@
 		   declared once so the two can never drift apart. */
 		--chat-column-width: 860px;
 		--gutter-width: 36px;
+		/* Width of the hover toolbar plus its offset from the bubble. */
+		--toolbar-space: 10.75rem;
 		display: flex;
 		flex-direction: column;
 		flex: 1;
@@ -2546,9 +2598,11 @@
 	}
 
 	/* ---- Hover toolbar ---- */
+	/* Sits beside the bubble, in the row's empty side, so it never covers
+	   the message text (e.g. while selecting it to copy). */
 	.message-actions {
 		position: absolute;
-		top: -14px;
+		top: 0;
 		display: flex;
 		align-items: center;
 		gap: 1px;
@@ -2564,19 +2618,34 @@
 		z-index: 3;
 	}
 
-	/* Anchored to the bubble's outer edge so the toolbar grows into the
-	   empty side of the row. Anchoring it to the inner edge let it hang
-	   past the list on short bubbles - and even while hidden (opacity 0)
-	   it still counts as scrollable overflow, forcing a horizontal
-	   scrollbar onto the message list. */
+	/* The row hugs the bubble so the toolbar lands right next to it, not
+	   past a wider name/time header. */
+	.other-message .bubble-row {
+		align-self: flex-start;
+	}
+
 	.other-message .message-actions {
-		left: -8px;
+		left: calc(100% + 6px);
 		transform-origin: left;
 	}
 
 	.own-message .message-actions {
-		right: -8px;
+		right: calc(100% + 6px);
 		transform-origin: right;
+	}
+
+	/* Keep room beside the widest bubble for the toolbar. Without it the
+	   toolbar would hang past the list - and even while hidden (opacity 0)
+	   it still counts as scrollable overflow, forcing a horizontal
+	   scrollbar onto the message list. */
+	@media (hover: hover) {
+		.other-message .message-body {
+			max-width: min(72%, 620px, calc(100% - var(--gutter-width) - 0.625rem - var(--toolbar-space)));
+		}
+
+		.own-message .message-body {
+			max-width: min(72%, 620px, calc(100% - var(--toolbar-space)));
+		}
 	}
 
 	.message-item:hover .message-actions,
@@ -2648,6 +2717,11 @@
 	.own-message .action-dropdown {
 		left: auto;
 		right: 0;
+	}
+
+	.action-dropdown.drop-up {
+		top: auto;
+		bottom: calc(100% + 6px);
 	}
 
 	@keyframes menuIn {
