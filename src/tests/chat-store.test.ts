@@ -8,14 +8,16 @@ vi.mock('$env/static/public', () => ({
 const mockFetchChats = vi.fn();
 const mockCreateChat = vi.fn();
 const mockDeleteChat = vi.fn();
+const mockLeaveChat = vi.fn();
 
 vi.mock('$lib/api/chat', () => ({
 	fetchChats: (...args: any[]) => mockFetchChats(...args),
 	createChat: (...args: any[]) => mockCreateChat(...args),
-	deleteChat: (...args: any[]) => mockDeleteChat(...args)
+	deleteChat: (...args: any[]) => mockDeleteChat(...args),
+	leaveChat: (...args: any[]) => mockLeaveChat(...args)
 }));
 
-import { chatStore, fetchChats, createChat, deleteChat, clearChats } from '$lib/stores/chat';
+import { chatStore, fetchChats, createChat, deleteChat, leaveChat, clearChats } from '$lib/stores/chat';
 
 beforeEach(() => {
 	clearChats();
@@ -158,5 +160,36 @@ describe('Chat Store - Delete Chat', () => {
 
 		expect(result).toBe(false);
 		expect(get(chatStore).error).toBe('Forbidden');
+	});
+});
+
+describe('Chat Store - Leave Chat', () => {
+	it('removes chat from store on success', async () => {
+		mockFetchChats.mockResolvedValue([
+			{ id: '1', name: 'Chat 1', members: [], createdBy: 'u1', createdAt: '', updatedAt: '', lastMessageAt: null },
+			{ id: '2', name: 'Chat 2', members: [], createdBy: 'u1', createdAt: '', updatedAt: '', lastMessageAt: null }
+		]);
+		await fetchChats('token');
+		mockLeaveChat.mockResolvedValue(undefined);
+
+		const result = await leaveChat('token', '1', 'u2');
+
+		expect(result).toBe(true);
+		expect(mockLeaveChat).toHaveBeenCalledWith('token', '1', 'u2');
+		expect(get(chatStore).chats.map(chat => chat.id)).toEqual(['2']);
+	});
+
+	it('keeps the chat and sets error on failure', async () => {
+		mockFetchChats.mockResolvedValue([
+			{ id: '1', name: 'Chat 1', members: [], createdBy: 'u1', createdAt: '', updatedAt: '', lastMessageAt: null }
+		]);
+		await fetchChats('token');
+		mockLeaveChat.mockRejectedValue(new Error('Failed to leave chat: 500'));
+
+		const result = await leaveChat('token', '1', 'u2');
+
+		expect(result).toBe(false);
+		expect(get(chatStore).chats).toHaveLength(1);
+		expect(get(chatStore).error).toBe('Failed to leave chat: 500');
 	});
 });

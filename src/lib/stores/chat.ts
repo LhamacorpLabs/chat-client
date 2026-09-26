@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import type { Chat, CreateChatRequest } from '../types/chat';
-import { fetchChats as apiFetchChats, createChat as apiCreateChat, deleteChat as apiDeleteChat } from '../api/chat';
+import { fetchChats as apiFetchChats, createChat as apiCreateChat, deleteChat as apiDeleteChat, leaveChat as apiLeaveChat } from '../api/chat';
 
 interface ChatState {
 	chats: Chat[];
@@ -96,6 +96,24 @@ export async function deleteChat(token: string, chatId: string) {
 			isDeleting: false,
 			error: errorMessage
 		}));
+		return false;
+	}
+}
+
+// Leave a chat - removes it from the list, like deleting does, so the
+// sidebar doesn't keep showing a chat the user is no longer in.
+export async function leaveChat(token: string, chatId: string, userId: string) {
+	try {
+		await apiLeaveChat(token, chatId, userId);
+		chatStore.update(state => ({
+			...state,
+			chats: state.chats.filter(chat => chat.id !== chatId),
+			error: null
+		}));
+		return true;
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : 'Failed to leave chat';
+		chatStore.update(state => ({ ...state, error: errorMessage }));
 		return false;
 	}
 }
