@@ -2790,10 +2790,13 @@
 	   button beside the bubble instead of the floating toolbar. */
 	@media (hover: none) {
 		.message-actions,
+		.message-item:hover .message-actions,
+		.message-item.menu-open .message-actions,
 		.message-actions:focus-within {
 			position: static;
 			opacity: 1;
 			transform: none;
+			transition: none;
 			pointer-events: auto;
 			padding: 0;
 			background: none;
@@ -3233,11 +3236,9 @@
 			display: none;
 		}
 
-		/* A transform on the toolbar (its hover/focus-within reveal) would
-		   become the containing block for the position: fixed sheet below,
-		   trapping it inside the toolbar - so none while the menu is open. */
 		.message-item.menu-open .message-actions {
 			transform: none;
+			transition: none;
 		}
 
 		/* Bottom sheet */
