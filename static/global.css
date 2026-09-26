@@ -464,10 +464,16 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 	}
 }
 
-/* Scrollbar styling */
-* {
-	scrollbar-width: thin;
-	scrollbar-color: var(--border-hover) transparent;
+/* Scrollbar styling. Chromium (and so Electron) 121+ lets the standard
+   scrollbar-width / scrollbar-color override the ::-webkit-scrollbar rules
+   below, falling back to the native bar with arrow buttons - so only use
+   the standard properties where ::-webkit-scrollbar isn't supported
+   (Firefox). */
+@supports not selector(::-webkit-scrollbar) {
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--border-hover) transparent;
+	}
 }
 
 ::-webkit-scrollbar {
