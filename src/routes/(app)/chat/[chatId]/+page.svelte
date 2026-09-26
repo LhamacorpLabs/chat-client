@@ -77,6 +77,9 @@
 	let showLeaveModal = $state(false);
 	let isLeaving = $state(false);
 	let openActionMenuId = $state<string | null>(null);
+	// Open the "More" menu upward when there isn't room for it below the
+	// message (e.g. the latest message, right above the composer).
+	let actionMenuDropUp = $state(false);
 
 	let showLinkConfirmation = $state(false);
 	let linkOpenError = $state<string | null>(null);
@@ -92,6 +95,7 @@
 	const POLLING_INTERVAL_MS = 1000;
 	let reactionPollingInterval: ReturnType<typeof setInterval> | null = null;
 	const REACTION_POLLING_INTERVAL_MS = 10000; // Poll reactions every 10 seconds
+	const ACTION_MENU_MIN_SPACE_PX = 180; // Room the "More" menu needs below its button
 	let messageInputElement = $state<HTMLTextAreaElement>(undefined!);
 	let chatContent = $state<HTMLElement>(undefined!);
 	// The content that actually grows (messages, images, reactions) - as
@@ -1160,7 +1164,18 @@
 
 	function toggleActionMenu(messageId: string, event?: Event) {
 		event?.stopPropagation();
-		openActionMenuId = openActionMenuId === messageId ? null : messageId;
+		if (openActionMenuId === messageId) {
+			openActionMenuId = null;
+			return;
+		}
+		const trigger = event?.currentTarget as HTMLElement | undefined;
+		if (trigger && chatContent) {
+			const spaceBelow = chatContent.getBoundingClientRect().bottom - trigger.getBoundingClientRect().bottom;
+			actionMenuDropUp = spaceBelow < ACTION_MENU_MIN_SPACE_PX;
+		} else {
+			actionMenuDropUp = false;
+		}
+		openActionMenuId = messageId;
 	}
 
 	function closeActionMenu() {
@@ -1729,7 +1744,7 @@
 												<!-- svelte-ignore a11y_click_events_have_key_events -->
 												<!-- svelte-ignore a11y_no_static_element_interactions -->
 												<div class="mobile-menu-backdrop" onclick={closeActionMenu}></div>
-												<div class="action-dropdown" role="menu">
+												<div class="action-dropdown" class:drop-up={actionMenuDropUp} role="menu">
 													<div class="sheet-handle" aria-hidden="true"></div>
 													<div class="sheet-reactions">
 														{#each quickReactions as reaction (reaction.type)}
@@ -2022,6 +2037,8 @@
 		   declared once so the two can never drift apart. */
 		--chat-column-width: 860px;
 		--gutter-width: 36px;
+		/* Width of the hover toolbar plus its offset from the bubble. */
+		--toolbar-space: 10.75rem;
 		display: flex;
 		flex-direction: column;
 		flex: 1;
@@ -2546,9 +2563,11 @@
 	}
 
 	/* ---- Hover toolbar ---- */
+	/* Sits beside the bubble, in the row's empty side, so it never covers
+	   the message text (e.g. while selecting it to copy). */
 	.message-actions {
 		position: absolute;
-		top: -14px;
+		top: 0;
 		display: flex;
 		align-items: center;
 		gap: 1px;
@@ -2564,19 +2583,34 @@
 		z-index: 3;
 	}
 
-	/* Anchored to the bubble's outer edge so the toolbar grows into the
-	   empty side of the row. Anchoring it to the inner edge let it hang
-	   past the list on short bubbles - and even while hidden (opacity 0)
-	   it still counts as scrollable overflow, forcing a horizontal
-	   scrollbar onto the message list. */
+	/* The row hugs the bubble so the toolbar lands right next to it, not
+	   past a wider name/time header. */
+	.other-message .bubble-row {
+		align-self: flex-start;
+	}
+
 	.other-message .message-actions {
-		left: -8px;
+		left: calc(100% + 6px);
 		transform-origin: left;
 	}
 
 	.own-message .message-actions {
-		right: -8px;
+		right: calc(100% + 6px);
 		transform-origin: right;
+	}
+
+	/* Keep room beside the widest bubble for the toolbar. Without it the
+	   toolbar would hang past the list - and even while hidden (opacity 0)
+	   it still counts as scrollable overflow, forcing a horizontal
+	   scrollbar onto the message list. */
+	@media (hover: hover) {
+		.other-message .message-body {
+			max-width: min(72%, 620px, calc(100% - var(--gutter-width) - 0.625rem - var(--toolbar-space)));
+		}
+
+		.own-message .message-body {
+			max-width: min(72%, 620px, calc(100% - var(--toolbar-space)));
+		}
 	}
 
 	.message-item:hover .message-actions,
@@ -2648,6 +2682,11 @@
 	.own-message .action-dropdown {
 		left: auto;
 		right: 0;
+	}
+
+	.action-dropdown.drop-up {
+		top: auto;
+		bottom: calc(100% + 6px);
 	}
 
 	@keyframes menuIn {
