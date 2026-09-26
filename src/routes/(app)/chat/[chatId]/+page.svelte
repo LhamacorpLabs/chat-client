@@ -3238,10 +3238,7 @@
 
 		/* A transform on the toolbar (its hover/focus-within reveal) would
 		   become the containing block for the position: fixed sheet below,
-		   trapping it inside the toolbar - so none while the menu is open.
-		   The transition must go too: animating the transform back to none
-		   keeps it non-none for a few frames, so the sheet first renders as
-		   the desktop dropdown and then jumps to the bottom of the screen. */
+		   trapping it inside the toolbar - so none while the menu is open. */
 		.message-item.menu-open .message-actions {
 			transform: none;
 			transition: none;
