@@ -3,9 +3,9 @@
 	import { resolve } from '$app/paths';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { authStore, getValidToken } from '$lib/stores/auth';
-	import { chatStore, deleteChat } from '$lib/stores/chat';
+	import { chatStore, deleteChat, leaveChat } from '$lib/stores/chat';
 	import { mqttService } from '$lib/stores/mqtt';
-	import { fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, leaveChat, uploadImage, toggleMessageFavorite, fetchFavoriteMessages, reactToMessage, fetchMultipleMessageReactions } from '$lib/api/chat';
+	import { fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, uploadImage, toggleMessageFavorite, fetchFavoriteMessages, reactToMessage, fetchMultipleMessageReactions } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import ImageUpload from '$lib/components/ImageUpload.svelte';
 	import ParsedMessage from '$lib/components/ParsedMessage.svelte';
@@ -1314,14 +1314,11 @@
 		if (!token || !userId) return;
 
 		isLeaving = true;
-		try {
-			await leaveChat(token, chatId, userId);
+		const success = await leaveChat(token, chatId, userId);
+		isLeaving = false;
+		if (success) {
 			showLeaveModal = false;
 			goto(resolve('/'));
-		} catch (error) {
-			console.error('Failed to leave chat:', error);
-		} finally {
-			isLeaving = false;
 		}
 	}
 
