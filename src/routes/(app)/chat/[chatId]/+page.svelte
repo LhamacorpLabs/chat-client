@@ -2564,13 +2564,19 @@
 		z-index: 3;
 	}
 
+	/* Anchored to the bubble's outer edge so the toolbar grows into the
+	   empty side of the row. Anchoring it to the inner edge let it hang
+	   past the list on short bubbles - and even while hidden (opacity 0)
+	   it still counts as scrollable overflow, forcing a horizontal
+	   scrollbar onto the message list. */
 	.other-message .message-actions {
-		right: -8px;
-		transform-origin: right;
+		left: -8px;
+		transform-origin: left;
 	}
 
 	.own-message .message-actions {
-		left: -8px;
+		right: -8px;
+		transform-origin: right;
 	}
 
 	.message-item:hover .message-actions,
@@ -2628,7 +2634,7 @@
 	.action-dropdown {
 		position: absolute;
 		top: calc(100% + 6px);
-		right: 0;
+		left: 0;
 		min-width: 200px;
 		padding: 0.3125rem;
 		background: var(--panel-bg);
@@ -2640,8 +2646,8 @@
 	}
 
 	.own-message .action-dropdown {
-		right: auto;
-		left: 0;
+		left: auto;
+		right: 0;
 	}
 
 	@keyframes menuIn {
