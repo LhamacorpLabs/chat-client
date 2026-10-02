@@ -8,6 +8,7 @@
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 		<link rel="stylesheet" href="/global.css?v=4.1" />
+		<link rel="stylesheet" href="/themes.css?v=1" />
 		<link rel="icon" type="image/png" href="/logo.png" />
 		<title>Chat</title>
 		<!--
@@ -22,6 +23,13 @@
 				var stored = localStorage.getItem('theme');
 				var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 				document.documentElement.setAttribute('data-theme', theme);
+				// Named palettes (themes.css) layer on top; each pins its own mode.
+				var palettes = { nord: 'dark', dracula: 'dark', gruvbox: 'dark', 'solarized-light': 'light', 'rose-dawn': 'light' };
+				var palette = localStorage.getItem('palette');
+				if (palette && palettes[palette]) {
+					document.documentElement.setAttribute('data-theme', palettes[palette]);
+					document.documentElement.setAttribute('data-palette', palette);
+				}
 			})();
 		</script>
 		%sveltekit.head%

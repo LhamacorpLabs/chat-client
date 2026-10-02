@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { authStore } from '$lib/stores/auth';
-	import { theme, toggleTheme } from '$lib/stores/theme';
+	import { themeId, setTheme, THEME_OPTIONS } from '$lib/stores/theme';
 	import type { Chat } from '$lib/types/chat';
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
@@ -48,6 +48,7 @@
 	const versionLabel = $derived(/^\d/.test(appVersion) ? `v${appVersion}` : appVersion);
 
 	let query = $state('');
+	let themesOpen = $state(false);
 	const filteredChats = $derived(
 		query.trim()
 			? chats.filter(chat => chat.name.toLowerCase().includes(query.trim().toLowerCase()))
@@ -133,19 +134,45 @@
 		</div>
 	</div>
 	<div class="dropdown-separator"></div>
-	<button onclick={() => toggleTheme()} class="dropdown-item" type="button">
-		{#if $theme === 'dark'}
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
-				<circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-			</svg>
-			<span>Light mode</span>
-		{:else}
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
-				<path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
-			</svg>
-			<span>Dark mode</span>
-		{/if}
+	<button
+		onclick={() => (themesOpen = !themesOpen)}
+		class="dropdown-item"
+		type="button"
+		aria-expanded={themesOpen}
+		aria-controls="theme-list"
+	>
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+			<circle cx="12" cy="12" r="9" /><circle cx="8.5" cy="10" r="1" /><circle cx="12" cy="7.5" r="1" /><circle cx="15.5" cy="10" r="1" /><path d="M12 21a2.5 2.5 0 010-5h1.5a2 2 0 002-2" />
+		</svg>
+		<span>Themes</span>
+		<svg class="theme-chevron" class:open={themesOpen} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+			<path d="M9 6l6 6-6 6" />
+		</svg>
 	</button>
+	{#if themesOpen}
+		<div class="theme-list" id="theme-list" role="radiogroup" aria-label="Theme">
+			{#each THEME_OPTIONS as option (option.id)}
+				<button
+					onclick={() => setTheme(option.id)}
+					class="dropdown-item theme-item"
+					class:selected={$themeId === option.id}
+					type="button"
+					role="radio"
+					aria-checked={$themeId === option.id}
+				>
+					<span class="theme-swatch" style="background: {option.swatch[0]}" aria-hidden="true">
+						<span class="theme-swatch-dot" style="background: {option.swatch[1]}"></span>
+					</span>
+					<span>{option.label}</span>
+					{#if $themeId === option.id}
+						<svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+							<path d="M5 12l5 5L20 7" />
+						</svg>
+					{/if}
+				</button>
+			{/each}
+		</div>
+	{/if}
 	{#if showDownload}
 		<a href={resolve('/download')} class="dropdown-item" onclick={close}>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
@@ -870,6 +897,50 @@
 	}
 
 	/* Account menu content (portaled into the dropdown) */
+	:global(.dropdown-menu) .theme-list {
+		margin: 2px 0 4px 10px;
+		padding-left: 4px;
+		border-left: 1px solid var(--border);
+	}
+
+	:global(.dropdown-menu .dropdown-item) .theme-swatch {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex: none;
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
+		border: 1px solid var(--border-hover);
+	}
+
+	:global(.dropdown-menu .dropdown-item) .theme-swatch-dot {
+		flex: none;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+	}
+
+	:global(.dropdown-menu) .theme-item.selected {
+		color: var(--text-primary);
+		font-weight: 600;
+	}
+
+	:global(.dropdown-menu .dropdown-item) .theme-chevron {
+		flex: none;
+		margin-left: auto;
+		transition: transform 0.15s var(--ease-out-expo, ease-out);
+	}
+
+	:global(.dropdown-menu .dropdown-item) .theme-chevron.open {
+		transform: rotate(90deg);
+	}
+
+	:global(.dropdown-menu) .theme-check {
+		margin-left: auto;
+		color: var(--accent);
+	}
+
 	:global(.dropdown-menu) .account-meta {
 		display: flex;
 		flex-direction: column;

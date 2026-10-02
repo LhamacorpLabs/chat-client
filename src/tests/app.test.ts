@@ -33,7 +33,7 @@ vi.mock('$lib/api/auth', () => ({
 
 import { authStore, authLoaded, loadAuth, logout, checkAndRefreshToken } from '$lib/stores/auth';
 import { refreshToken as apiRefreshToken } from '$lib/api/auth';
-import { loadTheme, toggleTheme, theme } from '$lib/stores/theme';
+import { loadTheme, toggleTheme, theme, themeId, setTheme } from '$lib/stores/theme';
 import { chatMuteStore } from '$lib/stores/chatMute';
 import { checkAndRefreshIfNewDay } from '$lib/utils/dailyRefresh';
 import {
@@ -259,6 +259,32 @@ describe('Theme Store', () => {
 		loadTheme();
 		const current = get(theme);
 		expect(['light', 'dark']).toContain(current);
+	});
+
+	it('applies a named palette with its base mode', () => {
+		setTheme('nord');
+		expect(get(theme)).toBe('dark');
+		expect(get(themeId)).toBe('nord');
+		expect(document.documentElement.getAttribute('data-palette')).toBe('nord');
+		expect(localStorage.getItem('palette')).toBe('nord');
+
+		setTheme('solarized-light');
+		expect(get(theme)).toBe('light');
+		expect(localStorage.getItem('theme')).toBe('light');
+	});
+
+	it('clears the palette when switching back to light/dark', () => {
+		setTheme('dracula');
+		setTheme('dark');
+		expect(document.documentElement.hasAttribute('data-palette')).toBe(false);
+		expect(localStorage.getItem('palette')).toBeNull();
+	});
+
+	it('restores a saved palette on load', () => {
+		localStorage.setItem('palette', 'gruvbox');
+		loadTheme();
+		expect(get(themeId)).toBe('gruvbox');
+		expect(get(theme)).toBe('dark');
 	});
 });
 
