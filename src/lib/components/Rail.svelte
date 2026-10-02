@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { authStore } from '$lib/stores/auth';
-	import { theme, toggleTheme } from '$lib/stores/theme';
+	import { themeId, setTheme, THEME_OPTIONS } from '$lib/stores/theme';
 	import type { Chat } from '$lib/types/chat';
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
@@ -133,19 +133,29 @@
 		</div>
 	</div>
 	<div class="dropdown-separator"></div>
-	<button onclick={() => toggleTheme()} class="dropdown-item" type="button">
-		{#if $theme === 'dark'}
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
-				<circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-			</svg>
-			<span>Light mode</span>
-		{:else}
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
-				<path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
-			</svg>
-			<span>Dark mode</span>
-		{/if}
-	</button>
+	<div class="theme-label" id="theme-picker-label">Theme</div>
+	<div class="theme-list" role="radiogroup" aria-labelledby="theme-picker-label">
+		{#each THEME_OPTIONS as option (option.id)}
+			<button
+				onclick={() => setTheme(option.id)}
+				class="dropdown-item theme-item"
+				class:selected={$themeId === option.id}
+				type="button"
+				role="radio"
+				aria-checked={$themeId === option.id}
+			>
+				<span class="theme-swatch" style="background: {option.swatch[0]}" aria-hidden="true">
+					<span class="theme-swatch-dot" style="background: {option.swatch[1]}"></span>
+				</span>
+				<span>{option.label}</span>
+				{#if $themeId === option.id}
+					<svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+						<path d="M5 12l5 5L20 7" />
+					</svg>
+				{/if}
+			</button>
+		{/each}
+	</div>
 	{#if showDownload}
 		<a href={resolve('/download')} class="dropdown-item" onclick={close}>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
@@ -870,6 +880,49 @@
 	}
 
 	/* Account menu content (portaled into the dropdown) */
+	:global(.dropdown-menu) .theme-label {
+		padding: 6px 12px 2px;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+	}
+
+	:global(.dropdown-menu) .theme-list {
+		margin-bottom: 4px;
+		max-height: 232px;
+		overflow-y: auto;
+	}
+
+	:global(.dropdown-menu .dropdown-item) .theme-swatch {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex: none;
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
+		border: 1px solid var(--border-hover);
+	}
+
+	:global(.dropdown-menu .dropdown-item) .theme-swatch-dot {
+		flex: none;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+	}
+
+	:global(.dropdown-menu) .theme-item.selected {
+		color: var(--text-primary);
+		font-weight: 600;
+	}
+
+	:global(.dropdown-menu) .theme-check {
+		margin-left: auto;
+		color: var(--accent);
+	}
+
 	:global(.dropdown-menu) .account-meta {
 		display: flex;
 		flex-direction: column;

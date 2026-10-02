@@ -159,7 +159,7 @@ export function emergencyCleanup(): void {
 
 	// Remove non-essential data first
 	const nonEssentialKeys = stats.keysBySize
-		.filter(item => !['auth_data', 'theme'].includes(item.key))
+		.filter(item => !['auth_data', 'theme', 'palette'].includes(item.key))
 		.slice(-Math.floor(stats.keysBySize.length * 0.3)); // Remove bottom 30%
 
 	nonEssentialKeys.forEach(item => {
