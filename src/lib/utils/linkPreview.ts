@@ -55,7 +55,7 @@ export function detectLinkPreview(url: string): LinkPreview | null {
 			return detectAmazon(url, urlObj);
 		}
 
-		if (isLegitimateHostname(hostname, ['lhamacorp.com', 'www.lhamacorp.com'])) {
+		if (isLegitimateHostname(hostname, ['lhamacorp.com', 'www.lhamacorp.com', 'blacktilde.com'])) {
 			return detectLhamacorp(url, urlObj);
 		}
 

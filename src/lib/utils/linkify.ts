@@ -112,7 +112,7 @@ export function linkify(text: string, includePreviews = false): LinkifySegment[]
 		// Check if this is a GIF/image URL (fresh regex instances, same reason as above)
 		const gifUrlTest = /https:\/\/[^\s<>"'`]*\.gif(\?[^\s<>"'`]*)?/i.test(url);
 		const gifDomainTest = /https:\/\/(media[0-9]*\.)?(giphy\.com|tenor\.com|gfycat\.com|imgur\.com)/i.test(url);
-		const lhamaImageTest = /https:\/\/(img|i)\.(lhama\.io|lhamacorp\.com)\//i.test(url);
+		const lhamaImageTest = /https:\/\/(img|i)\.(lhama\.io|lhamacorp\.com|blacktilde\.com)\//i.test(url);
 		const isGifUrl = gifUrlTest || gifDomainTest || lhamaImageTest;
 
 		if (includePreviews && isGifUrl) {
