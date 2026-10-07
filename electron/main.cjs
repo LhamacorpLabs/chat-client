@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, nativeImage, protocol, net } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, shell, ipcMain, nativeImage, protocol, net } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
@@ -105,6 +105,44 @@ function createWindow() {
 	mainWindow.webContents.setWindowOpenHandler(({ url }) => {
 		shell.openExternal(url);
 		return { action: 'deny' };
+	});
+
+	// Electron has no default context menu: provide cut/copy/paste for inputs
+	// and copy/save for selected text, links and images.
+	mainWindow.webContents.on('context-menu', (_event, params) => {
+		const items = [];
+		if (params.isEditable) {
+			items.push(
+				{ role: 'undo', enabled: params.editFlags.canUndo },
+				{ role: 'redo', enabled: params.editFlags.canRedo },
+				{ type: 'separator' },
+				{ role: 'cut', enabled: params.editFlags.canCut },
+				{ role: 'copy', enabled: params.editFlags.canCopy },
+				{ role: 'paste', enabled: params.editFlags.canPaste },
+				{ type: 'separator' },
+				{ role: 'selectAll', enabled: params.editFlags.canSelectAll }
+			);
+		} else if (params.selectionText) {
+			items.push({ role: 'copy' });
+		}
+		if (params.mediaType === 'image' && params.srcURL) {
+			if (items.length) items.push({ type: 'separator' });
+			items.push(
+				{
+					label: 'Save Image As…',
+					click: () => mainWindow?.webContents.downloadURL(params.srcURL)
+				},
+				{
+					label: 'Copy Image',
+					click: () => mainWindow?.webContents.copyImageAt(params.x, params.y)
+				}
+			);
+		}
+		if (params.linkURL) {
+			if (items.length) items.push({ type: 'separator' });
+			items.push({ label: 'Copy Link', click: () => clipboard.writeText(params.linkURL) });
+		}
+		if (items.length) Menu.buildFromTemplate(items).popup({ window: mainWindow });
 	});
 
 	mainWindow.webContents.on('will-navigate', (event, url) => {

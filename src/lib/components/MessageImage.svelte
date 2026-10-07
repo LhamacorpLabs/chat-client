@@ -94,7 +94,7 @@
 </div>
 
 {#if showLightbox}
-	<MediaLightbox src={getImageSrc()} alt={attachment.metadata.filename} onClose={() => showLightbox = false} />
+	<MediaLightbox src={getImageSrc()} alt={attachment.metadata.filename} filename={attachment.metadata.filename} onClose={() => showLightbox = false} />
 {/if}
 
 <style>
