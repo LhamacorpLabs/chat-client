@@ -14,6 +14,21 @@
 		url: string;
 	}
 
+	const quarantineCommand = 'xattr -r -d com.apple.quarantine /Applications/Chat.app';
+	let copied = $state(false);
+	let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+	async function copyCommand() {
+		try {
+			await navigator.clipboard.writeText(quarantineCommand);
+			copied = true;
+			clearTimeout(copyTimer);
+			copyTimer = setTimeout(() => (copied = false), 2000);
+		} catch (error) {
+			console.error('Failed to copy command:', error);
+		}
+	}
+
 	let platforms = $state<Platform[]>([
 		{
 			name: 'macOS (Apple Silicon)',
@@ -114,7 +129,27 @@
 		<details class="macos-note">
 			<summary>macOS: "App is damaged" fix</summary>
 			<p>If macOS says the app is damaged or can't be opened, run this in Terminal:</p>
-			<code>xattr -r -d com.apple.quarantine /Applications/Chat.app</code>
+			<div class="command-box">
+				<code>{quarantineCommand}</code>
+				<button
+					class="copy-button"
+					type="button"
+					onclick={copyCommand}
+					aria-label={copied ? 'Copied' : 'Copy command'}
+					title={copied ? 'Copied!' : 'Copy'}
+				>
+					{#if copied}
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+							<path d="M5 12l5 5L20 7" />
+						</svg>
+					{:else}
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+							<rect x="9" y="9" width="11" height="11" rx="2" />
+							<path d="M5 15V6a2 2 0 0 1 2-2h9" />
+						</svg>
+					{/if}
+				</button>
+			</div>
 		</details>
 
 		<a href={resolve('/')} class="back-link">← Back to Chat</a>
@@ -285,8 +320,32 @@
 		margin: 0.75rem 0 0.5rem;
 	}
 
+	.command-box {
+		display: flex;
+		align-items: stretch;
+		gap: 0.5rem;
+	}
+
+	.copy-button {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		background: var(--surface-hover);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.copy-button:hover {
+		color: var(--text-primary);
+	}
+
 	.macos-note code {
-		display: block;
+		flex: 1;
+		min-width: 0;
 		font-family: var(--font-mono);
 		background: var(--surface-hover);
 		border: 1px solid var(--border);
