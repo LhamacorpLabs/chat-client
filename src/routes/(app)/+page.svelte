@@ -2,11 +2,20 @@
      mobile the sidebar is the whole screen while on this route, so this
      panel never actually becomes visible there). -->
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore } from '$lib/stores/chat';
 
-	let isElectron = $state(typeof window !== 'undefined' && !!window.electronAPI);
+	// With a single chat there is nothing to choose, so open it straight away.
+	$effect(() => {
+		const { chats, isLoading } = $chatStore;
+		if (!isLoading && chats.length === 1) {
+			goto(resolve('/(app)/chat/[chatId]', { chatId: chats[0].id }), { replaceState: true });
+		}
+	});
+
+	let isElectron =$state(typeof window !== 'undefined' && !!window.electronAPI);
 
 	let hasChats = $derived($chatStore.chats.length > 0);
 	let hasInvited = $derived($chatStore.chats.some(chat => chat.members.length > 1));
