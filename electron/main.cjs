@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, clipboard, shell, ipcMain, nativeImage, protocol, net, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, shell, ipcMain, nativeImage, protocol, net, safeStorage, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
@@ -117,11 +117,62 @@ function writeSecrets(data) {
 	fs.writeFileSync(secretFile, JSON.stringify(data), { encoding: 'utf8', mode: 0o600 });
 }
 
+// Window size/position survive restarts via a small JSON file. Kept apart
+// from auth.json so a corrupt or stale entry here can never affect sign-in.
+const windowStateFile = path.join(app.getPath('userData'), 'window-state.json');
+const defaultWindowSize = { width: 800, height: 600 };
+
+function readWindowState() {
+	try {
+		const s = JSON.parse(fs.readFileSync(windowStateFile, 'utf8'));
+		if (!Number.isFinite(s.width) || !Number.isFinite(s.height)) return null;
+		return s;
+	} catch {
+		return null;
+	}
+}
+
+function writeWindowState(win) {
+	if (win.isDestroyed() || win.isMinimized() || win.isFullScreen()) return;
+	try {
+		// getNormalBounds ignores maximized/fullscreen geometry, so un-maximizing
+		// later still restores the user's chosen size.
+		const state = { ...win.getNormalBounds(), isMaximized: win.isMaximized() };
+		fs.mkdirSync(path.dirname(windowStateFile), { recursive: true });
+		fs.writeFileSync(windowStateFile, JSON.stringify(state), 'utf8');
+	} catch {
+		// Losing the window size is not worth surfacing an error.
+	}
+}
+
+// A saved position is only reused while it still lands on a connected display
+// (a monitor may have been unplugged since); otherwise let the OS place it.
+function restoredWindowBounds() {
+	const saved = readWindowState();
+	if (!saved) return { bounds: { ...defaultWindowSize }, isMaximized: false };
+	const bounds = { width: saved.width, height: saved.height };
+	if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+		const visible = screen.getAllDisplays().some(({ workArea: a }) => {
+			return (
+				saved.x < a.x + a.width &&
+				saved.x + saved.width > a.x &&
+				saved.y < a.y + a.height &&
+				saved.y + saved.height > a.y
+			);
+		});
+		if (visible) {
+			bounds.x = saved.x;
+			bounds.y = saved.y;
+		}
+	}
+	return { bounds, isMaximized: saved.isMaximized === true };
+}
+
 function createWindow() {
+	const restored = restoredWindowBounds();
 	mainWindow = new BrowserWindow({
 		title: 'Chat',
-		width: 800,
-		height: 600,
+		...restored.bounds,
 		resizable: true,
 		fullscreen: false,
 		icon: path.join(__dirname, '../build-resources/icon.png'),
@@ -191,6 +242,22 @@ function createWindow() {
 	} else {
 		mainWindow.loadURL(appUrl);
 	}
+
+	if (restored.isMaximized) mainWindow.maximize();
+
+	let saveTimer = null;
+	const scheduleSave = () => {
+		clearTimeout(saveTimer);
+		saveTimer = setTimeout(() => {
+			if (mainWindow) writeWindowState(mainWindow);
+		}, 500);
+	};
+	mainWindow.on('resize', scheduleSave);
+	mainWindow.on('move', scheduleSave);
+	mainWindow.on('close', () => {
+		clearTimeout(saveTimer);
+		writeWindowState(mainWindow);
+	});
 
 	mainWindow.on('closed', () => {
 		mainWindow = null;
