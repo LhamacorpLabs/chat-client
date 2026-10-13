@@ -63,3 +63,81 @@ export async function clearPersistedAuthData(): Promise<void> {
 		console.warn('Failed to clear persisted auth session:', error);
 	}
 }
+
+const REFRESH_TOKEN_KEY = 'refresh_token';
+
+// The refresh token is long-lived and can mint new access tokens, so it is
+// kept out of the `auth_data` blob (which is copied around freely). In
+// Electron it lives in the main process, encrypted with the OS keychain; on the
+// web it is a separate localStorage entry. The in-memory copy lets logout()
+// send the revoke request synchronously before the page navigates away.
+let cachedRefreshToken: string | null = null;
+
+function getElectronSecrets() {
+	if (typeof window === 'undefined' || !window.electronAPI) return undefined;
+	return window.electronAPI.secret;
+}
+
+/** Reads the refresh token from durable storage (not from the cache), so a token rotated by another tab is seen. */
+export async function loadRefreshToken(): Promise<string | null> {
+	const secrets = getElectronSecrets();
+
+	try {
+		if (secrets) {
+			cachedRefreshToken = (await secrets.get(REFRESH_TOKEN_KEY)) ?? null;
+		} else if (typeof localStorage !== 'undefined') {
+			cachedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+		}
+	} catch (error) {
+		console.warn('Failed to load refresh token:', error);
+	}
+
+	return cachedRefreshToken;
+}
+
+/**
+ * Synchronous read for logout(), which must fire the revoke request before the
+ * page navigates away. Falls back to localStorage on the web when nothing has
+ * been loaded yet; in Electron the secret is only reachable asynchronously.
+ */
+export function getCachedRefreshToken(): string | null {
+	if (cachedRefreshToken) return cachedRefreshToken;
+	if (getElectronSecrets() || typeof localStorage === 'undefined') return null;
+
+	try {
+		return localStorage.getItem(REFRESH_TOKEN_KEY);
+	} catch {
+		return null;
+	}
+}
+
+export async function saveRefreshToken(token: string): Promise<void> {
+	cachedRefreshToken = token;
+	const secrets = getElectronSecrets();
+
+	try {
+		if (secrets) {
+			await secrets.set(REFRESH_TOKEN_KEY, token);
+		} else if (typeof localStorage !== 'undefined') {
+			localStorage.setItem(REFRESH_TOKEN_KEY, token);
+		}
+	} catch (error) {
+		console.warn('Failed to persist refresh token:', error);
+	}
+}
+
+export async function clearRefreshToken(): Promise<void> {
+	cachedRefreshToken = null;
+	const secrets = getElectronSecrets();
+
+	try {
+		if (typeof localStorage !== 'undefined') {
+			localStorage.removeItem(REFRESH_TOKEN_KEY);
+		}
+		if (secrets) {
+			await secrets.delete(REFRESH_TOKEN_KEY);
+		}
+	} catch (error) {
+		console.warn('Failed to clear refresh token:', error);
+	}
+}

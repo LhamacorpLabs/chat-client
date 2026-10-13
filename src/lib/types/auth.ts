@@ -5,6 +5,9 @@ export interface AuthResponse {
 	roles: string[];
 	token: string;
 	username: string;
+	/** Only present on responses from the server; never persisted next to the access token. */
+	refreshToken?: string;
+	refreshExpirationDate?: string;
 }
 
 export interface User {

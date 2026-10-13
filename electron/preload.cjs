@@ -9,6 +9,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 		delete: (key) => ipcRenderer.invoke('store:delete', key)
 	},
 
+	secret: {
+		get: (key) => ipcRenderer.invoke('secret:get', key),
+		set: (key, value) => ipcRenderer.invoke('secret:set', key, value),
+		delete: (key) => ipcRenderer.invoke('secret:delete', key)
+	},
+
 	badge: {
 		set: (count) => ipcRenderer.invoke('badge:set', count)
 	},

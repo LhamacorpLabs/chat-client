@@ -19,11 +19,14 @@ const { MockTokenRefreshError } = vi.hoisted(() => {
 
 vi.mock('$lib/api/auth', () => ({
 	refreshToken: vi.fn(),
+	refreshSession: vi.fn(),
+	startRefreshableSession: vi.fn(),
+	revokeRefreshToken: vi.fn(),
 	TokenRefreshError: MockTokenRefreshError
 }));
 
 import { authStore, authLoaded, checkAndRefreshToken } from '$lib/stores/auth';
-import { refreshToken as apiRefreshToken } from '$lib/api/auth';
+import { startRefreshableSession as apiStartRefreshableSession } from '$lib/api/auth';
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -50,7 +53,7 @@ describe('Auth refresh regression (Electron cold-start logout bug)', () => {
 			error: null
 		});
 
-		vi.mocked(apiRefreshToken).mockRejectedValue(new Error('Failed to fetch'));
+		vi.mocked(apiStartRefreshableSession).mockRejectedValue(new Error('Failed to fetch'));
 
 		const result = await checkAndRefreshToken();
 
@@ -77,7 +80,7 @@ describe('Auth refresh regression (Electron cold-start logout bug)', () => {
 			error: null
 		});
 
-		vi.mocked(apiRefreshToken).mockRejectedValue(new TokenRefreshError('Token refresh failed', 401));
+		vi.mocked(apiStartRefreshableSession).mockRejectedValue(new TokenRefreshError('Token refresh failed', 401));
 
 		const result = await checkAndRefreshToken();
 

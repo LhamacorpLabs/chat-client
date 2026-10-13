@@ -20,6 +20,11 @@ declare global {
 				set: (key: string, value: unknown) => Promise<void>;
 				delete: (key: string) => Promise<void>;
 			};
+			secret: {
+				get: (key: string) => Promise<string | undefined>;
+				set: (key: string, value: string) => Promise<void>;
+				delete: (key: string) => Promise<void>;
+			};
 			badge: {
 				set: (count: number) => Promise<void>;
 			};
