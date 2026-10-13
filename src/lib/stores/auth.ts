@@ -45,6 +45,12 @@ export async function loadAuth() {
 	// has the session).
 	await hydrateAuthFromPersistentStore();
 
+	// In Electron the refresh token can only be read asynchronously. Load it
+	// now so logout() - which has to fire the revoke request synchronously,
+	// before the page navigates away - finds it in memory even when no refresh
+	// was needed during this launch.
+	await loadRefreshToken();
+
 	if (typeof localStorage !== 'undefined') {
 		const saved = localStorage.getItem('auth_data');
 		if (saved) {

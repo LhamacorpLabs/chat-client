@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { get } from 'svelte/store';
 
 vi.mock('$env/static/public', () => ({
@@ -30,6 +30,7 @@ import {
 	authLoaded,
 	checkAndRefreshToken,
 	getValidToken,
+	loadAuth,
 	logout,
 	refreshToken
 } from '$lib/stores/auth';
@@ -223,5 +224,39 @@ describe('logout', () => {
 
 		expect(apiRevoke).not.toHaveBeenCalled();
 		expect(get(authStore).token).toBeNull();
+	});
+});
+
+describe('logout in Electron, where the refresh token is only readable asynchronously', () => {
+	afterEach(() => {
+		delete (window as { electronAPI?: unknown }).electronAPI;
+	});
+
+	it('revokes synchronously because loadAuth() already loaded the token', async () => {
+		const secrets = new Map<string, string>([['refresh_token', 'refresh-electron']]);
+		(window as { electronAPI?: unknown }).electronAPI = {
+			isElectron: true,
+			store: {
+				get: vi.fn().mockResolvedValue(undefined),
+				set: vi.fn().mockResolvedValue(undefined),
+				delete: vi.fn().mockResolvedValue(undefined)
+			},
+			secret: {
+				get: vi.fn(async (key: string) => secrets.get(key)),
+				set: vi.fn(async (key: string, value: string) => void secrets.set(key, value)),
+				delete: vi.fn(async (key: string) => void secrets.delete(key))
+			}
+		};
+		// Fresh access token: loadAuth() does not need to refresh anything.
+		localStorage.setItem('auth_data', JSON.stringify(session()));
+
+		await loadAuth();
+		expect(apiRefreshSession).not.toHaveBeenCalled();
+
+		logout();
+
+		// No await between logout() and the assertion: the page may navigate right after.
+		expect(apiRevoke).toHaveBeenCalledWith('refresh-electron');
+		await vi.waitFor(() => expect(secrets.has('refresh_token')).toBe(false));
 	});
 });
