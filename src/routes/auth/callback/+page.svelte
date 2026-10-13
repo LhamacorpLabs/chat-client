@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { AuthResponse, User } from '$lib/types/auth';
-	import { persistAuthData } from '$lib/utils/persistentStore';
+	import { persistAuthData, clearRefreshToken } from '$lib/utils/persistentStore';
 
 	onMount(async () => {
 		const hash = new URLSearchParams(window.location.hash.slice(1));
@@ -21,6 +21,10 @@
 				token,
 				expirationDate: expires || ''
 			};
+
+			// A refresh token left over from a previous account must not be used
+			// for this login; refreshToken() below starts a fresh session.
+			await clearRefreshToken();
 
 			localStorage.setItem('auth_data', JSON.stringify(authData));
 			await persistAuthData(authData);
@@ -41,7 +45,7 @@
 
 			window.location.hash = '';
 
-			// Refresh to get full profile (id, email, roles)
+			// Starts the refreshable session and fetches the full profile (id, email, roles)
 			await refreshToken();
 
 			goto(resolve('/'));

@@ -28,11 +28,14 @@ const { MockTokenRefreshError } = vi.hoisted(() => {
 
 vi.mock('$lib/api/auth', () => ({
 	refreshToken: vi.fn(),
+	refreshSession: vi.fn(),
+	startRefreshableSession: vi.fn(),
+	revokeRefreshToken: vi.fn(),
 	TokenRefreshError: MockTokenRefreshError
 }));
 
 import { authStore, authLoaded, loadAuth, logout, checkAndRefreshToken } from '$lib/stores/auth';
-import { refreshToken as apiRefreshToken } from '$lib/api/auth';
+import { startRefreshableSession as apiRefreshToken } from '$lib/api/auth';
 import { loadTheme, toggleTheme, theme, themeId, setTheme } from '$lib/stores/theme';
 import { chatMuteStore } from '$lib/stores/chatMute';
 import { checkAndRefreshIfNewDay } from '$lib/utils/dailyRefresh';

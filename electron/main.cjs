@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, clipboard, shell, ipcMain, nativeImage, protocol, net } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, shell, ipcMain, nativeImage, protocol, net, safeStorage } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
@@ -82,6 +82,39 @@ function readStore() {
 function writeStore(data) {
 	fs.mkdirSync(path.dirname(storeFile), { recursive: true });
 	fs.writeFileSync(storeFile, JSON.stringify(data), 'utf8');
+}
+
+// Long-lived secrets (the refresh token) live in their own file, encrypted
+// with the OS keychain via safeStorage, instead of next to the access token in
+// auth.json. On Linux without a real keyring Chromium falls back to a
+// hard-coded key ("basic_text"), which is no protection at all - there the
+// value is stored as-is (same exposure as auth.json, owner-only file mode) so
+// the user can still stay signed in across restarts.
+const secretFile = path.join(app.getPath('userData'), 'secrets.json');
+
+function canEncryptSecrets() {
+	try {
+		if (!safeStorage.isEncryptionAvailable()) return false;
+		if (typeof safeStorage.getSelectedStorageBackend === 'function') {
+			return !['basic_text', 'unknown'].includes(safeStorage.getSelectedStorageBackend());
+		}
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function readSecrets() {
+	try {
+		return JSON.parse(fs.readFileSync(secretFile, 'utf8'));
+	} catch {
+		return {};
+	}
+}
+
+function writeSecrets(data) {
+	fs.mkdirSync(path.dirname(secretFile), { recursive: true });
+	fs.writeFileSync(secretFile, JSON.stringify(data), { encoding: 'utf8', mode: 0o600 });
 }
 
 function createWindow() {
@@ -174,6 +207,33 @@ ipcMain.handle('store:delete', (_event, key) => {
 	const data = readStore();
 	delete data[key];
 	writeStore(data);
+});
+
+ipcMain.handle('secret:get', (_event, key) => {
+	const entry = readSecrets()[key];
+	if (!entry) return undefined;
+	if (typeof entry.plain === 'string') return entry.plain;
+	if (typeof entry.enc === 'string') {
+		try {
+			return safeStorage.decryptString(Buffer.from(entry.enc, 'base64'));
+		} catch (error) {
+			console.error('Failed to decrypt stored secret:', error);
+		}
+	}
+	return undefined;
+});
+ipcMain.handle('secret:set', (_event, key, value) => {
+	if (typeof value !== 'string') return;
+	const data = readSecrets();
+	data[key] = canEncryptSecrets()
+		? { enc: safeStorage.encryptString(value).toString('base64') }
+		: { plain: value };
+	writeSecrets(data);
+});
+ipcMain.handle('secret:delete', (_event, key) => {
+	const data = readSecrets();
+	delete data[key];
+	writeSecrets(data);
 });
 
 ipcMain.handle('badge:set', (_event, count) => {

@@ -1,10 +1,20 @@
 import { writable, derived } from 'svelte/store';
 import type { AuthResponse, User } from '../types/auth';
-import { refreshToken as apiRefreshToken, TokenRefreshError } from '../api/auth';
+import {
+	refreshToken as apiRefreshToken,
+	refreshSession as apiRefreshSession,
+	startRefreshableSession as apiStartRefreshableSession,
+	revokeRefreshToken,
+	TokenRefreshError
+} from '../api/auth';
 import {
 	hydrateAuthFromPersistentStore,
 	persistAuthData,
-	clearPersistedAuthData
+	clearPersistedAuthData,
+	loadRefreshToken,
+	saveRefreshToken,
+	clearRefreshToken,
+	getCachedRefreshToken
 } from '../utils/persistentStore';
 
 interface AuthState {
@@ -63,6 +73,10 @@ export async function loadAuth() {
 }
 
 export function logout() {
+	// Grab the refresh token before anything is cleared so the server can end
+	// the session too; otherwise a copied token would stay valid until it expires.
+	void endServerSession(getCachedRefreshToken());
+
 	if (typeof localStorage !== 'undefined') {
 		localStorage.removeItem('auth_data');
 	}
@@ -71,6 +85,14 @@ export function logout() {
 	// Errors are already caught/logged inside clearPersistedAuthData().
 	void clearPersistedAuthData();
 	authStore.set(initialState);
+}
+
+async function endServerSession(knownRefreshToken: string | null) {
+	// The revoke request has to start before the first await: logout() is often
+	// followed straight away by a navigation to the login page.
+	const token = knownRefreshToken ?? (await loadRefreshToken());
+	if (token) void revokeRefreshToken(token);
+	await clearRefreshToken();
 }
 
 function isTokenExpiringSoon(expirationDate: string, minutes: number = 30): boolean {
@@ -109,48 +131,44 @@ export async function refreshToken(): Promise<boolean> {
 	}
 }
 
+// How long to wait before checking whether another window already rotated the
+// refresh token we just tried to use.
+const ROTATION_RECHECK_MS = 300;
+
 async function doRefreshToken(): Promise<boolean> {
 	const storedAuth = getStoredAuthData();
 	if (!storedAuth || !storedAuth.token) {
 		return false;
 	}
 
+	const usedRefreshToken = await loadRefreshToken();
+
 	try {
-		const refreshedData = await apiRefreshToken(storedAuth.token);
+		// With a refresh token this works even after the access token expired
+		// (app closed for days). Without one - a fresh login, or a session from
+		// before refresh tokens existed - upgrade the still-valid access token.
+		const refreshedData = usedRefreshToken
+			? await apiRefreshSession(usedRefreshToken)
+			: await upgradeToRefreshableSession(storedAuth.token);
 
-		if (typeof localStorage !== 'undefined') {
-			localStorage.setItem('auth_data', JSON.stringify(refreshedData));
-		}
-		await persistAuthData(refreshedData);
-
-		const user: User = {
-			id: refreshedData.id,
-			username: refreshedData.username,
-			email: refreshedData.email,
-			roles: refreshedData.roles
-		};
-
-		authStore.update(state => ({
-			...state,
-			user,
-			token: refreshedData.token
-		}));
-
+		await applySession(refreshedData);
 		return true;
 	} catch (error) {
 		// Only clear the session when the server explicitly rejected the
-		// token (401/403) - that means the token really is invalid. Any
+		// credentials (401/403) - that means they really are invalid. Any
 		// other failure (offline, DNS not ready yet on an Electron cold start,
 		// CORS misconfiguration, server hiccup, etc.) is transient: keep
-		// the existing, still-unexpired token so the user isn't forced to
-		// log in again just because a background refresh couldn't reach
-		// the server. checkAndRefreshToken() will still catch genuinely
-		// expired tokens on the next check.
+		// the existing session so the user isn't forced to log in again just
+		// because a background refresh couldn't reach the server.
+		// checkAndRefreshToken() will retry on the next check.
 		const isInvalidToken =
 			error instanceof TokenRefreshError &&
 			(error.status === 401 || error.status === 403);
 
 		if (isInvalidToken) {
+			if (usedRefreshToken && (await rotatedByAnotherWindow(usedRefreshToken))) {
+				return true;
+			}
 			logout();
 		} else {
 			console.warn('Token refresh failed, keeping existing session and will retry later:', error);
@@ -158,6 +176,76 @@ async function doRefreshToken(): Promise<boolean> {
 
 		return false;
 	}
+}
+
+async function upgradeToRefreshableSession(token: string): Promise<AuthResponse> {
+	try {
+		return await apiStartRefreshableSession(token);
+	} catch (error) {
+		// Auth server that doesn't know refresh tokens yet: keep working with
+		// the plain access token refresh until it is upgraded.
+		if (error instanceof TokenRefreshError && (error.status === 404 || error.status === 405)) {
+			return apiRefreshToken(token);
+		}
+		throw error;
+	}
+}
+
+/**
+ * Refresh tokens are single use, so two windows refreshing at once means one
+ * of them gets rejected. If durable storage now holds a different token, the
+ * other window won: adopt its session instead of logging the user out.
+ */
+async function rotatedByAnotherWindow(usedRefreshToken: string): Promise<boolean> {
+	await new Promise(resolve => setTimeout(resolve, ROTATION_RECHECK_MS));
+
+	const latest = await loadRefreshToken();
+	if (!latest || latest === usedRefreshToken) {
+		return false;
+	}
+
+	const storedAuth = getStoredAuthData();
+	if (!storedAuth) {
+		return false;
+	}
+
+	authStore.update(state => ({
+		...state,
+		user: {
+			id: storedAuth.id,
+			username: storedAuth.username,
+			email: storedAuth.email,
+			roles: storedAuth.roles
+		},
+		token: storedAuth.token
+	}));
+	return true;
+}
+
+async function applySession(data: AuthResponse): Promise<void> {
+	const { refreshToken: newRefreshToken, ...session } = data;
+
+	// Persist the rotated refresh token first: the old one is already spent
+	// server-side, so losing the new one would end the session.
+	if (newRefreshToken) {
+		await saveRefreshToken(newRefreshToken);
+	}
+
+	if (typeof localStorage !== 'undefined') {
+		localStorage.setItem('auth_data', JSON.stringify(session));
+	}
+	await persistAuthData(session);
+
+	authStore.update(state => ({
+		...state,
+		user: {
+			id: session.id,
+			username: session.username,
+			email: session.email,
+			roles: session.roles
+		},
+		token: session.token
+	}));
 }
 
 export async function checkAndRefreshToken(): Promise<boolean> {
@@ -169,6 +257,12 @@ export async function checkAndRefreshToken(): Promise<boolean> {
 	const now = new Date().getTime();
 	const expiry = new Date(storedAuth.expirationDate).getTime();
 	if (expiry <= now) {
+		// The access token is dead, but a refresh token can still revive the
+		// session - that's what keeps the user signed in while the app was closed.
+		if (await loadRefreshToken()) {
+			return refreshToken();
+		}
+
 		logout();
 		return false;
 	}
