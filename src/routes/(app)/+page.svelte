@@ -1,16 +1,24 @@
 <!-- Shown in the main column when no chat is open (desktop only - on
      mobile the sidebar is the whole screen while on this route, so this
      panel never actually becomes visible there). -->
+<script module lang="ts">
+	// Survives remounts of this page so that navigating back here doesn't
+	// bounce the user straight into the single chat again.
+	let autoOpened = false;
+</script>
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { authStore } from '$lib/stores/auth';
 	import { chatStore } from '$lib/stores/chat';
 
-	// With a single chat there is nothing to choose, so open it straight away.
+	// With a single chat there is nothing to choose, so open it straight away -
+	// but only once, so the user can still navigate back to this page.
 	$effect(() => {
 		const { chats, isLoading } = $chatStore;
-		if (!isLoading && chats.length === 1) {
+		if (!isLoading && chats.length === 1 && !autoOpened) {
+			autoOpened = true;
 			goto(resolve('/(app)/chat/[chatId]', { chatId: chats[0].id }), { replaceState: true });
 		}
 	});
