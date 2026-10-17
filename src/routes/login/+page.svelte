@@ -8,7 +8,7 @@
 	onMount(() => {
 		const saved = localStorage.getItem('auth_data');
 		if (saved && $authStore.token) {
-			goto(resolve('/'));
+			goto(resolve('/(app)'));
 		} else {
 			redirectToLogin();
 		}

@@ -48,7 +48,7 @@
 			// Starts the refreshable session and fetches the full profile (id, email, roles)
 			await refreshToken();
 
-			goto(resolve('/'));
+			goto(resolve('/(app)'));
 		} else {
 			goto(resolve('/login'));
 		}

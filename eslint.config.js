@@ -51,7 +51,7 @@ export default [
 		}
 	},
 	{
-		files: ['vite.config.ts', 'svelte.config.js', 'src/tests/**/*.ts'],
+		files: ['vite.config.ts', 'src/tests/**/*.ts'],
 		languageOptions: {
 			globals: globals.node
 		}

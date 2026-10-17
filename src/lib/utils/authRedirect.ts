@@ -1,4 +1,4 @@
-import { PUBLIC_AUTH_UI_URL } from '$env/static/public';
+import { PUBLIC_AUTH_UI_URL } from '$app/env/public';
 
 function getOrigin(): string {
 	if (typeof window !== 'undefined' && window.electronAPI) {

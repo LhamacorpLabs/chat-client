@@ -1,4 +1,4 @@
-import { PUBLIC_AUTH_API_URL } from '$env/static/public';
+import { PUBLIC_AUTH_API_URL } from '$app/env/public';
 
 const API_URL = `${PUBLIC_AUTH_API_URL || 'https://auth.lhamacorp.com'}/api`;
 const REFRESH_TIMEOUT_MS = 15000;

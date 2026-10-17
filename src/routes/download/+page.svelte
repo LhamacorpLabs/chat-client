@@ -152,7 +152,7 @@
 			</div>
 		</details>
 
-		<a href={resolve('/')} class="back-link">← Back to Chat</a>
+		<a href={resolve('/(app)')} class="back-link">← Back to Chat</a>
 	</div>
 </div>
 

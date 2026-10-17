@@ -33,7 +33,7 @@
 	import { searchEmojis } from '$lib/utils/emojis';
 	import { colorForChat } from '$lib/utils/chatAvatar';
 	import { formatTime, formatFullDateTime, formatDayLabel, isSameDay } from '$lib/utils/time';
-	import { PUBLIC_REALTIME_MODE } from '$env/static/public';
+	import { PUBLIC_REALTIME_MODE } from '$app/env/public';
 	import { mergeMessagesWithPerMessageReactions, messagesReactionsChanged, getUserReactionForMessage } from '$lib/utils/reactionUtils';
 	import type { ReactionSummary, ReactionType } from '$lib/types/chat';
 	import Modal from '$lib/components/ui/Modal.svelte';
@@ -883,7 +883,7 @@
 
 	function goBack() {
 		disconnectMqtt();
-		goto(resolve('/'));
+		goto(resolve('/(app)'));
 	}
 
 	async function handleSendMessage() {
@@ -1304,7 +1304,7 @@
 		const success = await deleteChat(token, chatId);
 		if (success) {
 			showDeleteModal = false;
-			goto(resolve('/'));
+			goto(resolve('/(app)'));
 		}
 	}
 
@@ -1318,7 +1318,7 @@
 		isLeaving = false;
 		if (success) {
 			showLeaveModal = false;
-			goto(resolve('/'));
+			goto(resolve('/(app)'));
 		}
 	}
 
