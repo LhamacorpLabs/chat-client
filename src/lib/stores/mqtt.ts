@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store';
 import mqtt, { type MqttClient } from 'mqtt';
 import type { Message } from '$lib/types/chat';
-import { PUBLIC_MQTT_BROKER_URL } from '$env/static/public';
+import { PUBLIC_MQTT_BROKER_URL } from '$app/env/public';
 import { authStore, getValidToken } from '$lib/stores/auth';
 
 const MQTT_BROKER_URL = PUBLIC_MQTT_BROKER_URL || 'ws://localhost:9001';

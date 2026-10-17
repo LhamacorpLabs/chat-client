@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$env/static/public', () => ({
+vi.mock('$app/env/public', () => ({
 	PUBLIC_CHAT_API_URL: 'http://localhost:8080',
 	PUBLIC_AUTH_API_URL: 'http://localhost:8081',
 	PUBLIC_AUTH_UI_URL: 'http://localhost:3000'

@@ -1,5 +1,5 @@
 import type { Chat, CreateChatRequest, ChatsResponse, PagedMessageResponse, Message, SendMessageRequest, Invitation, RedeemInvitationRequest, ChatMetadata, ImageAttachment, FavoriteMessagesResponse, MessageReaction } from '../types/chat';
-import { PUBLIC_CHAT_API_URL } from '$env/static/public';
+import { PUBLIC_CHAT_API_URL } from '$app/env/public';
 import { authStore, refreshToken } from '../stores/auth';
 import { redirectToLogin } from '../utils/authRedirect';
 import { get } from 'svelte/store';

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
 
-vi.mock('$env/static/public', () => ({
+vi.mock('$app/env/public', () => ({
 	PUBLIC_CHAT_API_URL: 'http://localhost:8080'
 }));
 

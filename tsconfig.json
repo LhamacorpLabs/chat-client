@@ -1,5 +1,7 @@
 {
-	"extends": "./.svelte-kit/tsconfig.json",
+	"extends": "$app/tsconfig",
+	"include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "vite.config.ts"],
+	"exclude": ["build", "node_modules"],
 	"compilerOptions": {
 		"rewriteRelativeImportExtensions": true,
 		"allowJs": true,
