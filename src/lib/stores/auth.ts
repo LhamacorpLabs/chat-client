@@ -131,6 +131,10 @@ export async function refreshToken(): Promise<boolean> {
 	}
 }
 
+// How long before expiry checkAndRefreshToken() renews the access token.
+const LEGACY_SESSION_WINDOW_MINUTES = 2880;
+const REFRESHABLE_SESSION_WINDOW_MINUTES = 5;
+
 // How long to wait before checking whether another window already rotated the
 // refresh token we just tried to use.
 const ROTATION_RECHECK_MS = 300;
@@ -267,7 +271,16 @@ export async function checkAndRefreshToken(): Promise<boolean> {
 		return false;
 	}
 
-	if (isTokenExpiringSoon(storedAuth.expirationDate, 2880)) {
+	// Without a refresh token the access token has to be renewed well before it
+	// expires, since an expired one can't be renewed at all. With one, renew it
+	// just before expiry: refreshable sessions hand out short-lived access
+	// tokens, and a 48h window would renew them on every call (every metadata
+	// poll), rotating the token - and reloading the open chat - every 10 seconds.
+	const refreshWindowMinutes = (await loadRefreshToken())
+		? REFRESHABLE_SESSION_WINDOW_MINUTES
+		: LEGACY_SESSION_WINDOW_MINUTES;
+
+	if (isTokenExpiringSoon(storedAuth.expirationDate, refreshWindowMinutes)) {
 		const refreshed = await refreshToken();
 		if (refreshed) {
 			return true;

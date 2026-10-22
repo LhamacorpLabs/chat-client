@@ -112,7 +112,7 @@ describe('refresh tokens keep the user signed in while the app was closed', () =
 	});
 
 	it('refreshes with the refresh token when the access token is about to expire', async () => {
-		storeSession(session({ expirationDate: new Date(Date.now() + 5 * HOUR).toISOString() }));
+		storeSession(session({ expirationDate: new Date(Date.now() + 2 * 60 * 1000).toISOString() }));
 		await saveRefreshToken('refresh-1');
 		vi.mocked(apiRefreshSession).mockResolvedValue(
 			session({ token: 'access-2', refreshToken: 'refresh-2' })
@@ -120,6 +120,17 @@ describe('refresh tokens keep the user signed in while the app was closed', () =
 
 		expect(await checkAndRefreshToken()).toBe(true);
 		expect(apiRefreshSession).toHaveBeenCalledWith('refresh-1');
+		expect(apiStartSession).not.toHaveBeenCalled();
+	});
+
+	it('does not renew a short-lived access token that is hours away from expiry', async () => {
+		// Regression: a 48h renewal window rotated short-lived tokens on every
+		// metadata poll, reloading the open chat every 10 seconds.
+		storeSession(session({ expirationDate: new Date(Date.now() + 5 * HOUR).toISOString() }));
+		await saveRefreshToken('refresh-1');
+
+		expect(await checkAndRefreshToken()).toBe(true);
+		expect(apiRefreshSession).not.toHaveBeenCalled();
 		expect(apiStartSession).not.toHaveBeenCalled();
 	});
 
