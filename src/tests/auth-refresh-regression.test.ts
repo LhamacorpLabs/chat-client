@@ -39,7 +39,7 @@ describe('Auth refresh regression (Electron cold-start logout bug)', () => {
 	it('does NOT log out when refresh fails for a transient/network reason', async () => {
 		const soonAuth = {
 			token: 'soon-expired',
-			expirationDate: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+			expirationDate: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
 			username: 'user',
 			email: 'u@e.com',
 			id: '1',
@@ -66,7 +66,7 @@ describe('Auth refresh regression (Electron cold-start logout bug)', () => {
 		const { TokenRefreshError } = await import('$lib/api/auth');
 		const soonAuth = {
 			token: 'rejected-token',
-			expirationDate: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+			expirationDate: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
 			username: 'user',
 			email: 'u@e.com',
 			id: '1',

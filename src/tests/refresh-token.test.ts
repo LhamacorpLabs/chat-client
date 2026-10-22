@@ -112,7 +112,7 @@ describe('refresh tokens keep the user signed in while the app was closed', () =
 	});
 
 	it('refreshes with the refresh token when the access token is about to expire', async () => {
-		storeSession(session({ expirationDate: new Date(Date.now() + 2 * 60 * 1000).toISOString() }));
+		storeSession(session({ expirationDate: new Date(Date.now() + 5 * 60 * 1000).toISOString() }));
 		await saveRefreshToken('refresh-1');
 		vi.mocked(apiRefreshSession).mockResolvedValue(
 			session({ token: 'access-2', refreshToken: 'refresh-2' })
@@ -197,13 +197,20 @@ describe('sessions without a refresh token (fresh login or pre-upgrade)', () => 
 		expect(await loadRefreshToken()).toBe('refresh-1');
 	});
 
-	it('falls back to the plain refresh when the server has no refresh tokens yet', async () => {
+	it('never falls back to the plain /api/refresh', async () => {
 		storeSession(session({ expirationDate: new Date(Date.now() + 5 * HOUR).toISOString() }));
 		vi.mocked(apiStartSession).mockRejectedValue(new MockTokenRefreshError('missing', 404));
-		vi.mocked(apiLegacyRefresh).mockResolvedValue(session({ token: 'access-legacy' }));
 
-		expect(await refreshToken()).toBe(true);
-		expect(get(authStore).token).toBe('access-legacy');
+		expect(await refreshToken()).toBe(false);
+		expect(apiLegacyRefresh).not.toHaveBeenCalled();
+	});
+
+	it('does not touch the network until the access token is within 10 minutes of expiry', async () => {
+		storeSession(session({ expirationDate: new Date(Date.now() + 5 * HOUR).toISOString() }));
+
+		expect(await checkAndRefreshToken()).toBe(true);
+		expect(apiStartSession).not.toHaveBeenCalled();
+		expect(apiRefreshSession).not.toHaveBeenCalled();
 	});
 
 	it('logs out when the access token expired and there is no refresh token', async () => {

@@ -95,9 +95,12 @@
 
 	let chatsLoaded = $state(false);
 
+	// A background token refresh replaces $authStore.token and .user: depend on
+	// being signed in, not on the token itself, so a refresh stays transparent.
+	const isSignedIn = $derived(!!$authStore.token && !!$authStore.user);
+
 	$effect(() => {
-		const hasAuth = !!$authStore.token && !!$authStore.user;
-		if (hasAuth) {
+		if (isSignedIn) {
 			if (!chatsLoaded) {
 				chatsLoaded = true;
 				untrack(async () => {
@@ -119,7 +122,7 @@
 	});
 
 	$effect(() => {
-		if ($authStore.token && $authStore.user && $chatStore.chats.length > 0) {
+		if (isSignedIn && $chatStore.chats.length > 0) {
 			const chatIds = $chatStore.chats.map(chat => chat.id);
 			metadataPollingService.start(chatIds);
 

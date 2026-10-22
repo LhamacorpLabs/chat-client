@@ -1,7 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import type { AuthResponse, User } from '../types/auth';
 import {
-	refreshToken as apiRefreshToken,
 	refreshSession as apiRefreshSession,
 	startRefreshableSession as apiStartRefreshableSession,
 	revokeRefreshToken,
@@ -132,8 +131,10 @@ export async function refreshToken(): Promise<boolean> {
 }
 
 // How long before expiry checkAndRefreshToken() renews the access token.
-const LEGACY_SESSION_WINDOW_MINUTES = 2880;
-const REFRESHABLE_SESSION_WINDOW_MINUTES = 5;
+// /api/token/refresh also accepts an expired access token, so there is no need
+// to renew early; the margin only keeps requests already going out from
+// carrying a dead token.
+const REFRESH_WINDOW_MINUTES = 10;
 
 // How long to wait before checking whether another window already rotated the
 // refresh token we just tried to use.
@@ -148,12 +149,13 @@ async function doRefreshToken(): Promise<boolean> {
 	const usedRefreshToken = await loadRefreshToken();
 
 	try {
-		// With a refresh token this works even after the access token expired
-		// (app closed for days). Without one - a fresh login, or a session from
-		// before refresh tokens existed - upgrade the still-valid access token.
+		// Renewal always goes through /api/token/refresh, which works even after
+		// the access token expired (app closed for days). Only a session that
+		// has no refresh token yet - a fresh login, or one from before refresh
+		// tokens existed - first exchanges its access token for one.
 		const refreshedData = usedRefreshToken
 			? await apiRefreshSession(usedRefreshToken)
-			: await upgradeToRefreshableSession(storedAuth.token);
+			: await apiStartRefreshableSession(storedAuth.token);
 
 		await applySession(refreshedData);
 		return true;
@@ -179,19 +181,6 @@ async function doRefreshToken(): Promise<boolean> {
 		}
 
 		return false;
-	}
-}
-
-async function upgradeToRefreshableSession(token: string): Promise<AuthResponse> {
-	try {
-		return await apiStartRefreshableSession(token);
-	} catch (error) {
-		// Auth server that doesn't know refresh tokens yet: keep working with
-		// the plain access token refresh until it is upgraded.
-		if (error instanceof TokenRefreshError && (error.status === 404 || error.status === 405)) {
-			return apiRefreshToken(token);
-		}
-		throw error;
 	}
 }
 
@@ -271,16 +260,10 @@ export async function checkAndRefreshToken(): Promise<boolean> {
 		return false;
 	}
 
-	// Without a refresh token the access token has to be renewed well before it
-	// expires, since an expired one can't be renewed at all. With one, renew it
-	// just before expiry: refreshable sessions hand out short-lived access
-	// tokens, and a 48h window would renew them on every call (every metadata
-	// poll), rotating the token - and reloading the open chat - every 10 seconds.
-	const refreshWindowMinutes = (await loadRefreshToken())
-		? REFRESHABLE_SESSION_WINDOW_MINUTES
-		: LEGACY_SESSION_WINDOW_MINUTES;
-
-	if (isTokenExpiringSoon(storedAuth.expirationDate, refreshWindowMinutes)) {
+	// This runs on every metadata poll (every 10 seconds): renewing too early
+	// (it used to be 48h before expiry) rotated short-lived access tokens on
+	// every poll.
+	if (isTokenExpiringSoon(storedAuth.expirationDate, REFRESH_WINDOW_MINUTES)) {
 		const refreshed = await refreshToken();
 		if (refreshed) {
 			return true;
