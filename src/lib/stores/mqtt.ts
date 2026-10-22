@@ -3,6 +3,7 @@ import mqtt, { type MqttClient } from 'mqtt';
 import type { Message } from '$lib/types/chat';
 import { PUBLIC_MQTT_BROKER_URL } from '$app/env/public';
 import { authStore, getValidToken } from '$lib/stores/auth';
+import { logDebugEvent } from '$lib/stores/debugLog';
 
 const MQTT_BROKER_URL = PUBLIC_MQTT_BROKER_URL || 'ws://localhost:9001';
 
@@ -29,6 +30,7 @@ class MqttService {
             }
 
             mqttStore.update(state => ({ ...state, connecting: true }));
+            logDebugEvent('mqtt', 'connect', MQTT_BROKER_URL);
 
             this.client = mqtt.connect(MQTT_BROKER_URL, {
                 reconnectPeriod: 5000,
@@ -38,6 +40,7 @@ class MqttService {
             });
 
             this.client.on('connect', () => {
+                logDebugEvent('mqtt', 'connected', MQTT_BROKER_URL);
                 mqttStore.set({ connected: true, connecting: false });
                 this.resubscribeAll();
                 resolve();
@@ -45,15 +48,18 @@ class MqttService {
 
             this.client.on('error', (err) => {
                 console.error('MQTT connection error:', err);
+                logDebugEvent('mqtt', 'error', MQTT_BROKER_URL, err.message);
                 mqttStore.set({ connected: false, connecting: false });
                 reject(err);
             });
 
             this.client.on('close', () => {
+                logDebugEvent('mqtt', 'close', MQTT_BROKER_URL);
                 mqttStore.update(state => ({ ...state, connected: false }));
             });
 
             this.client.on('reconnect', async () => {
+                logDebugEvent('mqtt', 'reconnect', MQTT_BROKER_URL);
                 mqttStore.update(state => ({ ...state, connecting: true }));
 
                 // mqtt.js can kick off this reconnect attempt's CONNECT
@@ -95,6 +101,7 @@ class MqttService {
 
     disconnect() {
         if (this.client) {
+            logDebugEvent('mqtt', 'disconnect', MQTT_BROKER_URL);
             this.client.end();
             this.client = null;
             this.messageHandlers.clear();
