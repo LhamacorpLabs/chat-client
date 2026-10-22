@@ -399,8 +399,8 @@
 
 <style>
 	.app-shell {
-		height: 100vh;
-		height: 100dvh;
+		height: calc(100vh - var(--debug-panel-height, 0px));
+		height: calc(100dvh - var(--debug-panel-height, 0px));
 		display: flex;
 		overflow: hidden;
 		background: var(--app-bg);

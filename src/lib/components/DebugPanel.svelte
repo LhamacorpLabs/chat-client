@@ -20,6 +20,17 @@
 		return () => clearInterval(id);
 	});
 
+	// Shrinks the app shell by the panel's height so the panel never covers the message input.
+	$effect(() => {
+		const root = document.documentElement;
+		if ($debugPanelOpen) {
+			root.style.setProperty('--debug-panel-height', 'min(45vh, 420px)');
+		} else {
+			root.style.removeProperty('--debug-panel-height');
+		}
+		return () => root.style.removeProperty('--debug-panel-height');
+	});
+
 	function handleKeydown(event: KeyboardEvent) {
 		if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'd') {
 			event.preventDefault();
