@@ -6,7 +6,7 @@ vi.mock('$app/env/public', () => ({
 	PUBLIC_AUTH_UI_URL: 'http://localhost:3000'
 }));
 
-import { createChat, sendMessage, fetchMessagesPaginated } from '$lib/api/chat';
+import { createChat, sendMessage, fetchMessagesPaginated, fetchMultipleMessageReactions } from '$lib/api/chat';
 
 beforeEach(() => {
 	vi.restoreAllMocks();
@@ -168,5 +168,55 @@ describe('Chat API - Fetch Messages Paginated', () => {
 
 		await expect(fetchMessagesPaginated('token', 'chat-1'))
 			.rejects.toThrow('Failed to fetch paginated messages: 404');
+	});
+});
+
+describe('Chat API - Reactions', () => {
+	const reaction = (messageId: string, userId: string) => ({ chatId: 'c1', messageId, userId, type: 'LIKE', createdAt: '' });
+
+	it('fetches reactions for all messages in one request from the oldest id', async () => {
+		vi.spyOn(global, 'fetch').mockResolvedValue({
+			ok: true,
+			json: () => Promise.resolve([reaction('01B', 'u1'), reaction('01B', 'u2'), reaction('01D', 'u1')])
+		} as Response);
+
+		const result = await fetchMultipleMessageReactions('token', 'c1', ['01B', '01A', '01C']);
+
+		expect(fetch).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(fetch).mock.calls[0][0]).toBe('http://localhost:8080/api/chats/c1/messages/reacts?from=01A');
+		expect(result['01A']).toEqual([]);
+		expect(result['01B']).toHaveLength(2);
+		expect(result['01C']).toEqual([]);
+		// Reactions on messages that aren't loaded are ignored.
+		expect(result['01D']).toBeUndefined();
+	});
+
+	it('makes no request without messages', async () => {
+		vi.spyOn(global, 'fetch');
+
+		expect(await fetchMultipleMessageReactions('token', 'c1', [])).toEqual({});
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	it('falls back to one request per message when the server has no bulk endpoint', async () => {
+		vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+			const url = String(input);
+			if (url.includes('/messages/reacts?')) return { ok: false, status: 404 } as Response;
+			return { ok: true, json: () => Promise.resolve(url.includes('/01A/') ? [reaction('01A', 'u1')] : []) } as Response;
+		});
+
+		const result = await fetchMultipleMessageReactions('token', 'c1', ['01A', '01B']);
+
+		expect(fetch).toHaveBeenCalledTimes(3);
+		expect(result['01A']).toHaveLength(1);
+		expect(result['01B']).toEqual([]);
+	});
+
+	it('returns no reactions instead of failing when the request fails', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 500 } as Response);
+
+		expect(await fetchMultipleMessageReactions('token', 'c1', ['01A'])).toEqual({ '01A': [] });
+		expect(fetch).toHaveBeenCalledTimes(1);
 	});
 });

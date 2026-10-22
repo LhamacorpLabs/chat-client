@@ -198,21 +198,55 @@ export async function fetchMessageReactions(token: string, chatId: string, messa
 	});
 }
 
-// Fetch reactions for multiple messages at once
+/**
+ * Reactions for a set of loaded messages, in one request. Message ids are
+ * ULIDs, which sort by creation time, so asking for everything from the oldest
+ * id onwards covers every loaded message (plus any newer ones, ignored here).
+ */
 export async function fetchMultipleMessageReactions(token: string, chatId: string, messageIds: string[]): Promise<{ [messageId: string]: MessageReaction[] }> {
-	const reactionPromises = messageIds.map(async (messageId) => {
+	const reactionMap: { [messageId: string]: MessageReaction[] } = {};
+	if (messageIds.length === 0) return reactionMap;
+
+	for (const messageId of messageIds) {
+		reactionMap[messageId] = [];
+	}
+
+	let reactions: MessageReaction[];
+	try {
+		const oldest = messageIds.reduce((min, id) => (id < min ? id : min));
+		reactions = await apiFetch<MessageReaction[]>(
+			token,
+			`${CHAT_API_URL}/${chatId}/messages/reacts?from=${encodeURIComponent(oldest)}`,
+			{ errorMessage: 'Failed to fetch chat reactions' }
+		);
+	} catch (error) {
+		// A server without the bulk endpoint answers 404: fall back to one
+		// request per message until it is deployed.
+		if (error instanceof Error && error.message.endsWith(': 404')) {
+			return fetchReactionsPerMessage(token, chatId, messageIds);
+		}
+		// Reactions are secondary: never let them fail loading the messages.
+		console.warn('Failed to fetch chat reactions:', error);
+		return reactionMap;
+	}
+
+	for (const reaction of reactions) {
+		reactionMap[reaction.messageId]?.push(reaction);
+	}
+
+	return reactionMap;
+}
+
+async function fetchReactionsPerMessage(token: string, chatId: string, messageIds: string[]): Promise<{ [messageId: string]: MessageReaction[] }> {
+	const results = await Promise.all(messageIds.map(async (messageId) => {
 		try {
-			const reactions = await fetchMessageReactions(token, chatId, messageId);
-			return { messageId, reactions };
+			return { messageId, reactions: await fetchMessageReactions(token, chatId, messageId) };
 		} catch (error) {
 			console.warn(`Failed to fetch reactions for message ${messageId}:`, error);
 			return { messageId, reactions: [] };
 		}
-	});
+	}));
 
-	const results = await Promise.all(reactionPromises);
-
-	// Convert to object mapping messageId -> reactions
 	const reactionMap: { [messageId: string]: MessageReaction[] } = {};
 	for (const result of results) {
 		reactionMap[result.messageId] = result.reactions;
