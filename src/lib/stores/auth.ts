@@ -15,6 +15,7 @@ import {
 	clearRefreshToken,
 	getCachedRefreshToken
 } from '../utils/persistentStore';
+import { logDebugEvent } from './debugLog';
 
 interface AuthState {
 	user: User | null;
@@ -72,6 +73,7 @@ export async function loadAuth() {
 }
 
 export function logout() {
+	logDebugEvent('auth', 'logout');
 	// Grab the refresh token before anything is cleared so the server can end
 	// the session too; otherwise a copied token would stay valid until it expires.
 	void endServerSession(getCachedRefreshToken());
@@ -158,8 +160,10 @@ async function doRefreshToken(): Promise<boolean> {
 			: await apiStartRefreshableSession(storedAuth.token);
 
 		await applySession(refreshedData);
+		logDebugEvent('auth', 'token refreshed', `expires ${refreshedData.expirationDate}`);
 		return true;
 	} catch (error) {
+		logDebugEvent('auth', 'token refresh failed', '', error instanceof Error ? error.message : String(error));
 		// Only clear the session when the server explicitly rejected the
 		// credentials (401/403) - that means they really are invalid. Any
 		// other failure (offline, DNS not ready yet on an Electron cold start,

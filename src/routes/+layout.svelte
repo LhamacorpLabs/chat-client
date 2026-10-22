@@ -6,6 +6,7 @@
 	import { checkAndRefreshIfNewDay } from '$lib/utils/dailyRefresh';
 	import { startUpdateChecker } from '$lib/utils/updater';
 	import UpdateBanner from '$lib/components/UpdateBanner.svelte';
+	import DebugPanel from '$lib/components/DebugPanel.svelte';
 
 	let { children } = $props();
 
@@ -27,3 +28,4 @@
 
 <UpdateBanner />
 {@render children()}
+<DebugPanel />

@@ -7,6 +7,7 @@
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 	import { colorForChat } from '$lib/utils/chatAvatar';
 	import { formatRelativeShort } from '$lib/utils/time';
+	import { debugPanelOpen } from '$lib/stores/debugLog';
 
 	interface Props {
 		chats: Chat[];
@@ -181,6 +182,12 @@
 			<span>Get the desktop app</span>
 		</a>
 	{/if}
+	<button onclick={() => { debugPanelOpen.set(true); close(); }} class="dropdown-item" type="button" title="Ctrl/⌘ + Shift + D">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+			<path d="M4 17l6-6-6-6" /><path d="M12 19h8" />
+		</svg>
+		<span>Debug panel</span>
+	</button>
 	<div class="dropdown-separator"></div>
 	<button onclick={() => { onLogout(); close(); }} class="dropdown-item danger" type="button">
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
