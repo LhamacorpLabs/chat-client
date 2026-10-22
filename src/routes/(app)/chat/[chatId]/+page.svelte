@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -195,23 +196,33 @@
 		}
 	}
 
-	$effect(() => {
-		if ($authStore.token && chatId && $authStore.user) {
-			loadMemberColors();
-			shouldUseColors = shouldUseMemberColors(currentChat.members);
-			if (shouldUseColors) {
-				assignColorsForChat(chatId, currentChat.members);
-			}
-			loadMessages();
-			loadFavoriteMessages();
-			startReactionPolling(); // Start polling reactions on initial load
+	// Only signing in/out should (re)load the chat, not a token rotation: the
+	// token is refreshed in the background and every refresh replaces both
+	// $authStore.token and $authStore.user, which would otherwise reload all
+	// messages each time.
+	const isSignedIn = $derived(!!$authStore.token && !!$authStore.user);
 
-			// Use MQTT or polling based on realtime mode
-			if (realtimeMode === 'mqtt') {
-				connectMqtt();
-			} else {
-				startPolling();
-			}
+	$effect(() => {
+		if (isSignedIn && chatId) {
+			// The loaders read $authStore synchronously - keep those reads from
+			// becoming dependencies of this effect.
+			untrack(() => {
+				loadMemberColors();
+				shouldUseColors = shouldUseMemberColors(currentChat.members);
+				if (shouldUseColors) {
+					assignColorsForChat(chatId, currentChat.members);
+				}
+				loadMessages();
+				loadFavoriteMessages();
+				startReactionPolling(); // Start polling reactions on initial load
+
+				// Use MQTT or polling based on realtime mode
+				if (realtimeMode === 'mqtt') {
+					connectMqtt();
+				} else {
+					startPolling();
+				}
+			});
 		}
 
 		return () => {

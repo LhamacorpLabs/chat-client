@@ -157,10 +157,10 @@ describe('Auth - Token Refresh', () => {
 		expect(get(authStore).token).toBeNull();
 	});
 
-	it('refreshes token when expiring within 48h', async () => {
+	it('refreshes token when expiring within 10 minutes', async () => {
 		const soonAuth = {
 			token: 'soon-expired',
-			expirationDate: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(), // 12h from now
+			expirationDate: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5min from now
 			username: 'user',
 			email: 'u@e.com',
 			id: '1',
@@ -185,7 +185,7 @@ describe('Auth - Token Refresh', () => {
 		// reopened the app.
 		const soonAuth = {
 			token: 'soon-expired',
-			expirationDate: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(), // 12h from now
+			expirationDate: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5min from now
 			username: 'user',
 			email: 'u@e.com',
 			id: '1',
@@ -214,7 +214,7 @@ describe('Auth - Token Refresh', () => {
 		const { TokenRefreshError } = await import('$lib/api/auth');
 		const soonAuth = {
 			token: 'rejected-token',
-			expirationDate: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+			expirationDate: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
 			username: 'user',
 			email: 'u@e.com',
 			id: '1',
