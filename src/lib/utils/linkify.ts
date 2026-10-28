@@ -1,31 +1,14 @@
+import { emojis } from './emojis';
 import { detectLinkPreview, type LinkPreview } from './linkPreview';
 
 const HTTPS_URL_REGEX = /https:\/\/[^\s<>"'`]+[^\s<>"'`.,;!?]/gi;
 
-const EMOJI_REPLACEMENTS: Array<[RegExp, string]> = [
-	[/(?<!\S):\)(?!\S)/g, '🙂'],
-	[/(?<!\S):P(?!\S)/g, '😛'],
-	[/(?<!\S):\/(?!\S)/g, '😕'],
-	[/(?<!\S):\((?!\S)/g, '😟'],
-	[/(?<!\S):O(?!\S)/g, '😲'],
-	[/(?<!\S):kiss:(?!\S)/g, '😘'],
-	[/(?<!\S):D(?!\S)/g, '😃'],
-	[/(?<!\S):thinking:(?!\S)/g, '🤔'],
-	[/(?<!\S):evil:(?!\S)/g, '😈'],
-	[/(?<!\S):devil:(?!\S)/g, '👹'],
-	[/(?<!\S):clown:(?!\S)/g, '🤡'],
-	[/(?<!\S):sic:(?!\S)/g, '🤢'],
-	[/(?<!\S):puto:(?!\S)/g, '🤬'],
-	[/(?<!\S):okay:(?!\S)/g, '👍'],
-	[/(?<!\S):rock:(?!\S)/g, '🤘'],
-	[/(?<!\S):gay:(?!\S)/g, '💅'],
-	[/(?<!\S):darkmoon:(?!\S)/g, '🌚'],
-	[/(?<!\S):lightmoon:(?!\S)/g, '🌝'],
-	[/(?<!\S):love:(?!\S)/g, '🧡'],
-	[/(?<!\S):sos:(?!\S)/g, '🆘'],
-	[/(?<!\S):alert:(?!\S)/g, '🚨'],
-	[/(?<!\S):party:(?!\S)/g, '🎉']
-];
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+
+const EMOJI_REPLACEMENTS: Array<[RegExp, string]> = emojis.map(({ code, emoji }) => [
+	new RegExp(`(?<!\\S)${escapeRegex(code)}(?!\\S)`, 'g'),
+	emoji
+]);
 
 function applyEmojis(text: string): string {
 	return EMOJI_REPLACEMENTS.reduce((acc, [pattern, emoji]) => acc.replace(pattern, emoji), text);

@@ -53,9 +53,9 @@ describe('linkify', () => {
 	});
 
 	it('substitutes known emoticons with emoji', () => {
-		const segments = linkify(':) :D :thinking:');
+		const segments = linkify(':) :D :thinking: :titi:');
 
-		expect(segments).toEqual([{ type: 'text', value: '🙂 😃 🤔' }]);
+		expect(segments).toEqual([{ type: 'text', value: '🙂 😃 🤔 🥺' }]);
 	});
 
 	it('does not substitute emoticons embedded in a larger word', () => {
