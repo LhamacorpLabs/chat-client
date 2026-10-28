@@ -58,6 +58,16 @@ describe('linkify', () => {
 		expect(segments).toEqual([{ type: 'text', value: '🙂 😃 🤔 🥺' }]);
 	});
 
+	it('turns image emote codes into emote segments', () => {
+		const segments = linkify('hi :lolw: and :ratjam:!');
+
+		expect(segments).toEqual([
+			{ type: 'text', value: 'hi ' },
+			{ type: 'emote', code: ':lolw:', src: expect.stringContaining('lolw') },
+			{ type: 'text', value: ' and :ratjam:!' }
+		]);
+	});
+
 	it('does not substitute emoticons embedded in a larger word', () => {
 		const segments = linkify('nope:)notreally');
 

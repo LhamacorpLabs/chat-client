@@ -31,7 +31,7 @@
 	import ReplyPreview from '$lib/components/ReplyPreview.svelte';
 	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 	import EmojiAutocomplete from '$lib/components/EmojiAutocomplete.svelte';
-	import { searchEmojis } from '$lib/utils/emojis';
+	import { searchAutocomplete } from '$lib/utils/emojis';
 	import { colorForChat } from '$lib/utils/chatAvatar';
 	import { formatTime, formatFullDateTime, formatDayLabel, isSameDay } from '$lib/utils/time';
 	import { PUBLIC_REALTIME_MODE } from '$app/env/public';
@@ -1043,7 +1043,7 @@
 
 	function handleKeyPress(e: KeyboardEvent) {
 		if (showEmojiAutocomplete) {
-			const results = searchEmojis(emojiQuery);
+			const results = searchAutocomplete(emojiQuery);
 			if (e.key === 'ArrowDown') {
 				e.preventDefault();
 				emojiAutocompleteIndex = Math.min(emojiAutocompleteIndex + 1, results.length - 1);
@@ -1088,10 +1088,10 @@
 		const cursorPos = messageInputElement.selectionStart || 0;
 		const textBeforeCursor = value.slice(0, cursorPos);
 
-		const colonMatch = textBeforeCursor.match(/:([a-zA-Z]{1,})$/);
+		const colonMatch = textBeforeCursor.match(/:([a-zA-Z0-9_]{1,})$/);
 		if (colonMatch) {
 			emojiQuery = colonMatch[0];
-			const results = searchEmojis(emojiQuery);
+			const results = searchAutocomplete(emojiQuery);
 			showEmojiAutocomplete = results.length > 0;
 			emojiAutocompleteIndex = 0;
 		} else {
@@ -1105,7 +1105,7 @@
 		const cursorPos = messageInputElement.selectionStart || 0;
 		const textBeforeCursor = value.slice(0, cursorPos);
 
-		const colonMatch = textBeforeCursor.match(/:([a-zA-Z]*)$/);
+		const colonMatch = textBeforeCursor.match(/:([a-zA-Z0-9_]*)$/);
 		if (colonMatch) {
 			const start = cursorPos - colonMatch[0].length;
 			const after = value.slice(cursorPos);
@@ -2582,6 +2582,12 @@
 		flex-direction: column;
 		gap: 6px;
 		margin-top: 6px;
+	}
+
+	.message-content :global(.message-emote) {
+		height: 1.75rem;
+		width: auto;
+		vertical-align: middle;
 	}
 
 	.message-content :global(.message-link) {

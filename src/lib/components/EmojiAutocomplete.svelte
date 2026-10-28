@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { searchEmojis } from '$lib/utils/emojis';
+	import { searchAutocomplete } from '$lib/utils/emojis';
 
 	interface Props {
 		query: string;
@@ -9,7 +9,7 @@
 
 	let { query, onSelect, selectedIndex }: Props = $props();
 
-	let results = $derived(searchEmojis(query));
+	let results = $derived(searchAutocomplete(query));
 </script>
 
 {#if results.length > 0}
@@ -21,7 +21,13 @@
 				class:selected={i === selectedIndex}
 				onclick={() => onSelect(entry.code)}
 			>
-				<span class="autocomplete-emoji">{entry.emoji}</span>
+				<span class="autocomplete-emoji">
+					{#if entry.src}
+						<img class="emote-img" src={entry.src} alt="" />
+					{:else}
+						{entry.emoji}
+					{/if}
+				</span>
 				<span class="autocomplete-code">{entry.code}</span>
 			</button>
 		{/each}
@@ -43,6 +49,13 @@
 		min-width: 180px;
 		max-height: 200px;
 		overflow-y: auto;
+	}
+
+	.emote-img {
+		width: 1.25rem;
+		height: 1.25rem;
+		object-fit: contain;
+		vertical-align: middle;
 	}
 
 	.autocomplete-item {

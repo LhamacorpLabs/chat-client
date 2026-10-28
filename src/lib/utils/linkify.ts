@@ -1,14 +1,36 @@
 import { emojis } from './emojis';
+import { emotes } from './emotes';
 import { detectLinkPreview, type LinkPreview } from './linkPreview';
 
 const HTTPS_URL_REGEX = /https:\/\/[^\s<>"'`]+[^\s<>"'`.,;!?]/gi;
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 
+const wordBounded = (code: string) => `(?<!\\S)${escapeRegex(code)}(?!\\S)`;
+
 const EMOJI_REPLACEMENTS: Array<[RegExp, string]> = emojis.map(({ code, emoji }) => [
-	new RegExp(`(?<!\\S)${escapeRegex(code)}(?!\\S)`, 'g'),
+	new RegExp(wordBounded(code), 'g'),
 	emoji
 ]);
+
+const EMOTE_SRCS = new Map(emotes.map(({ code, src }) => [code, src]));
+const EMOTE_REGEX = EMOTE_SRCS.size
+	? new RegExp([...EMOTE_SRCS.keys()].map(wordBounded).join('|'), 'g')
+	: null;
+
+function textSegments(text: string): LinkifySegment[] {
+	if (!EMOTE_REGEX) return [{ type: 'text', value: text }];
+
+	const segments: LinkifySegment[] = [];
+	let last = 0;
+	for (const match of text.matchAll(EMOTE_REGEX)) {
+		if (match.index > last) segments.push({ type: 'text', value: text.slice(last, match.index) });
+		segments.push({ type: 'emote', code: match[0], src: EMOTE_SRCS.get(match[0])! });
+		last = match.index + match[0].length;
+	}
+	if (last < text.length) segments.push({ type: 'text', value: text.slice(last) });
+	return segments;
+}
 
 function applyEmojis(text: string): string {
 	return EMOJI_REPLACEMENTS.reduce((acc, [pattern, emoji]) => acc.replace(pattern, emoji), text);
@@ -40,6 +62,7 @@ export interface GifLink {
 // message content to ever pass through.
 export type LinkifySegment =
 	| { type: 'text'; value: string }
+	| { type: 'emote'; code: string; src: string }
 	| { type: 'link'; url: string };
 
 export interface LinkifyResult {
@@ -79,7 +102,7 @@ export function linkify(text: string, includePreviews = false): LinkifySegment[]
 		const url = match[0];
 
 		if (match.index > lastIndex) {
-			segments.push({ type: 'text', value: withEmojis.slice(lastIndex, match.index) });
+			segments.push(...textSegments(withEmojis.slice(lastIndex, match.index)));
 		}
 		lastIndex = match.index + url.length;
 
@@ -122,7 +145,7 @@ export function linkify(text: string, includePreviews = false): LinkifySegment[]
 	}
 
 	if (lastIndex < withEmojis.length) {
-		segments.push({ type: 'text', value: withEmojis.slice(lastIndex) });
+		segments.push(...textSegments(withEmojis.slice(lastIndex)));
 	}
 
 	const result = includePreviews ? { segments, previews, gifs } : segments;

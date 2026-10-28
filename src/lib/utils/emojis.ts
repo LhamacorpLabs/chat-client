@@ -1,3 +1,5 @@
+import { emotes } from './emotes';
+
 export interface EmojiEntry {
 	code: string;
 	emoji: string;
@@ -36,4 +38,16 @@ export function getColonEmojis(): EmojiEntry[] {
 export function searchEmojis(query: string): EmojiEntry[] {
 	const q = query.toLowerCase();
 	return getColonEmojis().filter(e => e.code.toLowerCase().includes(q));
+}
+
+export interface AutocompleteEntry {
+	code: string;
+	emoji?: string;
+	src?: string;
+}
+
+export function searchAutocomplete(query: string): AutocompleteEntry[] {
+	const q = query.toLowerCase();
+	const matches = (e: { code: string }) => e.code.toLowerCase().includes(q);
+	return [...getColonEmojis().filter(matches), ...emotes.filter(matches)];
 }
