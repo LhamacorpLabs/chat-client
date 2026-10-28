@@ -8,6 +8,7 @@ export const emojis: EmojiEntry[] = [
 	{ code: ':P', emoji: '😛' },
 	{ code: ':/', emoji: '😕' },
 	{ code: ':(', emoji: '😟' },
+	{ code: ':titi', emoji: '🥺' },
 	{ code: ':O', emoji: '😲' },
 	{ code: ':kiss:', emoji: '😘' },
 	{ code: ':D', emoji: '😃' },
