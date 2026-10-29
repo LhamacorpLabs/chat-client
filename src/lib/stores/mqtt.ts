@@ -20,6 +20,7 @@ export const mqttStore = writable<MqttConnection>({
 class MqttService {
     private client: MqttClient | null = null;
     private messageHandlers: Map<string, (message: Message) => void> = new Map();
+    private typingHandlers: Map<string, (username: string) => void> = new Map();
     private subscribedTopics: Set<string> = new Set();
 
     connect(token: string): Promise<void> {
@@ -86,12 +87,17 @@ class MqttService {
 
             this.client.on('message', (topic, payload) => {
                 try {
-                    const message: Message = JSON.parse(payload.toString());
                     const chatId = this.extractChatIdFromTopic(topic);
-                    if (chatId) {
-                        const handler = this.messageHandlers.get(chatId);
-                        handler?.(message);
+                    if (!chatId) return;
+                    if (topic.endsWith('/typing')) {
+                        const { username } = JSON.parse(payload.toString());
+                        if (typeof username === 'string') {
+                            this.typingHandlers.get(chatId)?.(username);
+                        }
+                        return;
                     }
+                    const message: Message = JSON.parse(payload.toString());
+                    this.messageHandlers.get(chatId)?.(message);
                 } catch (error) {
                     console.error('Failed to parse MQTT message:', error);
                 }
@@ -105,6 +111,7 @@ class MqttService {
             this.client.end();
             this.client = null;
             this.messageHandlers.clear();
+            this.typingHandlers.clear();
             this.subscribedTopics.clear();
             mqttStore.set({ connected: false, connecting: false });
         }
@@ -128,8 +135,37 @@ class MqttService {
         };
     }
 
+    subscribeToTyping(chatId: string, onTyping: (username: string) => void): () => void {
+        const topic = `chat/${chatId}/typing`;
+        this.typingHandlers.set(chatId, onTyping);
+
+        if (this.client?.connected) {
+            this.client.subscribe(topic);
+            this.subscribedTopics.add(topic);
+        }
+
+        return () => {
+            this.typingHandlers.delete(chatId);
+            if (this.client?.connected) {
+                this.client.unsubscribe(topic);
+            }
+            this.subscribedTopics.delete(topic);
+        };
+    }
+
+    publishTyping(chatId: string, username: string) {
+        if (!this.client?.connected) return;
+        this.client.publish(`chat/${chatId}/typing`, JSON.stringify({ username }), { qos: 0 });
+    }
+
     private resubscribeAll() {
         if (!this.client?.connected) return;
+
+        for (const [chatId] of this.typingHandlers) {
+            const topic = `chat/${chatId}/typing`;
+            this.client.subscribe(topic);
+            this.subscribedTopics.add(topic);
+        }
 
         for (const [chatId] of this.messageHandlers) {
             const topic = `chat/${chatId}/messages`;
@@ -152,7 +188,7 @@ class MqttService {
     }
 
     private extractChatIdFromTopic(topic: string): string | null {
-        const match = topic.match(/^chat\/(.+)\/messages$/);
+        const match = topic.match(/^chat\/(.+)\/(?:messages|typing)$/);
         return match?.[1] ?? null;
     }
 }

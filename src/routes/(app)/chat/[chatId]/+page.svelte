@@ -6,6 +6,7 @@
 	import { authStore, getValidToken } from '$lib/stores/auth';
 	import { chatStore, deleteChat, leaveChat } from '$lib/stores/chat';
 	import { mqttService } from '$lib/stores/mqtt';
+	import { TYPING_TTL_MS, activeTypers, pruneTypers, shouldSendTyping, type TypingExpiries } from '$lib/typing';
 	import { fetchMessagesPaginated, sendMessage, createInvitation, fetchChats as apiFetchChats, deleteMessage, uploadImage, toggleMessageFavorite, fetchFavoriteMessages, reactToMessage, fetchMultipleMessageReactions } from '$lib/api/chat';
 	import type { Message, Chat, PagedMessageResponse } from '$lib/types/chat';
 	import ImageUpload from '$lib/components/ImageUpload.svelte';
@@ -94,6 +95,11 @@
 	let showEmojiAutocomplete = $state(false);
 
 	let mqttUnsubscribe: (() => void) | null = null;
+	let mqttTypingUnsubscribe: (() => void) | null = null;
+	let typingExpiries = $state<TypingExpiries>({});
+	let typingPruneTimer: ReturnType<typeof setTimeout> | null = null;
+	let lastTypingSentAt = 0;
+	const typingNames = $derived(Object.keys(typingExpiries));
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 	const POLLING_INTERVAL_MS = 1000;
 	let reactionPollingInterval: ReturnType<typeof setInterval> | null = null;
@@ -471,6 +477,7 @@
 		try {
 			await mqttService.connect($authStore.token);
 			mqttUnsubscribe = mqttService.subscribeToChat(chatId, handleRealtimeMessage);
+			mqttTypingUnsubscribe = mqttService.subscribeToTyping(chatId, handleTypingEvent);
 		} catch (error) {
 			console.error('Failed to connect MQTT:', error);
 		}
@@ -481,7 +488,40 @@
 			mqttUnsubscribe();
 			mqttUnsubscribe = null;
 		}
+		if (mqttTypingUnsubscribe) {
+			mqttTypingUnsubscribe();
+			mqttTypingUnsubscribe = null;
+		}
+		if (typingPruneTimer) {
+			clearTimeout(typingPruneTimer);
+			typingPruneTimer = null;
+		}
+		typingExpiries = {};
 		mqttService.disconnect();
+	}
+
+	function handleTypingEvent(username: string) {
+		if (username === $authStore.user?.username) return;
+		typingExpiries = { ...typingExpiries, [username]: Date.now() + TYPING_TTL_MS };
+		if (typingPruneTimer) clearTimeout(typingPruneTimer);
+		typingPruneTimer = setTimeout(pruneTyping, TYPING_TTL_MS + 50);
+	}
+
+	function pruneTyping() {
+		typingPruneTimer = null;
+		const now = Date.now();
+		typingExpiries = pruneTypers(typingExpiries, now);
+		if (activeTypers(typingExpiries, now).length > 0) {
+			typingPruneTimer = setTimeout(pruneTyping, TYPING_TTL_MS + 50);
+		}
+	}
+
+	function announceTyping() {
+		const username = $authStore.user?.username;
+		const now = Date.now();
+		if (!username || realtimeMode !== 'mqtt' || !shouldSendTyping(lastTypingSentAt, now)) return;
+		lastTypingSentAt = now;
+		mqttService.publishTyping(chatId, username);
 	}
 
 	// Polling functions for REST mode
@@ -584,6 +624,11 @@
 	}
 
 	function handleRealtimeMessage(newMessage: Message) {
+		if (newMessage.username in typingExpiries) {
+			const rest = { ...typingExpiries };
+			delete rest[newMessage.username];
+			typingExpiries = rest;
+		}
 		handleNewMessage(newMessage);
 
 		const token = $authStore.token;
@@ -1085,6 +1130,7 @@
 	function handleMessageInput() {
 		if (!messageInputElement) return;
 		const value = messageInputElement.value;
+		if (value.trim()) announceTyping();
 		const cursorPos = messageInputElement.selectionStart || 0;
 		const textBeforeCursor = value.slice(0, cursorPos);
 
@@ -1849,6 +1895,20 @@
 			{/if}
 
 			<form onsubmit={handleMessageSubmit} class="input-container">
+				<div class="typing-indicator" aria-live="polite">
+					{#if typingNames.length > 0}
+						<span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+						<span>
+							{#if typingNames.length === 1}
+								<strong>{typingNames[0]}</strong> is typing…
+							{:else if typingNames.length === 2}
+								<strong>{typingNames[0]}</strong> and <strong>{typingNames[1]}</strong> are typing…
+							{:else}
+								Several people are typing…
+							{/if}
+						</span>
+					{/if}
+				</div>
 				<div class="composer">
 					{#if replyingTo}
 						<div class="reply-composition-container">
@@ -2941,6 +3001,48 @@
 		padding: 0.625rem;
 		border-radius: var(--radius-md);
 		background: var(--surface-hover);
+	}
+
+	.typing-indicator {
+		height: 22px;
+		padding: 0 0.75rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.78rem;
+		color: var(--text-muted);
+	}
+
+	.typing-indicator strong {
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.typing-dots {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+	}
+
+	.typing-dots i {
+		display: block;
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background: var(--accent);
+		animation: typing-bounce 1.2s infinite ease-in-out;
+	}
+
+	.typing-dots i:nth-child(2) { animation-delay: 0.15s; }
+	.typing-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+	@keyframes typing-bounce {
+		0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+		30% { transform: translateY(-3px); opacity: 1; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.typing-dots i { animation: none; }
 	}
 
 	.composer-row {
