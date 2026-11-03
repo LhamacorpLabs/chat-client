@@ -14,6 +14,7 @@
 	import MessageGif from '$lib/components/MessageGif.svelte';
 	import MessageReactions from '$lib/components/MessageReactions.svelte';
 	import { hasImages } from '$lib/utils/imageMessages';
+	import { optimizePastedImage } from '$lib/utils/pastedImage';
 	import {
 		assignColorsForChat,
 		addMemberColor,
@@ -1082,7 +1083,7 @@
 
 		if (imageFiles.length > 0) {
 			event.preventDefault();
-			handleImageFilesSelected(imageFiles);
+			Promise.all(imageFiles.map(optimizePastedImage)).then(handleImageFilesSelected);
 		}
 	}
 
