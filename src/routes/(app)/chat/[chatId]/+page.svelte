@@ -1083,7 +1083,17 @@
 
 		if (imageFiles.length > 0) {
 			event.preventDefault();
-			Promise.all(imageFiles.map(optimizePastedImage)).then(handleImageFilesSelected);
+			// Show the preview right away, then swap in the smaller re-encoded file
+			// once optimization finishes (it can take seconds for large images).
+			handleImageFilesSelected(imageFiles);
+			for (const original of imageFiles) {
+				optimizePastedImage(original).then(optimized => {
+					if (optimized === original) return;
+					// Skip if the user removed or already sent the original meanwhile.
+					if (!selectedImages.includes(original)) return;
+					selectedImages = selectedImages.map(f => (f === original ? optimized : f));
+				});
+			}
 		}
 	}
 
