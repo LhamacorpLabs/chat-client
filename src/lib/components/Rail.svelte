@@ -24,6 +24,7 @@
 		onOpenCreateModal: () => void;
 		onOpenJoinModal: () => void;
 		onLogout: () => void;
+		onRetry?: () => void;
 	}
 
 	let {
@@ -40,7 +41,8 @@
 		onSelectChat,
 		onOpenCreateModal,
 		onOpenJoinModal,
-		onLogout
+		onLogout,
+		onRetry
 	}: Props = $props();
 
 	const username = $derived($authStore.user?.username ?? '');
@@ -280,7 +282,14 @@
 	<!-- ---- Chat list ---- -->
 	<div class="chat-region" onscroll={placeStackLabel}>
 		{#if error}
-			<div class="alert alert-error">{error}</div>
+			<div class="alert alert-error">
+				<span>{error}</span>
+				{#if onRetry}
+					<button class="btn btn-ghost retry-btn" type="button" onclick={onRetry} disabled={isLoading}>
+						Retry
+					</button>
+				{/if}
+			</div>
 		{/if}
 
 		{#if isLoading}
@@ -541,6 +550,14 @@
 
 	.alert {
 		margin: 0.5rem;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.5rem;
+	}
+
+	.retry-btn {
+		padding: 0.25rem 0.75rem;
 	}
 
 	.loading-container {

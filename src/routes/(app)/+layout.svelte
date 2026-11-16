@@ -21,6 +21,13 @@
 	let invitationCode = $state('');
 	let isJoining = $state(false);
 	let joinError = $state<string | null>(null);
+
+	async function retryFetchChats() {
+		const token = await getValidToken();
+		if (token) {
+			await fetchChats(token, false);
+		}
+	}
 	let selectedChatIndex = $state(-1);
 	let appVersion = $state('');
 	let isElectron = $state(typeof window !== 'undefined' && !!window.electronAPI);
@@ -290,6 +297,7 @@
 				onOpenCreateModal={openCreateModal}
 				onOpenJoinModal={openJoinModal}
 				onLogout={() => logout()}
+				onRetry={retryFetchChats}
 			/>
 		</div>
 
