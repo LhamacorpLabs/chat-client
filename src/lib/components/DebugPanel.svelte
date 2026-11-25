@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { debugLog, debugPanelOpen, clearDebugLog, type DebugEntry, type DebugEntryKind } from '$lib/stores/debugLog';
+	import { debugLog, debugPanelOpen, debugEnabled, clearDebugLog, type DebugEntry, type DebugEntryKind } from '$lib/stores/debugLog';
 
 	type Filter = 'all' | DebugEntryKind;
 	type View = 'log' | 'endpoints';
@@ -14,7 +14,7 @@
 
 	// Ticks only while the panel is open, for the token countdown and "ago" times.
 	$effect(() => {
-		if (!$debugPanelOpen) return;
+		if (!$debugPanelOpen || !$debugEnabled) return;
 		now = Date.now();
 		const id = setInterval(() => (now = Date.now()), 1000);
 		return () => clearInterval(id);
@@ -23,7 +23,7 @@
 	// Shrinks the app shell by the panel's height so the panel never covers the message input.
 	$effect(() => {
 		const root = document.documentElement;
-		if ($debugPanelOpen) {
+		if ($debugPanelOpen && $debugEnabled) {
 			root.style.setProperty('--debug-panel-height', 'min(45vh, 420px)');
 		} else {
 			root.style.removeProperty('--debug-panel-height');
@@ -32,6 +32,7 @@
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
+		if (!$debugEnabled) return;
 		if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'd') {
 			event.preventDefault();
 			debugPanelOpen.update(open => !open);
@@ -139,7 +140,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-{#if $debugPanelOpen}
+{#if $debugEnabled && $debugPanelOpen}
 	<section class="debug-panel" aria-label="Debug panel">
 		<header>
 			<strong>Debug</strong>

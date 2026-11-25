@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 
 export type DebugEntryKind = 'http' | 'auth' | 'mqtt';
 
@@ -23,8 +23,46 @@ const STACK_FRAMES = 8;
 // Values of these query parameters are credentials and never end up in the log.
 const SECRET_PARAMS = /^(token|access_token|refresh_token|id_token|code|password|secret)$/i;
 
+const ENABLED_KEY = 'debug_enabled';
+
+function readEnabled(): boolean {
+	try {
+		return typeof localStorage !== 'undefined' && localStorage.getItem(ENABLED_KEY) === '1';
+	} catch {
+		return false;
+	}
+}
+
 export const debugLog = writable<DebugEntry[]>([]);
 export const debugPanelOpen = writable(false);
+/** Debug mode is hidden and inert until switched on with the /debug on chat command. */
+export const debugEnabled = writable(readEnabled());
+
+export function setDebugEnabled(enabled: boolean) {
+	try {
+		if (enabled) localStorage.setItem(ENABLED_KEY, '1');
+		else localStorage.removeItem(ENABLED_KEY);
+	} catch {
+		// Storage unavailable: the setting just lasts for this session.
+	}
+	debugEnabled.set(enabled);
+	if (!enabled) {
+		debugPanelOpen.set(false);
+		clearDebugLog();
+	}
+}
+
+/** Handles `/debug [on|off]`. Returns a confirmation message, or null if `text` is not a debug command. */
+export function runDebugCommand(text: string): string | null {
+	const match = text.trim().toLowerCase().match(/^\/debug(?:\s+(on|off))?$/);
+	if (!match) return null;
+
+	const enable = match[1] ? match[1] === 'on' : !get(debugEnabled);
+	setDebugEnabled(enable);
+	return enable
+		? 'Debug mode on. Open the debug panel from the menu or with Ctrl/⌘+Shift+D. Send /debug off to turn it off.'
+		: 'Debug mode off.';
+}
 
 let nextId = 1;
 
@@ -55,6 +93,7 @@ export function maskUrl(url: string): string {
 
 function addEntry(entry: Omit<DebugEntry, 'id' | 'time'>): number {
 	const id = nextId++;
+	if (!get(debugEnabled)) return id;
 	debugLog.update(entries => {
 		const next = [...entries, { ...entry, id, time: Date.now() }];
 		return next.length > MAX_ENTRIES ? next.slice(-MAX_ENTRIES) : next;
@@ -63,6 +102,7 @@ function addEntry(entry: Omit<DebugEntry, 'id' | 'time'>): number {
 }
 
 function updateEntry(id: number, changes: Partial<DebugEntry>) {
+	if (!get(debugEnabled)) return;
 	debugLog.update(entries => entries.map(entry => (entry.id === id ? { ...entry, ...changes } : entry)));
 }
 

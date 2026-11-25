@@ -8,6 +8,7 @@ describe('debug log', () => {
 
 	async function setup(fetchImpl: typeof fetch) {
 		window.fetch = fetchImpl;
+		localStorage.setItem('debug_enabled', '1');
 		const mod = await import('$lib/stores/debugLog');
 		mod.clearDebugLog();
 		mod.installFetchLogger();
@@ -61,5 +62,53 @@ describe('debug log', () => {
 		const entries = get(debugLog);
 		expect(entries).toHaveLength(200);
 		expect(entries[entries.length - 1].label).toBe('event 249');
+	});
+
+	describe('opt-in', () => {
+		beforeEach(() => localStorage.clear());
+
+		it('is disabled by default and records nothing', async () => {
+			window.fetch = vi.fn().mockResolvedValue(new Response('{}'));
+			const mod = await import('$lib/stores/debugLog');
+			mod.installFetchLogger();
+
+			await fetch('https://api.example.com/api/chats');
+			mod.logDebugEvent('auth', 'refresh');
+
+			expect(get(mod.debugEnabled)).toBe(false);
+			expect(get(mod.debugLog)).toHaveLength(0);
+		});
+
+		it('/debug on turns it on persistently and /debug off clears and closes it', async () => {
+			const mod = await import('$lib/stores/debugLog');
+
+			expect(mod.runDebugCommand('/debug on')).toMatch(/on/);
+			expect(get(mod.debugEnabled)).toBe(true);
+			expect(localStorage.getItem('debug_enabled')).toBe('1');
+
+			mod.logDebugEvent('mqtt', 'connect');
+			mod.debugPanelOpen.set(true);
+			expect(get(mod.debugLog)).toHaveLength(1);
+
+			expect(mod.runDebugCommand(' /DEBUG OFF ')).toMatch(/off/);
+			expect(get(mod.debugEnabled)).toBe(false);
+			expect(get(mod.debugPanelOpen)).toBe(false);
+			expect(get(mod.debugLog)).toHaveLength(0);
+			expect(localStorage.getItem('debug_enabled')).toBeNull();
+		});
+
+		it('ignores ordinary messages', async () => {
+			const mod = await import('$lib/stores/debugLog');
+			expect(mod.runDebugCommand('hello /debug on')).toBeNull();
+			expect(mod.runDebugCommand('/debugger')).toBeNull();
+		});
+
+		it('/debug with no argument toggles', async () => {
+			const mod = await import('$lib/stores/debugLog');
+			mod.runDebugCommand('/debug');
+			expect(get(mod.debugEnabled)).toBe(true);
+			mod.runDebugCommand('/debug');
+			expect(get(mod.debugEnabled)).toBe(false);
+		});
 	});
 });
