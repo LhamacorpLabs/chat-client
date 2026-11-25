@@ -42,6 +42,7 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
+	import { runDebugCommand } from '$lib/stores/debugLog';
 	import Toast from '$lib/components/ui/Toast.svelte';
 
 	// Realtime mode: 'mqtt' or 'polling'
@@ -946,6 +947,15 @@
 	async function handleSendMessage() {
 		const token = $authStore.token;
 		if (!token || (!newMessage.trim() && selectedImages.length === 0)) return;
+
+		const debugReply = selectedImages.length === 0 && !replyingTo ? runDebugCommand(newMessage) : null;
+		if (debugReply) {
+			newMessage = '';
+			copyStatus = { message: debugReply, variant: 'success' };
+			if (copyStatusTimeout) clearTimeout(copyStatusTimeout);
+			copyStatusTimeout = setTimeout(() => (copyStatus = null), 4000);
+			return;
+		}
 
 		const messageText = newMessage.trim();
 		const imagesToUpload = [...selectedImages];
