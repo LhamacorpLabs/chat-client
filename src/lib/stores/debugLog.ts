@@ -35,7 +35,7 @@ function readEnabled(): boolean {
 
 export const debugLog = writable<DebugEntry[]>([]);
 export const debugPanelOpen = writable(false);
-/** Debug mode is hidden and inert until switched on with the /enable-debug chat command. */
+/** Debug mode is hidden and inert until switched on with the /debug on chat command. */
 export const debugEnabled = writable(readEnabled());
 
 export function setDebugEnabled(enabled: boolean) {
@@ -52,18 +52,16 @@ export function setDebugEnabled(enabled: boolean) {
 	}
 }
 
-/** Handles the debug chat commands. Returns a confirmation message, or null if `text` is not one. */
+/** Handles `/debug [on|off]`. Returns a confirmation message, or null if `text` is not a debug command. */
 export function runDebugCommand(text: string): string | null {
-	const command = text.trim().toLowerCase();
-	if (command === '/enable-debug') {
-		setDebugEnabled(true);
-		return 'Debug mode enabled. Open the debug panel from the menu or with Ctrl/⌘+Shift+D.';
-	}
-	if (command === '/disable-debug') {
-		setDebugEnabled(false);
-		return 'Debug mode disabled.';
-	}
-	return null;
+	const match = text.trim().toLowerCase().match(/^\/debug(?:\s+(on|off))?$/);
+	if (!match) return null;
+
+	const enable = match[1] ? match[1] === 'on' : !get(debugEnabled);
+	setDebugEnabled(enable);
+	return enable
+		? 'Debug mode on. Open the debug panel from the menu or with Ctrl/⌘+Shift+D. Send /debug off to turn it off.'
+		: 'Debug mode off.';
 }
 
 let nextId = 1;

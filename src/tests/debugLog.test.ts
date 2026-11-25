@@ -79,10 +79,10 @@ describe('debug log', () => {
 			expect(get(mod.debugLog)).toHaveLength(0);
 		});
 
-		it('/enable-debug turns it on persistently and /disable-debug clears and closes it', async () => {
+		it('/debug on turns it on persistently and /debug off clears and closes it', async () => {
 			const mod = await import('$lib/stores/debugLog');
 
-			expect(mod.runDebugCommand('/enable-debug')).toMatch(/enabled/);
+			expect(mod.runDebugCommand('/debug on')).toMatch(/on/);
 			expect(get(mod.debugEnabled)).toBe(true);
 			expect(localStorage.getItem('debug_enabled')).toBe('1');
 
@@ -90,7 +90,7 @@ describe('debug log', () => {
 			mod.debugPanelOpen.set(true);
 			expect(get(mod.debugLog)).toHaveLength(1);
 
-			expect(mod.runDebugCommand(' /DISABLE-DEBUG ')).toMatch(/disabled/);
+			expect(mod.runDebugCommand(' /DEBUG OFF ')).toMatch(/off/);
 			expect(get(mod.debugEnabled)).toBe(false);
 			expect(get(mod.debugPanelOpen)).toBe(false);
 			expect(get(mod.debugLog)).toHaveLength(0);
@@ -99,7 +99,16 @@ describe('debug log', () => {
 
 		it('ignores ordinary messages', async () => {
 			const mod = await import('$lib/stores/debugLog');
-			expect(mod.runDebugCommand('hello /enable-debug')).toBeNull();
+			expect(mod.runDebugCommand('hello /debug on')).toBeNull();
+			expect(mod.runDebugCommand('/debugger')).toBeNull();
+		});
+
+		it('/debug with no argument toggles', async () => {
+			const mod = await import('$lib/stores/debugLog');
+			mod.runDebugCommand('/debug');
+			expect(get(mod.debugEnabled)).toBe(true);
+			mod.runDebugCommand('/debug');
+			expect(get(mod.debugEnabled)).toBe(false);
 		});
 	});
 });
