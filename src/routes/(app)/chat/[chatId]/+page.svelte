@@ -42,7 +42,8 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
-	import { runCommand } from '$lib/commands';
+	import { runCommand, type HelpEntry } from '$lib/commands';
+	import CommandHelp from '$lib/components/CommandHelp.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
 
 	// Realtime mode: 'mqtt' or 'polling'
@@ -88,6 +89,7 @@
 	let showLinkConfirmation = $state(false);
 	let linkOpenError = $state<string | null>(null);
 	let copyStatus = $state<{ message: string; variant: 'success' | 'error' } | null>(null);
+	let commandHelp = $state<HelpEntry[] | null>(null);
 	let copyStatusTimeout: ReturnType<typeof setTimeout> | null = null;
 	let pendingUrl = $state<string | null>(null);
 
@@ -951,9 +953,13 @@
 		const commandReply = selectedImages.length === 0 && !replyingTo ? await runCommand(newMessage, { chatId }) : null;
 		if (commandReply) {
 			newMessage = '';
-			copyStatus = { message: commandReply, variant: 'success' };
-			if (copyStatusTimeout) clearTimeout(copyStatusTimeout);
-			copyStatusTimeout = setTimeout(() => (copyStatus = null), Math.max(4000, commandReply.length * 60));
+			if (typeof commandReply === 'string') {
+				copyStatus = { message: commandReply, variant: 'success' };
+				if (copyStatusTimeout) clearTimeout(copyStatusTimeout);
+				copyStatusTimeout = setTimeout(() => (copyStatus = null), Math.max(4000, commandReply.length * 60));
+			} else {
+				commandHelp = commandReply.help;
+			}
 			return;
 		}
 
@@ -2052,6 +2058,10 @@
 				</div>
 				<p class="invite-note">Each code works once.</p>
 			</Modal>
+		{/if}
+
+		{#if commandHelp}
+			<CommandHelp entries={commandHelp} onClose={() => commandHelp = null} />
 		{/if}
 
 		<!-- Delete Confirmation Modal -->
