@@ -16,6 +16,8 @@ export interface Command {
 	/** Shown by /help, e.g. "/theme [name]". */
 	usage: string;
 	description: string;
+	/** Takes an optional on|off argument; bare use toggles. Any other argument means it is not a command. */
+	toggle?: boolean;
 	run: (args: string[], context: CommandContext) => string | Promise<string>;
 }
 
@@ -58,22 +60,15 @@ export const commands: Command[] = [
 	},
 	{
 		name: 'mute',
-		usage: '/mute',
-		description: 'Mute notifications for this chat',
-		run: (_args, { chatId }) => {
+		usage: '/mute [on|off]',
+		description: 'Mute or unmute notifications for this chat (no argument toggles)',
+		toggle: true,
+		run: ([state], { chatId }) => {
 			if (!chatId) return 'Open a chat first.';
-			chatMuteStore.muteChat(chatId);
-			return 'Chat muted.';
-		}
-	},
-	{
-		name: 'unmute',
-		usage: '/unmute',
-		description: 'Unmute notifications for this chat',
-		run: (_args, { chatId }) => {
-			if (!chatId) return 'Open a chat first.';
-			chatMuteStore.unmuteChat(chatId);
-			return 'Chat unmuted.';
+			const muted = state === 'on' ? true : state === 'off' ? false : !get(chatMuteStore).mutedChats[chatId];
+			if (muted) chatMuteStore.muteChat(chatId);
+			else chatMuteStore.unmuteChat(chatId);
+			return muted ? 'Chat muted.' : 'Chat unmuted.';
 		}
 	},
 	{
@@ -107,6 +102,7 @@ export const commands: Command[] = [
 		name: 'debug',
 		usage: '/debug [on|off]',
 		description: 'Turn debug mode on or off (no argument toggles)',
+		toggle: true,
 		run: ([state]) => {
 			const enable = state === 'on' ? true : state === 'off' ? false : !get(debugEnabled);
 			setDebugEnabled(enable);
@@ -129,7 +125,7 @@ export async function runCommand(text: string, context: CommandContext = {}): Pr
 	if (!command) return null;
 
 	const args = (match[2] ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-	if (command.name === 'debug' && args.length > 0 && args[0] !== 'on' && args[0] !== 'off') return null;
+	if (command.toggle && args.length > 0 && (args.length > 1 || (args[0] !== 'on' && args[0] !== 'off'))) return null;
 
 	return command.run(args, context);
 }

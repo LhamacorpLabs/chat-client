@@ -57,6 +57,7 @@ describe('chat commands', () => {
 			await runCommand('/debug');
 			expect(get(debugEnabled)).toBe(false);
 			expect(await runCommand('/debug maybe')).toBeNull();
+			expect(await runCommand('/debug on now')).toBeNull();
 		});
 
 		it('is only listed by /help once enabled', async () => {
@@ -70,26 +71,42 @@ describe('chat commands', () => {
 	it('/help lists the commands one per line', async () => {
 		const { runCommand } = await load();
 		const help = (await runCommand('/help')) ?? '';
-		for (const name of ['/help', '/version', '/update', '/mute', '/unmute', '/theme', '/clear-cache']) {
+		for (const name of ['/help', '/version', '/update', '/mute', '/theme', '/clear-cache']) {
 			expect(help).toContain(name);
 		}
 		expect(help.split('\n').length).toBeGreaterThan(5);
 	});
 
-	describe('/mute and /unmute', () => {
-		it('mute and unmute the current chat', async () => {
+	describe('/mute', () => {
+		it('mutes and unmutes the current chat with on and off', async () => {
+			const { runCommand } = await load();
+			const { chatMuteStore } = await import('$lib/stores/chatMute');
+
+			expect(await runCommand('/mute on', { chatId: 'c1' })).toBe('Chat muted.');
+			expect(get(chatMuteStore).mutedChats.c1).toBe(true);
+
+			expect(await runCommand('/mute on', { chatId: 'c1' })).toBe('Chat muted.');
+			expect(get(chatMuteStore).mutedChats.c1).toBe(true);
+
+			expect(await runCommand('/mute off', { chatId: 'c1' })).toBe('Chat unmuted.');
+			expect(get(chatMuteStore).mutedChats.c1).toBe(false);
+		});
+
+		it('toggles with no argument, per chat', async () => {
 			const { runCommand } = await load();
 			const { chatMuteStore } = await import('$lib/stores/chatMute');
 
 			await runCommand('/mute', { chatId: 'c1' });
 			expect(get(chatMuteStore).mutedChats.c1).toBe(true);
+			expect(get(chatMuteStore).mutedChats.c2).toBeUndefined();
 
-			await runCommand('/unmute', { chatId: 'c1' });
+			await runCommand('/mute', { chatId: 'c1' });
 			expect(get(chatMuteStore).mutedChats.c1).toBe(false);
 		});
 
-		it('ask for a chat when there is none', async () => {
+		it('leaves /mute <junk> as a normal message and needs a chat', async () => {
 			const { runCommand } = await load();
+			expect(await runCommand('/mute please', { chatId: 'c1' })).toBeNull();
 			expect(await runCommand('/mute')).toBe('Open a chat first.');
 		});
 	});

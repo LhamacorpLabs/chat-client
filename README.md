@@ -45,7 +45,7 @@ Type these in a chat's message input. Anything else starting with `/` is sent as
 | `/help` | List the available commands |
 | `/version` | Show the app version |
 | `/update` | Check for a new desktop app version |
-| `/mute`, `/unmute` | Mute or unmute notifications for the current chat |
+| `/mute [on\|off]` | Mute or unmute notifications for the current chat (no argument toggles) |
 | `/theme [name]` | Switch theme, or list the themes |
 | `/clear-cache` | Clear cached display data and reload (stays signed in) |
 
