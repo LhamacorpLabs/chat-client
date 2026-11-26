@@ -12,11 +12,13 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 	import Rail from '$lib/components/Rail.svelte';
+	import AvatarModal from '$lib/components/AvatarModal.svelte';
 
 	let { children } = $props();
 
 	let showCreateModal = $state(false);
 	let showJoinModal = $state(false);
+	let showAvatarModal = $state(false);
 	let newChatName = $state('');
 	let invitationCode = $state('');
 	let isJoining = $state(false);
@@ -296,6 +298,7 @@
 				onSelectChat={openChat}
 				onOpenCreateModal={openCreateModal}
 				onOpenJoinModal={openJoinModal}
+				onOpenAvatarModal={() => (showAvatarModal = true)}
 				onLogout={() => logout()}
 				onRetry={retryFetchChats}
 			/>
@@ -397,6 +400,9 @@
 					</div>
 				</form>
 			</Modal>
+		{/if}
+		{#if showAvatarModal}
+			<AvatarModal onClose={() => (showAvatarModal = false)} />
 		{/if}
 	</div>
 {:else}
