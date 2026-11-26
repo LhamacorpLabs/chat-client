@@ -42,7 +42,7 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
-	import { runDebugCommand } from '$lib/stores/debugLog';
+	import { runCommand } from '$lib/commands';
 	import Toast from '$lib/components/ui/Toast.svelte';
 
 	// Realtime mode: 'mqtt' or 'polling'
@@ -948,12 +948,12 @@
 		const token = $authStore.token;
 		if (!token || (!newMessage.trim() && selectedImages.length === 0)) return;
 
-		const debugReply = selectedImages.length === 0 && !replyingTo ? runDebugCommand(newMessage) : null;
-		if (debugReply) {
+		const commandReply = selectedImages.length === 0 && !replyingTo ? await runCommand(newMessage, { chatId }) : null;
+		if (commandReply) {
 			newMessage = '';
-			copyStatus = { message: debugReply, variant: 'success' };
+			copyStatus = { message: commandReply, variant: 'success' };
 			if (copyStatusTimeout) clearTimeout(copyStatusTimeout);
-			copyStatusTimeout = setTimeout(() => (copyStatus = null), 4000);
+			copyStatusTimeout = setTimeout(() => (copyStatus = null), Math.max(4000, commandReply.length * 60));
 			return;
 		}
 
