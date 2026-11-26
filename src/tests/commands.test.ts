@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { get } from 'svelte/store';
 
+async function helpUsages(runCommand: (text: string) => Promise<unknown>): Promise<string[]> {
+	const reply = (await runCommand('/help')) as { help: { usage: string }[] };
+	return reply.help.map(entry => entry.usage);
+}
+
 describe('chat commands', () => {
 	beforeEach(() => {
 		vi.resetModules();
@@ -62,19 +67,21 @@ describe('chat commands', () => {
 
 		it('is only listed by /help once enabled', async () => {
 			const { runCommand } = await load();
-			expect(await runCommand('/help')).not.toContain('/debug');
+			expect(await helpUsages(runCommand)).not.toContain('/debug [on|off]');
 			await runCommand('/debug on');
-			expect(await runCommand('/help')).toContain('/debug');
+			expect(await helpUsages(runCommand)).toContain('/debug [on|off]');
 		});
 	});
 
-	it('/help lists the commands one per line', async () => {
+	it('/help opens the command list rather than posting text', async () => {
 		const { runCommand } = await load();
-		const help = (await runCommand('/help')) ?? '';
+		const usages = await helpUsages(runCommand);
 		for (const name of ['/help', '/version', '/update', '/mute', '/theme', '/clear-cache']) {
-			expect(help).toContain(name);
+			expect(usages.some(usage => usage.startsWith(name))).toBe(true);
 		}
-		expect(help.split('\n').length).toBeGreaterThan(5);
+		const reply = await runCommand('/help');
+		expect(typeof reply).toBe('object');
+		expect((reply as { help: { description: string }[] }).help.every(entry => entry.description)).toBe(true);
 	});
 
 	describe('/mute', () => {

@@ -11,6 +11,14 @@ export interface CommandContext {
 	reload?: () => void;
 }
 
+export interface HelpEntry {
+	usage: string;
+	description: string;
+}
+
+/** Plain text goes in a toast; `help` opens the command list. */
+export type CommandReply = string | { help: HelpEntry[] };
+
 export interface Command {
 	name: string;
 	/** Shown by /help, e.g. "/theme [name]". */
@@ -18,7 +26,7 @@ export interface Command {
 	description: string;
 	/** Takes an optional on|off argument; bare use toggles. Any other argument means it is not a command. */
 	toggle?: boolean;
-	run: (args: string[], context: CommandContext) => string | Promise<string>;
+	run: (args: string[], context: CommandContext) => CommandReply | Promise<CommandReply>;
 }
 
 const MEMBER_COLORS_KEY = 'member_colors';
@@ -32,11 +40,11 @@ export const commands: Command[] = [
 		name: 'help',
 		usage: '/help',
 		description: 'List the available commands',
-		run: () =>
-			commands
+		run: () => ({
+			help: commands
 				.filter(command => command.name !== 'debug' || get(debugEnabled))
-				.map(command => `${command.usage} - ${command.description}`)
-				.join('\n')
+				.map(({ usage, description }) => ({ usage, description }))
+		})
 	},
 	{
 		name: 'version',
@@ -117,7 +125,7 @@ export const commands: Command[] = [
  * Runs `text` if it is a known slash command and returns the reply to show,
  * or null when it is ordinary text (including unknown /words), so it is sent as a message.
  */
-export async function runCommand(text: string, context: CommandContext = {}): Promise<string | null> {
+export async function runCommand(text: string, context: CommandContext = {}): Promise<CommandReply | null> {
 	const match = text.trim().match(/^\/([a-z][a-z-]*)(?:\s+(.*))?$/i);
 	if (!match) return null;
 
