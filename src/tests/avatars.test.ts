@@ -15,7 +15,7 @@ vi.mock('$lib/stores/auth', async () => {
 
 vi.mock('$lib/api/auth', () => ({ fetchAvatar }));
 
-import { avatars, ensureAvatar } from '$lib/stores/avatars';
+import { avatars, ensureAvatar, refreshAvatar } from '$lib/stores/avatars';
 
 const auth = () => authStore.current as ReturnType<typeof writable<{ token: string | null }>>;
 
@@ -152,4 +152,50 @@ describe('avatars store', () => {
 		expect(get(avatars)).toEqual({});
 		expect(created).toEqual([]);
 	});
+
+	it('refreshAvatar refetches immediately and shows the new picture', async () => {
+		fetchMock_(new Blob(['a'], { type: 'image/png' }));
+		ensureAvatar('u1');
+		await flush();
+		expect(get(avatars).u1).toBe('blob:avatar-1');
+
+		fetchMock_(new Blob(['b'], { type: 'image/png' }));
+		refreshAvatar('u1');
+		await flush();
+
+		expect(fetchAvatar).toHaveBeenCalledTimes(2);
+		expect(revoked).toEqual(['blob:avatar-1']);
+		expect(get(avatars).u1).toBe('blob:avatar-2');
+	});
+
+	it('refreshAvatar shows no picture once it was removed', async () => {
+		fetchMock_(new Blob(['a'], { type: 'image/png' }));
+		ensureAvatar('u1');
+		await flush();
+
+		fetchAvatar.mockResolvedValue(null);
+		refreshAvatar('u1');
+		await flush();
+
+		expect(get(avatars).u1).toBeNull();
+	});
+
+	it('refreshAvatar during a request fetches again once it finishes instead of keeping stale data', async () => {
+		let resolveFirst!: (blob: Blob) => void;
+		fetchAvatar.mockReturnValueOnce(new Promise<Blob>((r) => (resolveFirst = r)));
+		fetchAvatar.mockResolvedValueOnce(new Blob(['new'], { type: 'image/png' }));
+
+		ensureAvatar('u1');
+		refreshAvatar('u1');
+		resolveFirst(new Blob(['old'], { type: 'image/png' }));
+		await flush();
+		await flush();
+
+		expect(fetchAvatar).toHaveBeenCalledTimes(2);
+		expect(get(avatars).u1).toBe('blob:avatar-2');
+	});
 });
+
+function fetchMock_(blob: Blob | null) {
+	fetchAvatar.mockResolvedValue(blob);
+}

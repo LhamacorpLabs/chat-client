@@ -72,6 +72,43 @@ export async function fetchAvatar(token: string, userId: string): Promise<Blob |
 	}
 }
 
+const AVATAR_UPLOAD_TIMEOUT_MS = 30000;
+
+async function avatarRequest(token: string, init: RequestInit): Promise<void> {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), AVATAR_UPLOAD_TIMEOUT_MS);
+
+	let response: Response;
+	try {
+		response = await fetch(`${API_URL}/users/current/avatar`, {
+			...init,
+			headers: { Authorization: `Bearer ${token}` },
+			signal: controller.signal
+		});
+	} catch {
+		throw new Error('Could not reach the server. Check your connection and try again.');
+	} finally {
+		clearTimeout(timeoutId);
+	}
+
+	if (response.ok) return;
+
+	if (response.status === 413) throw new Error('That image is too large (maximum 1 MB).');
+
+	const body = await response.json().catch(() => null);
+	throw new Error(body?.message || 'Could not update your profile picture.');
+}
+
+export function uploadAvatar(token: string, file: File): Promise<void> {
+	const body = new FormData();
+	body.append('file', file);
+	return avatarRequest(token, { method: 'PUT', body });
+}
+
+export function removeAvatar(token: string): Promise<void> {
+	return avatarRequest(token, { method: 'DELETE' });
+}
+
 async function postAuth(path: string, init: RequestInit): Promise<Response> {
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);

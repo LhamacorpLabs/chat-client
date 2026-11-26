@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { PUBLIC_AUTH_UI_URL } from '$app/env/public';
 	import { authStore } from '$lib/stores/auth';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { themeId, setTheme, THEME_OPTIONS } from '$lib/stores/theme';
@@ -25,6 +24,7 @@
 		onSelectChat: (id: string) => void;
 		onOpenCreateModal: () => void;
 		onOpenJoinModal: () => void;
+		onOpenAvatarModal: () => void;
 		onLogout: () => void;
 		onRetry?: () => void;
 	}
@@ -43,20 +43,13 @@
 		onSelectChat,
 		onOpenCreateModal,
 		onOpenJoinModal,
+		onOpenAvatarModal,
 		onLogout,
 		onRetry
 	}: Props = $props();
 
 	const username = $derived($authStore.user?.username ?? '');
 	const accountName = $derived(username || '?');
-	function openProfileSettings() {
-		try {
-			window.open(new URL('#profile', PUBLIC_AUTH_UI_URL).href, '_blank', 'noopener,noreferrer');
-		} catch (error) {
-			console.error('Failed to open profile settings:', error);
-		}
-	}
-
 	// Release builds report a semver ("1.2.3" -> "v1.2.3"); dev builds a commit hash.
 	const versionLabel = $derived(/^\d/.test(appVersion) ? `v${appVersion}` : appVersion);
 
@@ -147,14 +140,12 @@
 		</div>
 	</div>
 	<div class="dropdown-separator"></div>
-	{#if PUBLIC_AUTH_UI_URL}
-		<button onclick={() => { openProfileSettings(); close(); }} class="dropdown-item" type="button">
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
-				<circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0116 0" />
-			</svg>
-			<span>Change profile picture</span>
-		</button>
-	{/if}
+	<button onclick={() => { onOpenAvatarModal(); close(); }} class="dropdown-item" type="button">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+			<circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0116 0" />
+		</svg>
+		<span>Change profile picture</span>
+	</button>
 	<button
 		onclick={() => (themesOpen = !themesOpen)}
 		class="dropdown-item"

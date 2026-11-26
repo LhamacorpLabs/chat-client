@@ -15,6 +15,7 @@ export const avatars = writable<Record<string, string | null>>({});
 const entries = new Map<string, Entry>();
 const inflight = new Set<string>();
 const failedAt = new Map<string, number>();
+const dirty = new Set<string>();
 let generation = 0;
 
 function reset() {
@@ -25,6 +26,7 @@ function reset() {
 	entries.clear();
 	inflight.clear();
 	failedAt.clear();
+	dirty.clear();
 	avatars.set({});
 }
 
@@ -50,7 +52,10 @@ async function load(userId: string, token: string) {
 	} catch {
 		if (started === generation) failedAt.set(userId, Date.now());
 	} finally {
-		if (started === generation) inflight.delete(userId);
+		if (started === generation) {
+			inflight.delete(userId);
+			if (dirty.delete(userId)) refreshAvatar(userId);
+		}
 	}
 }
 
@@ -68,4 +73,16 @@ export function ensureAvatar(userId: string | null | undefined): void {
 	if (failed !== undefined && now - failed < RETRY_MS) return;
 
 	void load(userId, token);
+}
+
+export function refreshAvatar(userId: string): void {
+	if (inflight.has(userId)) {
+		dirty.add(userId);
+		return;
+	}
+
+	const entry = entries.get(userId);
+	if (entry) entry.checkedAt = 0;
+	failedAt.delete(userId);
+	ensureAvatar(userId);
 }
