@@ -35,6 +35,7 @@
 	import EmojiAutocomplete from '$lib/components/EmojiAutocomplete.svelte';
 	import { searchAutocomplete } from '$lib/utils/emojis';
 	import { colorForChat } from '$lib/utils/chatAvatar';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import { formatTime, formatFullDateTime, formatDayLabel, isSameDay } from '$lib/utils/time';
 	import { PUBLIC_REALTIME_MODE } from '$app/env/public';
 	import { mergeMessagesWithPerMessageReactions, messagesReactionsChanged, getUserReactionForMessage } from '$lib/utils/reactionUtils';
@@ -1562,7 +1563,7 @@
 				<div class="member-stack" title={currentChat.members.map(m => m.name).join(', ')}>
 					{#each currentChat.members.slice(0, 4) as member (member.id)}
 						<span class="member-avatar" style={`--avatar-color: ${colorForChat(member.id)}`}>
-							{member.name.charAt(0).toUpperCase()}
+							<Avatar userId={member.id} name={member.name} />
 						</span>
 					{/each}
 					{#if currentChat.members.length > 4}
@@ -1743,7 +1744,7 @@
 							{#if !isOwnMessage}
 								<div class="message-gutter">
 									{#if layout?.first}
-										<span class="message-avatar" aria-hidden="true">{message.username.charAt(0).toUpperCase()}</span>
+										<span class="message-avatar" aria-hidden="true"><Avatar userId={message.userId} name={message.username} /></span>
 									{:else}
 										<time class="gutter-time" datetime={message.createdAt}>{formatTime(message.createdAt)}</time>
 									{/if}
