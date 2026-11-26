@@ -109,6 +109,7 @@
 		flex: 1;
 		min-width: 0;
 		line-height: 1.4;
+		white-space: pre-line;
 	}
 
 	.close-btn {
