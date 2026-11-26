@@ -52,6 +52,26 @@ export async function refreshToken(token: string): Promise<import('../types/auth
 	return response.json();
 }
 
+export async function fetchAvatar(token: string, userId: string): Promise<Blob | null> {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+
+	try {
+		const response = await fetch(`${API_URL}/users/${encodeURIComponent(userId)}/avatar`, {
+			headers: { Authorization: `Bearer ${token}` },
+			signal: controller.signal
+		});
+
+		if (response.status === 404) return null;
+		if (!response.ok) throw new Error(`Avatar request failed with status ${response.status}`);
+
+		const blob = await response.blob();
+		return blob.type.startsWith('image/') ? blob : null;
+	} finally {
+		clearTimeout(timeoutId);
+	}
+}
+
 async function postAuth(path: string, init: RequestInit): Promise<Response> {
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
