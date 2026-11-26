@@ -35,3 +35,18 @@ npm run electron:build   # production build (electron-builder)
 **Main page:** `↑↓` navigate chats, `Enter` open, `c` create, `j` join
 
 **Chat:** `i` focus input, `r` reply, `↑↓` navigate messages, `Esc` leave, `Ctrl+q` unfocus input
+
+## Chat Commands
+
+Type these in a chat's message input. Anything else starting with `/` is sent as a normal message.
+
+| Command | Description |
+|---------|-------------|
+| `/help` | List the available commands |
+| `/version` | Show the app version |
+| `/update` | Check for a new desktop app version |
+| `/mute`, `/unmute` | Mute or unmute notifications for the current chat |
+| `/theme [name]` | Switch theme, or list the themes |
+| `/clear-cache` | Clear cached display data and reload (stays signed in) |
+
+Debug mode is hidden until you turn it on with `/debug on` (`/debug off` turns it back off, and `/debug` toggles). While it is on, the debug panel is available from the menu or with `Ctrl/⌘ + Shift + D`.

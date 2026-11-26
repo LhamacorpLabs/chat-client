@@ -10,14 +10,17 @@ function getElectronAPI() {
 	return window.electronAPI;
 }
 
-async function checkForUpdate() {
+/** Resolves to false when the check could not run (no desktop app, or it threw). */
+export async function checkForUpdate(): Promise<boolean> {
 	const electronAPI = getElectronAPI();
-	if (!electronAPI) return;
+	if (!electronAPI) return false;
 
 	try {
 		await electronAPI.updater.check();
+		return true;
 	} catch (e) {
 		console.error('Update check failed:', e);
+		return false;
 	}
 }
 
